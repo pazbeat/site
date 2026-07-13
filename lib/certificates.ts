@@ -123,5 +123,13 @@ export async function fulfillOrder(
       );
   }
 
+  // Синк в Altegio (Фаза 3) — best-effort, не блокирует оплату/доставку.
+  // Сейчас dry-run-лог; боевая запись за флагом ALTEGIO_SYNC.
+  void import("./altegio/sync")
+    .then(({ syncCertificateToAltegio }) =>
+      syncCertificateToAltegio(certificate.id),
+    )
+    .catch((error) => console.error("altegio sync failed (non-fatal)", error));
+
   return { status: "fulfilled", certificateId: certificate.id };
 }
