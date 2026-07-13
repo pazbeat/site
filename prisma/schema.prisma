@@ -1,0 +1,360 @@
+// Модель данных по PRD §8. Деньги — integer, целые тенге.
+// Код сертификата хранится ТОЛЬКО как SHA-256 хэш (codeHash);
+// codeDisplay — маскированное представление для админки.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProgramCategory {
+  massage
+  spa
+  set
+}
+
+enum CertificateType {
+  nominal
+  program
+}
+
+enum CertificateStatus {
+  active
+  partially_used
+  used
+  expired
+  refunded
+  blocked
+}
+
+enum OrderStatus {
+  pending
+  paid
+  expired
+  cancelled
+  refunded
+}
+
+enum PaymentProvider {
+  kaspi
+  freedom
+}
+
+enum DeliveryMethod {
+  email
+  whatsapp
+}
+
+enum AltegioSyncStatus {
+  pending
+  synced
+  failed
+}
+
+enum LegalDocType {
+  offer
+  privacy
+  rules
+  consent_modal
+}
+
+enum PromoKind {
+  percent
+  fixed
+}
+
+enum RedemptionSource {
+  altegio
+  admin
+}
+
+enum CorporateStatus {
+  new
+  in_progress
+  closed
+}
+
+enum AdminRole {
+  superadmin
+  manager
+}
+
+model Salon {
+  id                Int           @id @default(autoincrement())
+  city              String
+  name              String
+  address           String
+  phone             String
+  altegioLocationId Int?          @map("altegio_location_id")
+  /// Префикс серийного номера сертификата (WM, WT, WR…), уникален по салону
+  codePrefix        String?       @unique @map("code_prefix")
+  /// Счётчик выданных серийных номеров этого салона (атомарный инкремент)
+  lastCertSerial    Int           @default(0) @map("last_cert_serial")
+  active            Boolean       @default(true)
+  sort              Int           @default(0)
+  orders            Order[]
+  certificates      Certificate[]
+  redemptions       Redemption[]
+
+  @@map("salons")
+}
+
+model Program {
+  id           Int             @id @default(autoincrement())
+  category     ProgramCategory
+  /// {ru, kk, en}
+  names        Json
+  /// {ru, kk, en}
+  descriptions Json
+  photoUrl     String?         @map("photo_url")
+  popular      Boolean         @default(false)
+  active       Boolean         @default(true)
+  /// Города доступности; пустой массив = вся сеть
+  cities       String[]        @default([])
+  sort         Int             @default(0)
+  options      ProgramOption[]
+
+  @@map("programs")
+}
+
+model ProgramOption {
+  id           Int           @id @default(autoincrement())
+  programId    Int           @map("program_id")
+  program      Program       @relation(fields: [programId], references: [id])
+  /// Длительность в минутах (для программ по времени)
+  durationMin  Int?          @map("duration_min")
+  /// Число гостей (для SPA-программ на компанию)
+  persons      Int?
+  priceKzt     Int           @map("price_kzt")
+  certificates Certificate[]
+
+  @@map("program_options")
+}
+
+model Nominal {
+  id        Int     @id @default(autoincrement())
+  amountKzt Int     @map("amount_kzt")
+  /// Метка вида «Хит»
+  label     String?
+  active    Boolean @default(true)
+  sort      Int     @default(0)
+
+  @@map("nominals")
+}
+
+model Design {
+  id           Int           @id @default(autoincrement())
+  /// {ru, kk, en}
+  names        Json
+  /// Параметры внешнего вида: фон/градиент из фирменной палитры и т.п.
+  bgStyle      Json          @map("bg_style")
+  textColor    String        @map("text_color")
+  artworkId    String?       @map("artwork_id")
+  active       Boolean       @default(true)
+  sort         Int           @default(0)
+  certificates Certificate[]
+
+  @@map("designs")
+}
+
+model LegalDocument {
+  id               Int            @id @default(autoincrement())
+  type             LegalDocType   @unique
+  currentVersionId Int?           @unique @map("current_version_id")
+  currentVersion   LegalVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  versions         LegalVersion[] @relation("DocumentVersions")
+
+  @@map("legal_documents")
+}
+
+/// Версии неизменяемы: каждое сохранение в админке создаёт новую запись,
+/// на старые ссылаются записи согласий покупателей.
+model LegalVersion {
+  id                   Int            @id @default(autoincrement())
+  documentId           Int            @map("document_id")
+  document             LegalDocument  @relation("DocumentVersions", fields: [documentId], references: [id])
+  contentHtmlSanitized String         @map("content_html_sanitized")
+  lang                 String         @default("ru")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  authorId             Int?           @map("author_id")
+  author               AdminUser?     @relation(fields: [authorId], references: [id])
+  currentOf            LegalDocument? @relation("CurrentVersion")
+
+  @@map("legal_versions")
+}
+
+model Order {
+  id              String           @id @default(cuid())
+  status          OrderStatus      @default(pending)
+  salonId         Int              @map("salon_id")
+  salon           Salon            @relation(fields: [salonId], references: [id])
+  buyerEmail      String           @map("buyer_email")
+  buyerPhone      String?          @map("buyer_phone")
+  amountKzt       Int              @map("amount_kzt")
+  promoId         Int?             @map("promo_id")
+  promo           Promo?           @relation(fields: [promoId], references: [id])
+  paymentProvider PaymentProvider? @map("payment_provider")
+  paymentId       String?          @map("payment_id")
+  /// {versions: {offer, privacy, rules, consent_modal}, ip, ua, ts} —
+  /// юридическое требование (PRD §5.2): без согласия заказ не создаётся
+  consent         Json
+  /// Снапшот выбора покупателя (тип, вариант/номинал, дизайн, персонализация,
+  /// доставка) — из него после подтверждения оплаты создаётся Certificate
+  item            Json
+  /// Токен страницы успеха: передаётся в success_url провайдера,
+  /// авторизует покупателя на одноразовый показ кода
+  successToken    String           @unique @default(cuid()) @map("success_token")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  certificates    Certificate[]
+
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model Certificate {
+  id                String            @id @default(cuid())
+  orderId           String            @map("order_id")
+  order             Order             @relation(fields: [orderId], references: [id])
+  salonId           Int               @map("salon_id")
+  salon             Salon             @relation(fields: [salonId], references: [id])
+  /// SHA-256 хэш кода IMB-XXXX-XXXX; открытый код нигде не хранится
+  codeHash          String            @unique @map("code_hash")
+  /// Маскированный код для отображения в админке (IMB-••••-••XX)
+  codeDisplay       String            @map("code_display")
+  /// Внутренний серийный номер по салону (WM001…): для админки и Altegio,
+  /// покупателю НЕ показывается. Публичный код — только случайный IMB-…
+  serial            String?           @unique
+  /// AES-GCM-шифрованный открытый код: нужен доставке (PDF/email) и
+  /// повторной отправке из админки. Одноразовость показа покупателю
+  /// обеспечивается claimedAt, а не удалением шифртекста.
+  codeEncrypted     String?           @map("code_encrypted")
+  /// Момент одноразового показа кода на странице успеха (PRD §8)
+  claimedAt         DateTime?         @map("claimed_at")
+  type              CertificateType
+  programOptionId   Int?              @map("program_option_id")
+  programOption     ProgramOption?    @relation(fields: [programOptionId], references: [id])
+  amountKzt         Int?              @map("amount_kzt")
+  balanceKzt        Int               @map("balance_kzt")
+  designId          Int               @map("design_id")
+  design            Design            @relation(fields: [designId], references: [id])
+  toName            String            @map("to_name")
+  fromName          String            @map("from_name")
+  /// Поздравление ≤ 120 символов (валидируется Zod'ом)
+  message           String?
+  status            CertificateStatus @default(active)
+  deliveryMethod    DeliveryMethod    @map("delivery_method")
+  deliveryContact   String            @map("delivery_contact")
+  scheduledAt       DateTime?         @map("scheduled_at")
+  sentAt            DateTime?         @map("sent_at")
+  validUntil        DateTime          @map("valid_until")
+  /// Отметки об отправленных напоминаниях об истечении (Фаза 2, PRD §6.7)
+  reminder30SentAt  DateTime?         @map("reminder_30_sent_at")
+  reminder7SentAt   DateTime?         @map("reminder_7_sent_at")
+  altegioSyncStatus AltegioSyncStatus @default(pending) @map("altegio_sync_status")
+  altegioCertId     String?           @map("altegio_certificate_id")
+  altegioSyncedAt   DateTime?         @map("altegio_synced_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  redemptions       Redemption[]
+
+  @@index([status, validUntil])
+  @@map("certificates")
+}
+
+model Redemption {
+  id            String           @id @default(cuid())
+  certificateId String           @map("certificate_id")
+  certificate   Certificate      @relation(fields: [certificateId], references: [id])
+  amountKzt     Int              @map("amount_kzt")
+  salonId       Int?             @map("salon_id")
+  salon         Salon?           @relation(fields: [salonId], references: [id])
+  source        RedemptionSource
+  /// Кто провёл погашение: admin user email или идентификатор Altegio
+  actor         String
+  /// Ключ идемпотентности (повторный вебхук не создаёт второе погашение)
+  idemKey       String           @unique @map("idem_key")
+  comment       String?
+  createdAt     DateTime         @default(now()) @map("created_at")
+  rolledBackAt  DateTime?        @map("rolled_back_at")
+
+  @@map("redemptions")
+}
+
+model Promo {
+  id     Int       @id @default(autoincrement())
+  code   String    @unique
+  kind   PromoKind
+  value  Int
+  /// {maxUses, validFrom, validUntil, minAmountKzt}
+  limits Json
+  active Boolean   @default(true)
+  orders Order[]
+
+  @@map("promos")
+}
+
+model CorporateRequest {
+  id        String          @id @default(cuid())
+  company   String
+  contact   String
+  qty       Int
+  comment   String?
+  status    CorporateStatus @default(new)
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  @@map("corporate_requests")
+}
+
+model AdminUser {
+  id             Int            @id @default(autoincrement())
+  email          String         @unique
+  /// argon2id
+  passwordHash   String         @map("password_hash")
+  role           AdminRole
+  /// AES-GCM-шифрованный TOTP-секрет; 2FA обязательна (PRD §9.3)
+  totpSecret     String?        @map("totp_secret")
+  active         Boolean        @default(true)
+  /// Блокировка перебора: 5 неудачных попыток → 15 минут (PRD §9.3)
+  failedAttempts Int            @default(0) @map("failed_attempts")
+  lockedUntil    DateTime?      @map("locked_until")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  legalVersions  LegalVersion[]
+
+  @@map("admin_users")
+}
+
+model ApiKey {
+  id         Int       @id @default(autoincrement())
+  name       String
+  keyHash    String    @unique @map("key_hash")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("api_keys")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  diff      Json?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entity, entityId])
+  @@map("audit_log")
+}
+
+/// Настройки (PRD §6.8): срок действия сертификатов, контакты, реквизиты
+model Setting {
+  key   String @id
+  value Json
+
+  @@map("settings")
+}

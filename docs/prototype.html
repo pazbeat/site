@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Imbir Thai Spa — Электронные подарочные сертификаты</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prata&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --emerald:#0e3b2e; --emerald-2:#14523f; --emerald-3:#1d6b52;
+  --gold:#c9a25c; --gold-2:#e6cf9a; --cream:#f7f2e9; --cream-2:#fdfbf6;
+  --ink:#1d2521; --muted:#6d7a72; --line:#e6e0d2;
+  --r:18px; --shadow:0 10px 40px rgba(14,59,46,.10);
+  --font-d:'Prata',serif; --font-b:'Manrope',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-b);background:var(--cream);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.display{font-family:var(--font-d);font-weight:400;line-height:1.2}
+img{max-width:100%}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:15px}
+a{color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+.hidden{display:none!important}
+
+/* ---------- NAV ---------- */
+nav{position:sticky;top:0;z-index:50;background:rgba(247,242,233,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.nav-in{display:flex;align-items:center;gap:26px;height:66px}
+.logo{font-family:var(--font-d);font-size:21px;color:var(--emerald);letter-spacing:.5px;cursor:pointer;white-space:nowrap}
+.logo em{font-style:normal;color:var(--gold)}
+.nav-links{display:flex;gap:4px;margin-left:auto}
+.nav-links button{background:none;border:none;font-size:14.5px;font-weight:600;color:var(--ink);padding:9px 14px;border-radius:99px;transition:.2s}
+.nav-links button:hover{background:rgba(14,59,46,.07)}
+.nav-links button.active{background:var(--emerald);color:#fff}
+.lang{display:flex;gap:2px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:3px}
+.lang button{border:none;background:none;font-size:12.5px;font-weight:700;padding:5px 10px;border-radius:99px;color:var(--muted)}
+.lang button.active{background:var(--gold);color:#fff}
+.burger{display:none;background:none;border:none;font-size:26px;color:var(--emerald);margin-left:auto}
+
+/* ---------- HERO ---------- */
+.hero{position:relative;overflow:hidden;background:
+  radial-gradient(1100px 500px at 85% -10%, rgba(201,162,92,.25), transparent 60%),
+  radial-gradient(900px 600px at -10% 110%, rgba(29,107,82,.28), transparent 55%),
+  linear-gradient(160deg,var(--emerald) 0%, var(--emerald-2) 60%, #0c3428 100%);
+  color:#fff}
+.hero-in{display:grid;grid-template-columns:1.1fr .9fr;gap:50px;align-items:center;padding:78px 0 86px}
+.hero .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold-2);margin-bottom:20px}
+.hero .eyebrow::before{content:"";width:34px;height:1px;background:var(--gold)}
+.hero h1{font-size:clamp(34px,4.6vw,56px);margin-bottom:22px}
+.hero h1 em{font-style:italic;color:var(--gold-2)}
+.hero p{font-size:17px;color:rgba(255,255,255,.82);max-width:520px;margin-bottom:34px}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:none;border-radius:99px;padding:15px 30px;font-size:15.5px;font-weight:700;transition:.25s}
+.btn-gold{background:linear-gradient(120deg,var(--gold),#b8904a);color:#fff;box-shadow:0 8px 26px rgba(201,162,92,.4)}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(201,162,92,.55)}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.btn-ghost:hover{background:rgba(255,255,255,.2)}
+.btn-green{background:var(--emerald);color:#fff}
+.btn-green:hover{background:var(--emerald-3)}
+.btn-outline{background:#fff;color:var(--emerald);border:1.5px solid var(--emerald)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
+.hero-stats{display:flex;gap:38px;margin-top:44px;flex-wrap:wrap}
+.hero-stats b{display:block;font-family:var(--font-d);font-size:27px;color:var(--gold-2)}
+.hero-stats span{font-size:13px;color:rgba(255,255,255,.65)}
+
+/* floating cert in hero */
+.hero-card{position:relative;transform:rotate(-3deg)}
+.cert-float{animation:floaty 5s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+
+/* ---------- CERT CARD (shared preview) ---------- */
+.cert{aspect-ratio:16/9.6;border-radius:20px;padding:26px 30px;position:relative;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;justify-content:space-between;color:#fff}
+.cert::after{content:"";position:absolute;inset:10px;border:1px solid rgba(255,255,255,.35);border-radius:14px;pointer-events:none}
+.cert .c-orn{position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 70%)}
+.cert .c-brand{font-family:var(--font-d);font-size:16px;letter-spacing:1.5px}
+.cert .c-brand small{display:block;font-family:var(--font-b);font-size:9.5px;letter-spacing:3.5px;text-transform:uppercase;opacity:.75;margin-top:2px}
+.cert .c-title{font-family:var(--font-d);font-size:clamp(17px,2.2vw,24px);line-height:1.25}
+.cert .c-sub{font-size:12px;opacity:.8;margin-top:4px}
+.cert .c-foot{display:flex;justify-content:space-between;align-items:flex-end;font-size:11px;opacity:.9}
+.cert .c-code{font-weight:700;letter-spacing:1.5px}
+.theme-emerald{background:linear-gradient(135deg,#0e3b2e,#1d6b52 55%,#0e3b2e);}
+.theme-emerald .c-title,.theme-emerald .c-brand{color:#f0e3c0}
+.theme-gold{background:linear-gradient(135deg,#b8904a,#e6cf9a 50%,#c9a25c);color:#4a3512}
+.theme-gold::after{border-color:rgba(74,53,18,.35)}
+.theme-orchid{background:linear-gradient(135deg,#4a1d3f,#8e3a6d 55%,#5c2450)}
+.theme-orchid .c-title,.theme-orchid .c-brand{color:#f3d9e8}
+.theme-night{background:linear-gradient(135deg,#101820,#24384a 55%,#131c26)}
+.theme-night .c-title,.theme-night .c-brand{color:#d9c491}
+
+/* ---------- SECTIONS ---------- */
+section{padding:74px 0}
+.sec-head{text-align:center;max-width:640px;margin:0 auto 46px}
+.sec-head .eyebrow{font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:12px;display:block}
+.sec-head h2{font-size:clamp(27px,3.4vw,38px);color:var(--emerald)}
+.sec-head p{color:var(--muted);margin-top:12px;font-size:15.5px}
+
+/* steps how it works */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.step{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:28px 24px;text-align:center;transition:.25s}
+.step:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+.step .ico{width:54px;height:54px;margin:0 auto 16px;border-radius:16px;background:linear-gradient(135deg,var(--emerald),var(--emerald-3));display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
+.step b{display:block;font-size:15.5px;margin-bottom:6px}
+.step span{font-size:13.5px;color:var(--muted)}
+
+/* nominal cards */
+.nominals{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.nom{background:#fff;border:1.5px solid var(--line);border-radius:var(--r);padding:26px 22px;text-align:center;cursor:pointer;transition:.22s;position:relative}
+.nom:hover{border-color:var(--gold);transform:translateY(-3px);box-shadow:var(--shadow)}
+.nom .amt{font-family:var(--font-d);font-size:26px;color:var(--emerald)}
+.nom .lbl{font-size:12.5px;color:var(--muted);margin-top:5px}
+.nom .tag{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--gold);color:#fff;font-size:10.5px;font-weight:800;letter-spacing:1px;padding:4px 12px;border-radius:99px;text-transform:uppercase;white-space:nowrap}
+
+/* ---------- CATALOG ---------- */
+.filters{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:9px 18px;font-size:13.5px;font-weight:600;color:var(--ink);transition:.2s}
+.chip:hover{border-color:var(--gold)}
+.chip.active{background:var(--emerald);border-color:var(--emerald);color:#fff}
+.sort-row{display:flex;justify-content:center;gap:12px;margin-bottom:34px;flex-wrap:wrap}
+.sort-row select{border:1.5px solid var(--line);border-radius:99px;padding:9px 16px;background:#fff;font-size:13.5px;font-weight:600;color:var(--ink);outline:none}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.pcard{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:.25s}
+.pcard:hover{transform:translateY(-5px);box-shadow:var(--shadow)}
+.pcard .ph{height:130px;position:relative;display:flex;align-items:flex-end;padding:16px}
+.pcard .ph .cat{background:rgba(255,255,255,.92);color:var(--emerald);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:99px}
+.pcard .body{padding:20px 22px 22px;display:flex;flex-direction:column;flex:1}
+.pcard h3{font-size:19px;color:var(--emerald);margin-bottom:4px}
+.pcard .desc{font-size:13.5px;color:var(--muted);margin-bottom:14px;flex:1}
+.opts{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.opt{display:flex;justify-content:space-between;align-items:center;border:1.5px solid var(--line);border-radius:12px;padding:9px 14px;font-size:13.5px;cursor:pointer;transition:.15s}
+.opt:hover{border-color:var(--gold)}
+.opt.sel{border-color:var(--emerald);background:rgba(14,59,46,.05)}
+.opt b{color:var(--emerald)}
+.pcard .btn{width:100%;padding:12px}
+.g1{background:linear-gradient(135deg,#14523f,#2b7a5f)}
+.g2{background:linear-gradient(135deg,#8a5a2b,#c9a25c)}
+.g3{background:linear-gradient(135deg,#4a1d3f,#8e3a6d)}
+.g4{background:linear-gradient(135deg,#1b3a4a,#3b6f88)}
+.g5{background:linear-gradient(135deg,#5d4210,#a3852f)}
+.g6{background:linear-gradient(135deg,#28352f,#4d6457)}
+
+/* ---------- BUILDER ---------- */
+.builder{display:grid;grid-template-columns:1fr 420px;gap:38px;align-items:start}
+.b-steps{display:flex;gap:6px;margin-bottom:30px;flex-wrap:wrap}
+.b-step{flex:1;min-width:90px;text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:10px 6px;border-bottom:3px solid var(--line);transition:.25s;white-space:nowrap}
+.b-step.active{color:var(--emerald);border-color:var(--gold)}
+.b-step.done{color:var(--emerald-3);border-color:var(--emerald-3)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:30px;box-shadow:var(--shadow)}
+.panel h3{font-size:22px;color:var(--emerald);margin-bottom:6px}
+.panel .hint{font-size:13.5px;color:var(--muted);margin-bottom:22px}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}
+.field input,.field select,.field textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;outline:none;transition:.2s;background:#fff}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold)}
+.field textarea{resize:vertical;min-height:84px}
+.field .cnt{font-size:11.5px;color:var(--muted);text-align:right;margin-top:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.seg{display:flex;gap:10px;flex-wrap:wrap}
+.seg button{flex:1;min-width:120px;border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:14px;font-size:14px;font-weight:700;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.seg button small{font-weight:500;font-size:12px;color:var(--muted)}
+.seg button.active{border-color:var(--emerald);background:rgba(14,59,46,.06);color:var(--emerald)}
+.themes{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.theme-pick{border:2.5px solid transparent;border-radius:14px;padding:3px;cursor:pointer;transition:.2s}
+.theme-pick.active{border-color:var(--gold)}
+.theme-pick .swatch{height:64px;border-radius:10px}
+.theme-pick span{display:block;text-align:center;font-size:11.5px;font-weight:700;margin-top:5px;color:var(--muted)}
+.amount-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.amount-grid button{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:13px;font-weight:700;font-size:15px;transition:.2s}
+.amount-grid button.active{border-color:var(--emerald);background:rgba(14,59,46,.06);color:var(--emerald)}
+.b-nav{display:flex;justify-content:space-between;margin-top:26px;gap:12px}
+.preview-sticky{position:sticky;top:90px}
+.preview-note{text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px}
+.summary{background:var(--cream-2);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-top:18px}
+.summary .srow{display:flex;justify-content:space-between;font-size:13.5px;padding:5px 0}
+.summary .srow.total{border-top:1px solid var(--line);margin-top:8px;padding-top:12px;font-weight:800;font-size:15.5px;color:var(--emerald)}
+
+/* payment */
+.pay-methods{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+.pay-methods button{border:2px solid var(--line);background:#fff;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:8px;font-weight:800;font-size:15px;transition:.2s}
+.pay-methods button.active{border-color:var(--emerald);background:rgba(14,59,46,.05)}
+.kaspi-badge{background:#f14635;color:#fff;font-size:13px;font-weight:800;padding:6px 16px;border-radius:8px;letter-spacing:.5px}
+.card-badge{display:flex;gap:6px;font-size:12px;font-weight:800}
+.card-badge i{font-style:normal;background:var(--cream);border:1px solid var(--line);padding:5px 10px;border-radius:8px}
+
+/* success */
+.success{text-align:center;max-width:640px;margin:0 auto}
+.success .check{width:84px;height:84px;margin:0 auto 24px;border-radius:50%;background:linear-gradient(135deg,var(--emerald),var(--emerald-3));color:#fff;font-size:38px;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 40px rgba(14,59,46,.35);animation:pop .5s cubic-bezier(.6,1.6,.4,1)}
+@keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
+.success h2{font-size:32px;color:var(--emerald);margin-bottom:10px}
+.success p{color:var(--muted);margin-bottom:26px}
+.success .cert{max-width:520px;margin:0 auto 26px}
+.code-pill{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1.5px dashed var(--gold);border-radius:12px;padding:12px 22px;font-weight:800;font-size:17px;letter-spacing:2px;color:var(--emerald);margin-bottom:26px}
+.code-pill button{border:none;background:var(--cream);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700}
+
+/* check page */
+.check-box{max-width:520px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:36px;box-shadow:var(--shadow)}
+.check-result{margin-top:22px;border-radius:14px;padding:20px;font-size:14.5px}
+.check-result.ok{background:rgba(29,107,82,.09);border:1px solid rgba(29,107,82,.3)}
+.check-result.bad{background:rgba(200,60,50,.07);border:1px solid rgba(200,60,50,.25);color:#8c2f27}
+.check-result .srow{display:flex;justify-content:space-between;padding:4px 0}
+
+/* faq */
+.faq{max-width:760px;margin:0 auto}
+.faq details{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.faq summary{padding:18px 22px;font-weight:700;font-size:15px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+.faq summary::after{content:"+";font-size:22px;color:var(--gold);transition:.25s}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq .fa-body{padding:0 22px 18px;font-size:14px;color:var(--muted)}
+
+/* footer */
+footer{background:var(--emerald);color:rgba(255,255,255,.8);padding:54px 0 34px;margin-top:20px}
+.f-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:34px;margin-bottom:36px}
+footer h4{color:#fff;font-family:var(--font-d);font-size:17px;margin-bottom:14px}
+footer li{list-style:none;font-size:13.5px;margin-bottom:8px}
+footer a{text-decoration:none;transition:.2s}
+footer a:hover{color:var(--gold-2)}
+.f-bottom{border-top:1px solid rgba(255,255,255,.15);padding-top:22px;font-size:12.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;color:rgba(255,255,255,.5)}
+.wa-fab{position:fixed;right:22px;bottom:22px;z-index:60;width:56px;height:56px;border-radius:50%;background:#25d366;color:#fff;display:flex;align-items:center;justify-content:center;font-size:27px;text-decoration:none;box-shadow:0 10px 30px rgba(37,211,102,.45);transition:.25s}
+.wa-fab:hover{transform:scale(1.08)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(80px);background:var(--emerald);color:#fff;padding:13px 26px;border-radius:99px;font-size:14px;font-weight:600;z-index:99;opacity:0;transition:.35s;box-shadow:0 12px 34px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* responsive */
+@media(max-width:980px){
+  .hero-in{grid-template-columns:1fr;padding:52px 0 60px}
+  .hero-card{max-width:480px;margin:0 auto}
+  .steps,.nominals{grid-template-columns:repeat(2,1fr)}
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .builder{grid-template-columns:1fr}
+  .preview-sticky{position:static;max-width:520px;margin:0 auto}
+  .f-grid{grid-template-columns:1fr 1fr}
+  .nav-links{display:none;position:absolute;top:66px;left:0;right:0;background:var(--cream-2);flex-direction:column;padding:14px;border-bottom:1px solid var(--line)}
+  .nav-links.open{display:flex}
+  .burger{display:block}
+}
+@media(max-width:600px){
+  .grid,.steps,.nominals,.themes,.pay-methods,.row2,.amount-grid{grid-template-columns:1fr}
+  .themes{grid-template-columns:repeat(2,1fr)}
+  section{padding:52px 0}
+  .panel{padding:22px}
+}
+/* ================= V2 · WOW-ЭФФЕКТЫ ================= */
+.hero{isolation:isolate}
+.hero-bg{position:absolute;inset:0;z-index:-1;background:url('https://www.imbir.kz/wp-content/uploads/2015/02/m1-800x600.jpg') center/cover;opacity:.30;animation:kenburns 24s ease-in-out infinite alternate;filter:saturate(.85) brightness(.9)}
+.hero-veil{position:absolute;inset:0;z-index:-1;background:radial-gradient(900px 500px at 30% 40%,transparent,rgba(8,32,24,.72) 85%)}
+@keyframes kenburns{from{transform:scale(1)}to{transform:scale(1.16) translate(2%,-2%)}}
+#petalsCv{position:absolute;inset:0;z-index:0;pointer-events:none}
+.hero-in{position:relative;z-index:1}
+.hero h1{font-size:clamp(38px,5.2vw,64px)}
+.hero h1 em{font-style:italic;background:linear-gradient(90deg,#e8d19a,#fff6dd 30%,#caa35d 60%,#e8d19a);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shineText 4s linear infinite}
+@keyframes shineText{to{background-position:200% center}}
+.btn{position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;top:0;left:-90%;width:55%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-20deg)}
+.btn:hover::after{animation:sweep .75s ease}
+@keyframes sweep{from{left:-90%}to{left:135%}}
+.rv{opacity:0;transform:translateY(32px) scale(.985);transition:opacity .75s ease,transform .75s cubic-bezier(.2,.7,.3,1)}
+.rv.on{opacity:1;transform:none}
+.view-anim{animation:viewIn .5s cubic-bezier(.2,.7,.3,1)}
+@keyframes viewIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.marquee{overflow:hidden;background:var(--emerald);border-top:1px solid rgba(255,255,255,.09);padding:14px 0}
+.mq-track{display:inline-flex;white-space:nowrap;animation:mq 32s linear infinite;color:var(--gold-2);font-size:12.5px;letter-spacing:3px;text-transform:uppercase;font-weight:700}
+@keyframes mq{to{transform:translateX(-50%)}}
+.sec-head .eyebrow::before,.sec-head .eyebrow::after{content:"✦";margin:0 12px;color:var(--gold);font-size:11px;vertical-align:1px}
+.pcard .ph{height:200px;overflow:hidden}
+.pcard .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .8s cubic-bezier(.2,.7,.3,1)}
+.pcard:hover .ph img{transform:scale(1.1) rotate(.5deg)}
+.pcard .ph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,25,18,.05) 35%,rgba(8,25,18,.58))}
+.pcard .ph .cat{position:relative;z-index:1}
+.ph-orn{position:absolute;right:-16px;top:-22px;font-size:120px;line-height:1;opacity:.16;color:#fff;pointer-events:none}
+.price-badge{position:absolute;right:14px;bottom:14px;z-index:1;background:linear-gradient(120deg,var(--gold),#b8904a);color:#fff;font-weight:800;font-size:12.5px;padding:6px 14px;border-radius:99px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.pcard h3{transition:.25s}
+.pcard:hover h3{color:var(--gold)}
+.cert::before{content:"";position:absolute;inset:0;z-index:2;background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.22) 46%,transparent 60%);background-size:260% 260%;animation:foil 5.5s ease-in-out infinite;pointer-events:none;border-radius:20px}
+@keyframes foil{0%{background-position:130% 0}55%{background-position:-70% 0}100%{background-position:-70% 0}}
+.cert .c-lotus{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:130px;opacity:.09;pointer-events:none}
+.tilt{transition:transform .18s ease-out;will-change:transform}
+#confettiCv{position:fixed;inset:0;z-index:97;pointer-events:none}
+.step .ico{transition:.35s cubic-bezier(.3,1.4,.4,1)}
+.step:hover .ico{transform:rotate(-8deg) scale(1.15)}
+.nom .amt{transition:.25s}
+.nom:hover .amt{background:linear-gradient(90deg,var(--gold),#8a6a2f);-webkit-background-clip:text;background-clip:text;color:transparent}
+::-webkit-scrollbar{width:11px}
+::-webkit-scrollbar-track{background:var(--cream)}
+::-webkit-scrollbar-thumb{background:linear-gradient(var(--gold),var(--emerald-3));border-radius:8px;border:3px solid var(--cream)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{
+  body *{visibility:hidden}
+  #printCert,#printCert *{visibility:visible}
+  #printCert{display:flex!important;position:fixed;inset:0;align-items:center;justify-content:center;padding:40px}
+  #printCert .cert{width:100%;max-width:640px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <div class="logo" onclick="go('home')">IMBIR <em>·</em> Thai Spa</div>
+    <button class="burger" onclick="document.getElementById('navlinks').classList.toggle('open')">☰</button>
+    <div class="nav-links" id="navlinks">
+      <button data-nav="home" onclick="go('home')" data-i18n="nav_home"></button>
+      <button data-nav="catalog" onclick="go('catalog')" data-i18n="nav_catalog"></button>
+      <button data-nav="builder" onclick="go('builder')" data-i18n="nav_builder"></button>
+      <button data-nav="check" onclick="go('check')" data-i18n="nav_check"></button>
+    </div>
+    <div class="lang" id="langSwitch">
+      <button data-lang="ru" onclick="setLang('ru')">RU</button>
+      <button data-lang="kz" onclick="setLang('kz')">KZ</button>
+      <button data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= HOME ================= -->
+<div id="view-home">
+  <header class="hero" id="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-veil"></div>
+    <canvas id="petalsCv"></canvas>
+    <div class="wrap hero-in">
+      <div>
+        <span class="eyebrow" data-i18n="hero_eyebrow"></span>
+        <h1 data-i18n-html="hero_title"></h1>
+        <p data-i18n="hero_sub"></p>
+        <div class="hero-cta">
+          <button class="btn btn-gold" onclick="go('builder')" data-i18n="hero_cta1"></button>
+          <button class="btn btn-ghost" onclick="go('catalog')" data-i18n="hero_cta2"></button>
+        </div>
+        <div class="hero-stats">
+          <div><b data-count="7">0</b><span data-i18n="stat_salons"></span></div>
+          <div><b data-count="5">0</b><span data-i18n="stat_cities"></span></div>
+          <div><b data-count="10" data-suffix="+">0</b><span data-i18n="stat_years"></span></div>
+          <div><b>2 <span style="font-size:15px" data-i18n="stat_min_u"></span></b><span data-i18n="stat_min"></span></div>
+        </div>
+      </div>
+      <div class="hero-card cert-float" id="heroTilt">
+        <div class="cert theme-emerald">
+        <span class="c-lotus">❀</span>
+          <div class="c-orn"></div>
+          <div class="c-brand">IMBIR THAI SPA<small data-i18n="cert_gift"></small></div>
+          <div>
+            <div class="c-title" data-i18n="hero_cert_title"></div>
+            <div class="c-sub" data-i18n="hero_cert_sub"></div>
+          </div>
+          <div class="c-foot">
+            <span data-i18n="hero_cert_for"></span>
+            <span class="c-code">IMB-2407-A9F3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="marquee"><div class="mq-track" id="mqTrack"></div></div>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow" data-i18n="how_eyebrow"></span>
+        <h2 data-i18n="how_title"></h2>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="ico">🌿</div><b data-i18n="how1_t"></b><span data-i18n="how1_d"></span></div>
+        <div class="step"><div class="ico">🎨</div><b data-i18n="how2_t"></b><span data-i18n="how2_d"></span></div>
+        <div class="step"><div class="ico">💳</div><b data-i18n="how3_t"></b><span data-i18n="how3_d"></span></div>
+        <div class="step"><div class="ico">🎁</div><b data-i18n="how4_t"></b><span data-i18n="how4_d"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow" data-i18n="nom_eyebrow"></span>
+        <h2 data-i18n="nom_title"></h2>
+        <p data-i18n="nom_sub"></p>
+      </div>
+      <div class="nominals" id="nominalCards"></div>
+    </div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow" data-i18n="pop_eyebrow"></span>
+        <h2 data-i18n="pop_title"></h2>
+      </div>
+      <div class="grid" id="popularGrid"></div>
+      <div style="text-align:center;margin-top:34px">
+        <button class="btn btn-outline" onclick="go('catalog')" data-i18n="pop_all"></button>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">FAQ</span>
+        <h2 data-i18n="faq_title"></h2>
+      </div>
+      <div class="faq" id="faqList"></div>
+    </div>
+  </section>
+</div>
+
+<!-- ================= CATALOG ================= -->
+<div id="view-catalog" class="hidden">
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow" data-i18n="cat_eyebrow"></span>
+        <h2 data-i18n="cat_title"></h2>
+        <p data-i18n="cat_sub"></p>
+      </div>
+      <div class="filters" id="catFilters"></div>
+      <div class="sort-row">
+        <select id="sortSel" onchange="renderCatalog()"></select>
+        <select id="durSel" onchange="renderCatalog()"></select>
+      </div>
+      <div class="grid" id="catalogGrid"></div>
+    </div>
+  </section>
+</div>
+
+<!-- ================= BUILDER ================= -->
+<div id="view-builder" class="hidden">
+  <section>
+    <div class="wrap">
+      <div class="sec-head" style="margin-bottom:30px">
+        <span class="eyebrow" data-i18n="b_eyebrow"></span>
+        <h2 data-i18n="b_title"></h2>
+      </div>
+      <div class="b-steps" id="bSteps"></div>
+      <div class="builder">
+        <div id="bPanel" class="panel"></div>
+        <div class="preview-sticky">
+          <div id="livePreview"></div>
+          <div class="preview-note" data-i18n="b_preview_note"></div>
+          <div class="summary" id="bSummary"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ================= SUCCESS ================= -->
+<div id="view-success" class="hidden">
+  <section>
+    <div class="wrap success">
+      <div class="check">✓</div>
+      <h2 data-i18n="s_title"></h2>
+      <p data-i18n="s_sub"></p>
+      <div id="successCert"></div>
+      <div class="code-pill"><span id="finalCode"></span><button onclick="copyCode()" data-i18n="s_copy"></button></div>
+      <div class="hero-cta" style="justify-content:center">
+        <button class="btn btn-green" onclick="window.print()" data-i18n="s_download"></button>
+        <a class="btn btn-gold" id="waShare" target="_blank" style="text-decoration:none" data-i18n="s_wa"></a>
+        <button class="btn btn-outline" onclick="resetBuilder();go('home')" data-i18n="s_more"></button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ================= CHECK ================= -->
+<div id="view-check" class="hidden">
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow" data-i18n="ch_eyebrow"></span>
+        <h2 data-i18n="ch_title"></h2>
+        <p data-i18n="ch_sub"></p>
+      </div>
+      <div class="check-box">
+        <div class="field">
+          <label data-i18n="ch_label"></label>
+          <input id="checkInput" placeholder="IMB-XXXX-XXXX" style="letter-spacing:2px;text-transform:uppercase">
+        </div>
+        <button class="btn btn-green" style="width:100%" onclick="checkCert()" data-i18n="ch_btn"></button>
+        <div id="checkResult"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="f-grid">
+      <div>
+        <h4>IMBIR · Thai Spa</h4>
+        <p style="font-size:13.5px;max-width:280px" data-i18n="f_about"></p>
+      </div>
+      <div>
+        <h4 data-i18n="f_cities"></h4>
+        <ul>
+          <li>Астана · 3 салона</li><li>Алматы · 2 салона</li><li>Караганда</li><li>Павлодар</li>
+        </ul>
+      </div>
+      <div>
+        <h4 data-i18n="f_nav"></h4>
+        <ul>
+          <li><a href="#" onclick="go('catalog');return false" data-i18n="nav_catalog"></a></li>
+          <li><a href="#" onclick="go('builder');return false" data-i18n="nav_builder"></a></li>
+          <li><a href="#" onclick="go('check');return false" data-i18n="nav_check"></a></li>
+          <li><a href="https://www.imbir.kz" target="_blank">imbir.kz</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 data-i18n="f_contacts"></h4>
+        <ul>
+          <li><a href="tel:+77081118098">+7 708 111 8098</a></li>
+          <li><a href="mailto:spa@imbir.kz">spa@imbir.kz</a></li>
+          <li><a href="https://www.instagram.com/imbir_thai_spa/" target="_blank">Instagram</a></li>
+          <li><a href="https://wa.me/+77081118098" target="_blank">WhatsApp</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="f-bottom">
+      <span>© 2026 Imbir Thai Spa</span>
+      <span data-i18n="f_note"></span>
+    </div>
+  </div>
+</footer>
+
+<a class="wa-fab" href="https://wa.me/+77081118098?text=Здравствуйте!%20Вопрос%20по%20сертификату" target="_blank" title="WhatsApp">✆</a>
+<canvas id="confettiCv"></canvas>
+<div class="toast" id="toast"></div>
+<div id="printCert" class="hidden"></div>
+
+<script>
+/* ================= DATA ================= */
+const PROGRAMS=[
+ {id:1,cat:'massage',pop:1,g:'g1',n:{ru:'Гармония тела',kz:'Дене үйлесімі',en:'Body Harmony'},d:{ru:'Расслабляющий Oil массаж',kz:'Босаңсытатын Oil массажы',en:'Relaxing oil massage'},opts:[{m:60,p:22000},{m:90,p:29000},{m:120,p:38000}]},
+ {id:2,cat:'massage',pop:1,g:'g2',n:{ru:'Тайское чудо',kz:'Тай кереметі',en:'Thai Miracle'},d:{ru:'Тайский традиционный массаж',kz:'Дәстүрлі тай массажы',en:'Traditional Thai massage'},opts:[{m:60,p:19000},{m:90,p:27000},{m:120,p:35000}]},
+ {id:3,cat:'massage',pop:1,g:'g5',n:{ru:'Suay',kz:'Suay',en:'Suay'},d:{ru:'Oil массаж с горячими мешочками',kz:'Ыстық шөп қапшықтарымен Oil массажы',en:'Oil massage with hot herbal pouches'},opts:[{m:90,p:38000},{m:120,p:40000}]},
+ {id:4,cat:'massage',g:'g6',n:{ru:'Sakda',kz:'Sakda',en:'Sakda'},d:{ru:'Тайский массаж с горячими мешочками',kz:'Ыстық қапшықтармен тай массажы',en:'Thai massage with hot pouches'},opts:[{m:90,p:35000},{m:120,p:38000}]},
+ {id:5,cat:'massage',g:'g1',n:{ru:'Нежность и спокойствие',kz:'Нәзіктік пен тыныштық',en:'Tenderness & Calm'},d:{ru:'Расслабляющий Oil массаж и массаж стоп',kz:'Oil массажы және табан массажы',en:'Relaxing oil massage & foot massage'},opts:[{m:90,p:28000},{m:120,p:38000}]},
+ {id:6,cat:'massage',pop:1,g:'g4',n:{ru:'Пробуждение',kz:'Ояну',en:'Awakening'},d:{ru:'Тайский традиционный массаж и массаж стоп',kz:'Тай массажы және табан массажы',en:'Traditional Thai massage & foot massage'},opts:[{m:90,p:26000},{m:120,p:33000}]},
+ {id:7,cat:'massage',g:'g2',n:{ru:'Энергия Таиланда',kz:'Таиланд энергиясы',en:'Energy of Thailand'},d:{ru:'Тайский массаж с горячими камнями',kz:'Ыстық тастармен тай массажы',en:'Thai massage with hot stones'},opts:[{m:90,p:36000},{m:120,p:39000}]},
+ {id:8,cat:'massage',g:'g6',n:{ru:'Грация',kz:'Сымбат',en:'Grace'},d:{ru:'Тайский массаж спины с травяным бальзамом',kz:'Шөп бальзамымен арқа массажы',en:'Thai back massage with herbal balm'},opts:[{m:60,p:18000}]},
+ {id:9,cat:'massage',g:'g4',n:{ru:'Foot релакс',kz:'Foot релакс',en:'Foot Relax'},d:{ru:'Тайский массаж стоп',kz:'Тай табан массажы',en:'Thai foot massage'},opts:[{m:90,p:18000},{m:120,p:22000}]},
+ {id:10,cat:'massage',g:'g1',n:{ru:'Ясные мысли',kz:'Ашық ойлар',en:'Clear Mind'},d:{ru:'Массаж шейно-воротниковой зоны и массаж стоп',kz:'Мойын аймағы мен табан массажы',en:'Neck & shoulder massage plus foot massage'},opts:[{m:60,p:18000}]},
+ {id:11,cat:'massage',g:'g5',n:{ru:'Массаж головы и шеи',kz:'Бас пен мойын массажы',en:'Head & Neck Massage'},d:{ru:'Расслабляющий Oil массаж',kz:'Босаңсытатын Oil массажы',en:'Relaxing oil massage'},opts:[{m:60,p:18000}]},
+ {id:12,cat:'massage',g:'g3',n:{ru:'Блаженство',kz:'Рахат',en:'Bliss'},d:{ru:'Oil массаж в 4 руки — два мастера одновременно',kz:'4 қолмен Oil массажы — екі шебер бір мезгілде',en:'Four-hands oil massage by two therapists'},opts:[{m:60,p:50000},{m:120,p:70000}]},
+ {id:13,cat:'massage',g:'g6',n:{ru:'Вулкан жизни',kz:'Өмір жанартауы',en:'Volcano of Life'},d:{ru:'Тайский традиционный массаж и Oil массаж',kz:'Тай массажы және Oil массажы',en:'Traditional Thai massage & oil massage'},opts:[{m:120,p:38000}]},
+ {id:14,cat:'massage',g:'g3',n:{ru:'Чудесное ожидание',kz:'Ғажайып күту',en:'Wonderful Expectation'},d:{ru:'Расслабляющий массаж для беременных',kz:'Жүкті әйелдерге арналған массаж',en:'Relaxing prenatal massage'},opts:[{m:60,p:24000},{m:90,p:30000}]},
+ {id:15,cat:'massage',g:'g4',n:{ru:'Маленький Будда',kz:'Кішкентай Будда',en:'Little Buddha'},d:{ru:'Оздоровительный массаж для детей 6–12 лет',kz:'6–12 жас балаларға арналған массаж',en:'Wellness massage for kids aged 6–12'},opts:[{m:60,p:16000}]},
+ {id:16,cat:'spa',pop:1,g:'g3',n:{ru:'Страна улыбок',kz:'Күлкі елі',en:'Land of Smiles'},d:{ru:'SPA-программа для подруг, 3 часа',kz:'Құрбыларға арналған SPA, 3 сағат',en:'Spa program for friends, 3 hours'},opts:[{pers:2,p:90000},{pers:3,p:132000}]},
+ {id:17,cat:'spa',pop:1,g:'g2',n:{ru:'Ты и Я',kz:'Сен және Мен',en:'You & Me'},d:{ru:'SPA-программа для пар, 2,5 часа',kz:'Жұптарға арналған SPA, 2,5 сағат',en:'Couples spa program, 2.5 hours'},opts:[{pers:2,p:70000}]},
+ {id:18,cat:'spa',g:'g1',n:{ru:'Антистресс',kz:'Антистресс',en:'Anti-Stress'},d:{ru:'SPA-программа на двоих, 3 часа',kz:'Екі адамға SPA, 3 сағат',en:'Spa program for two, 3 hours'},opts:[{pers:2,p:88000}]},
+ {id:19,cat:'spa',g:'g4',n:{ru:'Энергия Сиама',kz:'Сиам энергиясы',en:'Energy of Siam'},d:{ru:'SPA-программа, 2 часа',kz:'SPA бағдарламасы, 2 сағат',en:'Spa program, 2 hours'},opts:[{m:120,p:35000}]},
+ {id:20,cat:'spa',g:'g6',n:{ru:'Перезагрузка',kz:'Қайта жүктелу',en:'Reboot'},d:{ru:'SPA-программа, 3 часа',kz:'SPA бағдарламасы, 3 сағат',en:'Spa program, 3 hours'},opts:[{m:180,p:55000}]},
+ {id:21,cat:'spa',g:'g5',n:{ru:'Анти-усталость',kz:'Шаршауға қарсы',en:'Anti-Fatigue'},d:{ru:'SPA, 2,5 часа · Астана и Алматы',kz:'SPA, 2,5 сағат · Астана мен Алматы',en:'Spa, 2.5 hours · Astana & Almaty'},opts:[{m:150,p:65000}]},
+ {id:22,cat:'spa',g:'g4',n:{ru:'Энергия морской воды',kz:'Теңіз суының энергиясы',en:'Sea Water Energy'},d:{ru:'SPA, 2,5 часа · Астана и Алматы',kz:'SPA, 2,5 сағат · Астана мен Алматы',en:'Spa, 2.5 hours · Astana & Almaty'},opts:[{m:150,p:47000}]},
+ {id:23,cat:'spa',g:'g3',n:{ru:'Морское утончение',kz:'Теңіз нәзіктігі',en:'Marine Refinement'},d:{ru:'SPA, 2,5 часа · Астана и Алматы',kz:'SPA, 2,5 сағат · Астана мен Алматы',en:'Spa, 2.5 hours · Astana & Almaty'},opts:[{m:150,p:55000}]},
+ {id:24,cat:'spa',g:'g1',n:{ru:'Спа Релакс',kz:'Спа Релакс',en:'Spa Relax'},d:{ru:'SPA-программа, 1 час',kz:'SPA бағдарламасы, 1 сағат',en:'Spa program, 1 hour'},opts:[{m:60,p:20000}]},
+ {id:25,cat:'set',pop:1,g:'g2',n:{ru:'Sabai Sabai',kz:'Sabai Sabai',en:'Sabai Sabai'},d:{ru:'Сет процедур, 2 часа',kz:'Ем-шаралар сеті, 2 сағат',en:'Treatment set, 2 hours'},opts:[{m:120,p:38000}]},
+ {id:26,cat:'set',g:'g5',n:{ru:'Karuna',kz:'Karuna',en:'Karuna'},d:{ru:'Сет процедур, 2 часа',kz:'Ем-шаралар сеті, 2 сағат',en:'Treatment set, 2 hours'},opts:[{m:120,p:36000}]},
+ {id:27,cat:'set',g:'g6',n:{ru:'Sanuk',kz:'Sanuk',en:'Sanuk'},d:{ru:'Сет процедур, 1,5 часа',kz:'Ем-шаралар сеті, 1,5 сағат',en:'Treatment set, 1.5 hours'},opts:[{m:90,p:28000}]}
+];
+const NOMINALS=[{v:15000},{v:30000},{v:50000,hit:1},{v:100000}];
+const THEMES=[{id:'theme-emerald',n:{ru:'Изумруд',kz:'Изумруд',en:'Emerald'}},{id:'theme-gold',n:{ru:'Золото',kz:'Алтын',en:'Gold'}},{id:'theme-orchid',n:{ru:'Орхидея',kz:'Орхидея',en:'Orchid'}},{id:'theme-night',n:{ru:'Ночь Сиама',kz:'Сиам түні',en:'Siam Night'}}];
+
+/* ================= I18N ================= */
+const I18N={
+ru:{
+ nav_home:'Главная',nav_catalog:'Каталог',nav_builder:'Создать сертификат',nav_check:'Проверить',
+ hero_eyebrow:'Электронные подарочные сертификаты',
+ hero_title:'Подарите <em>тайское</em> расслабление',
+ hero_sub:'Сертификат Imbir Thai Spa — за 2 минуты онлайн. Выберите программу или номинал, оформите красивую электронную открытку и отправьте её получателю мгновенно или в назначенную дату.',
+ hero_cta1:'Создать сертификат',hero_cta2:'Смотреть программы',
+ stat_salons:'салонов',stat_cities:'городов Казахстана',stat_years:'лет практики',stat_min:'на оформление',stat_min_u:'мин',
+ cert_gift:'Подарочный сертификат',hero_cert_title:'SPA-программа «Ты и Я»',hero_cert_sub:'Программа для пар · 2,5 часа',hero_cert_for:'Для: Айгерим',
+ how_eyebrow:'Как это работает',how_title:'Подарок за четыре шага',
+ how1_t:'Выберите',how1_d:'Программу из каталога или сертификат на сумму',
+ how2_t:'Оформите',how2_d:'Дизайн открытки и личное поздравление',
+ how3_t:'Оплатите',how3_d:'Kaspi.kz или банковской картой',
+ how4_t:'Подарите',how4_d:'Сертификат придёт на email или WhatsApp — сразу или в нужную дату',
+ nom_eyebrow:'Сертификаты на сумму',nom_title:'Не знаете, что выбрать?',
+ nom_sub:'Подарите свободу выбора — получатель сам выберет любимую программу в любом салоне сети.',
+ nom_custom:'Своя сумма',nom_from:'Номинал',nom_hit:'Хит',
+ pop_eyebrow:'Выбор гостей',pop_title:'Популярные программы',pop_all:'Все 27 программ',
+ faq_title:'Частые вопросы',
+ cat_eyebrow:'Каталог',cat_title:'Программы и цены',cat_sub:'Актуальные цены сети Imbir Thai Spa. Выберите вариант длительности и оформите сертификат.',
+ f_all:'Все',f_massage:'Массажи',f_spa:'SPA-программы',f_set:'Сеты',f_pop:'Популярные',
+ sort_def:'По популярности',sort_asc:'Сначала дешевле',sort_desc:'Сначала дороже',
+ dur_all:'Любая длительность',dur_60:'до 1 часа',dur_90:'1,5 часа',dur_120:'2 часа и более',
+ buy:'Подарить эту программу',guests:'гостя(ей)',hour:'ч',
+ b_eyebrow:'Конструктор',b_title:'Создайте свой сертификат',
+ b_preview_note:'Предпросмотр обновляется в реальном времени',
+ bs1:'Тип',bs2:'Дизайн',bs3:'Подпись',bs4:'Доставка',bs5:'Оплата',
+ b1_h:'Что дарим?',b1_hint:'Сертификат на конкретную программу или на сумму — получатель выберет сам.',
+ b1_prog:'Программа',b1_prog_s:'конкретная процедура',b1_amt:'Номинал',b1_amt_s:'сертификат на сумму',
+ b1_sel_prog:'Выберите программу',b1_sel_opt:'Вариант',b1_custom:'Или введите свою сумму (от 5 000 ₸)',
+ b2_h:'Выберите дизайн',b2_hint:'Как будет выглядеть электронная открытка.',
+ b3_h:'Персонализация',b3_hint:'Эти данные появятся на сертификате.',
+ b3_to:'Кому (имя получателя)',b3_from:'От кого',b3_msg:'Поздравление',b3_msg_ph:'Например: С днём рождения! Отдохни душой и телом 🌿',
+ b4_h:'Доставка',b4_hint:'Отправим сертификат мгновенно или в назначенный день — например, прямо в день рождения.',
+ b4_email:'Email',b4_wa:'WhatsApp',b4_contact_e:'Email получателя',b4_contact_w:'Номер WhatsApp получателя',
+ b4_now:'Сразу после оплаты',b4_date:'В выбранную дату',b4_datetime:'Дата и время отправки',b4_copy:'Копию сертификата также отправим вам',
+ b5_h:'Оплата',b5_hint:'Демо-режим: платёж имитируется, реальное списание не происходит.',
+ b5_kaspi:'Kaspi.kz',b5_kaspi_s:'оплата в приложении',b5_card:'Карта',b5_card_s:'Visa · MasterCard',
+ b5_pay:'Оплатить',b5_num:'Номер карты',b5_exp:'ММ/ГГ',b5_cvc:'CVC',
+ back:'Назад',next:'Далее',
+ sum_h:'Ваш заказ',sum_type_a:'Сертификат на сумму',sum_type_p:'Программа',sum_design:'Дизайн',sum_delivery:'Доставка',sum_total:'Итого',
+ s_title:'Сертификат оплачен!',s_sub:'Мы отправили сертификат получателю и копию вам на email. Спасибо, что дарите заботу!',
+ s_copy:'Копировать',s_download:'Скачать PDF',s_wa:'Отправить в WhatsApp',s_more:'Создать ещё',
+ ch_eyebrow:'Проверка',ch_title:'Проверить сертификат',ch_sub:'Введите код с сертификата, чтобы узнать его статус и баланс.',
+ ch_label:'Код сертификата',ch_btn:'Проверить',
+ ch_ok:'Сертификат действителен',ch_status:'Статус',ch_active:'Активен',ch_bal:'Баланс',ch_till:'Действует до',ch_used:'Сертификат уже использован',ch_bad:'Сертификат не найден. Проверьте код — формат IMB-XXXX-XXXX.',ch_demo:'Демо: попробуйте код IMB-2407-A9F3',
+ f_about:'Сеть салонов тайского массажа и SPA. Мастера с дипломами лучших школ Таиланда.',
+ f_cities:'Города',f_nav:'Разделы',f_contacts:'Контакты',f_note:'Прототип нового сайта сертификатов · демо-данные',
+ toast_copy:'Код скопирован',toast_fill:'Заполните обязательные поля',
+ valid12:'12 месяцев с даты покупки',
+ faq:[
+  ['Как быстро придёт сертификат?','Мгновенно после оплаты — на email или WhatsApp получателя. Либо в дату и время, которые вы выберете при оформлении.'],
+  ['Сколько действует сертификат?','Стандартный срок действия — 12 месяцев с даты покупки. Точные условия уточняйте у администратора салона.'],
+  ['Можно ли использовать сертификат в любом городе?','Да, сертификаты сети принимаются во всех салонах Imbir: Астана, Алматы, Караганда, Павлодар.'],
+  ['Что если программа стоит дороже номинала?','Разницу можно доплатить на месте. Если дешевле — остаток сохранится на балансе сертификата.'],
+  ['Можно ли купить сертификат для компании?','Да, для корпоративных заказов от 5 сертификатов напишите нам в WhatsApp — подготовим предложение и брендированные открытки.']
+ ]
+},
+kz:{
+ nav_home:'Басты бет',nav_catalog:'Каталог',nav_builder:'Сертификат жасау',nav_check:'Тексеру',
+ hero_eyebrow:'Электронды сыйлық сертификаттары',
+ hero_title:'<em>Тай</em> тыныштығын сыйлаңыз',
+ hero_sub:'Imbir Thai Spa сертификаты — онлайн 2 минутта. Бағдарламаны немесе номиналды таңдап, әдемі электронды ашықхат рәсімдеп, алушыға бірден немесе белгіленген күні жіберіңіз.',
+ hero_cta1:'Сертификат жасау',hero_cta2:'Бағдарламаларды қарау',
+ stat_salons:'салон',stat_cities:'Қазақстан қаласы',stat_years:'жыл тәжірибе',stat_min:'рәсімдеуге',stat_min_u:'мин',
+ cert_gift:'Сыйлық сертификаты',hero_cert_title:'«Сен және Мен» SPA-бағдарламасы',hero_cert_sub:'Жұптарға арналған · 2,5 сағат',hero_cert_for:'Кімге: Айгерім',
+ how_eyebrow:'Қалай жұмыс істейді',how_title:'Төрт қадаммен сыйлық',
+ how1_t:'Таңдаңыз',how1_d:'Каталогтан бағдарлама немесе сомаға сертификат',
+ how2_t:'Рәсімдеңіз',how2_d:'Ашықхат дизайны мен жеке құттықтау',
+ how3_t:'Төлеңіз',how3_d:'Kaspi.kz немесе банк картасымен',
+ how4_t:'Сыйлаңыз',how4_d:'Сертификат email немесе WhatsApp-қа келеді — бірден немесе керек күні',
+ nom_eyebrow:'Сомаға сертификаттар',nom_title:'Не таңдарыңызды білмейсіз бе?',
+ nom_sub:'Таңдау еркіндігін сыйлаңыз — алушы кез келген салонда өзіне ұнаған бағдарламаны таңдайды.',
+ nom_custom:'Өз сомаңыз',nom_from:'Номинал',nom_hit:'Хит',
+ pop_eyebrow:'Қонақтар таңдауы',pop_title:'Танымал бағдарламалар',pop_all:'Барлық 27 бағдарлама',
+ faq_title:'Жиі қойылатын сұрақтар',
+ cat_eyebrow:'Каталог',cat_title:'Бағдарламалар мен бағалар',cat_sub:'Imbir Thai Spa желісінің өзекті бағалары. Ұзақтықты таңдап, сертификат рәсімдеңіз.',
+ f_all:'Барлығы',f_massage:'Массаждар',f_spa:'SPA-бағдарламалар',f_set:'Сеттер',f_pop:'Танымал',
+ sort_def:'Танымалдығы бойынша',sort_asc:'Алдымен арзаны',sort_desc:'Алдымен қымбаты',
+ dur_all:'Кез келген ұзақтық',dur_60:'1 сағатқа дейін',dur_90:'1,5 сағат',dur_120:'2 сағат және одан көп',
+ buy:'Осы бағдарламаны сыйлау',guests:'қонақ',hour:'сағ',
+ b_eyebrow:'Конструктор',b_title:'Өз сертификатыңызды жасаңыз',
+ b_preview_note:'Алдын ала қарау нақты уақытта жаңарады',
+ bs1:'Түрі',bs2:'Дизайн',bs3:'Қолтаңба',bs4:'Жеткізу',bs5:'Төлем',
+ b1_h:'Не сыйлаймыз?',b1_hint:'Нақты бағдарламаға немесе сомаға сертификат — алушы өзі таңдайды.',
+ b1_prog:'Бағдарлама',b1_prog_s:'нақты ем-шара',b1_amt:'Номинал',b1_amt_s:'сомаға сертификат',
+ b1_sel_prog:'Бағдарламаны таңдаңыз',b1_sel_opt:'Нұсқа',b1_custom:'Немесе өз сомаңызды енгізіңіз (5 000 ₸ бастап)',
+ b2_h:'Дизайнды таңдаңыз',b2_hint:'Электронды ашықхат қалай көрінеді.',
+ b3_h:'Дербестендіру',b3_hint:'Бұл деректер сертификатта көрсетіледі.',
+ b3_to:'Кімге (алушының аты)',b3_from:'Кімнен',b3_msg:'Құттықтау',b3_msg_ph:'Мысалы: Туған күніңмен! Жаның да, тәнің де демалсын 🌿',
+ b4_h:'Жеткізу',b4_hint:'Сертификатты бірден немесе белгіленген күні жібереміз — мысалы, туған күнінде.',
+ b4_email:'Email',b4_wa:'WhatsApp',b4_contact_e:'Алушының email-ы',b4_contact_w:'Алушының WhatsApp нөмірі',
+ b4_now:'Төлемнен кейін бірден',b4_date:'Таңдалған күні',b4_datetime:'Жіберу күні мен уақыты',b4_copy:'Сертификат көшірмесін сізге де жібереміз',
+ b5_h:'Төлем',b5_hint:'Демо-режим: төлем имитацияланады, нақты ақша алынбайды.',
+ b5_kaspi:'Kaspi.kz',b5_kaspi_s:'қосымшада төлеу',b5_card:'Карта',b5_card_s:'Visa · MasterCard',
+ b5_pay:'Төлеу',b5_num:'Карта нөмірі',b5_exp:'АА/ЖЖ',b5_cvc:'CVC',
+ back:'Артқа',next:'Әрі қарай',
+ sum_h:'Сіздің тапсырысыңыз',sum_type_a:'Сомаға сертификат',sum_type_p:'Бағдарлама',sum_design:'Дизайн',sum_delivery:'Жеткізу',sum_total:'Барлығы',
+ s_title:'Сертификат төленді!',s_sub:'Сертификатты алушыға, көшірмесін сіздің email-ға жібердік. Қамқорлық сыйлағаныңызға рахмет!',
+ s_copy:'Көшіру',s_download:'PDF жүктеу',s_wa:'WhatsApp-қа жіберу',s_more:'Тағы жасау',
+ ch_eyebrow:'Тексеру',ch_title:'Сертификатты тексеру',ch_sub:'Мәртебесі мен балансын білу үшін сертификат кодын енгізіңіз.',
+ ch_label:'Сертификат коды',ch_btn:'Тексеру',
+ ch_ok:'Сертификат жарамды',ch_status:'Мәртебесі',ch_active:'Белсенді',ch_bal:'Баланс',ch_till:'Жарамдылық мерзімі',ch_used:'Сертификат қолданылған',ch_bad:'Сертификат табылмады. Кодты тексеріңіз — форматы IMB-XXXX-XXXX.',ch_demo:'Демо: IMB-2407-A9F3 кодын байқап көріңіз',
+ f_about:'Тай массажы мен SPA салондарының желісі. Таиландтың үздік мектептерінің дипломы бар шеберлер.',
+ f_cities:'Қалалар',f_nav:'Бөлімдер',f_contacts:'Байланыс',f_note:'Сертификаттар сайтының прототипі · демо-деректер',
+ toast_copy:'Код көшірілді',toast_fill:'Міндетті өрістерді толтырыңыз',
+ valid12:'сатып алған күннен бастап 12 ай',
+ faq:[
+  ['Сертификат қаншалықты тез келеді?','Төлемнен кейін бірден — алушының email немесе WhatsApp-ына. Немесе сіз таңдаған күні мен уақытында.'],
+  ['Сертификат қанша уақыт жарамды?','Стандартты мерзім — сатып алған күннен бастап 12 ай. Нақты шарттарды салон әкімшісінен нақтылаңыз.'],
+  ['Сертификатты кез келген қалада қолдануға бола ма?','Иә, желі сертификаттары Imbir-дің барлық салондарында қабылданады: Астана, Алматы, Қарағанды, Павлодар.'],
+  ['Бағдарлама номиналдан қымбат болса ше?','Айырмасын орнында төлеуге болады. Арзан болса — қалдық сертификат балансында сақталады.'],
+  ['Компанияға сертификат сатып алуға бола ма?','Иә, 5 сертификаттан басталатын корпоративтік тапсырыстар үшін WhatsApp-қа жазыңыз — ұсыныс дайындаймыз.']
+ ]
+},
+en:{
+ nav_home:'Home',nav_catalog:'Programs',nav_builder:'Create certificate',nav_check:'Verify',
+ hero_eyebrow:'Digital gift certificates',
+ hero_title:'Gift the art of <em>Thai</em> relaxation',
+ hero_sub:'An Imbir Thai Spa certificate — online in 2 minutes. Pick a program or an amount, design a beautiful e-card and send it instantly or on a chosen date.',
+ hero_cta1:'Create certificate',hero_cta2:'Browse programs',
+ stat_salons:'salons',stat_cities:'cities in Kazakhstan',stat_years:'years of practice',stat_min:'to order',stat_min_u:'min',
+ cert_gift:'Gift certificate',hero_cert_title:'"You & Me" Spa Program',hero_cert_sub:'Couples program · 2.5 hours',hero_cert_for:'To: Aigerim',
+ how_eyebrow:'How it works',how_title:'A gift in four steps',
+ how1_t:'Choose',how1_d:'A program from the catalog or a gift amount',
+ how2_t:'Personalize',how2_d:'Card design and your own message',
+ how3_t:'Pay',how3_d:'Kaspi.kz or bank card',
+ how4_t:'Delight',how4_d:'Delivered by email or WhatsApp — instantly or on a chosen date',
+ nom_eyebrow:'Gift amounts',nom_title:'Not sure what to pick?',
+ nom_sub:'Give the freedom of choice — the recipient picks their favorite program at any salon.',
+ nom_custom:'Custom amount',nom_from:'Value',nom_hit:'Popular',
+ pop_eyebrow:'Guest favorites',pop_title:'Popular programs',pop_all:'All 27 programs',
+ faq_title:'Frequently asked questions',
+ cat_eyebrow:'Catalog',cat_title:'Programs & prices',cat_sub:'Current prices of the Imbir Thai Spa network. Pick a duration and create a certificate.',
+ f_all:'All',f_massage:'Massage',f_spa:'Spa programs',f_set:'Sets',f_pop:'Popular',
+ sort_def:'By popularity',sort_asc:'Price: low to high',sort_desc:'Price: high to low',
+ dur_all:'Any duration',dur_60:'up to 1 hour',dur_90:'1.5 hours',dur_120:'2+ hours',
+ buy:'Gift this program',guests:'guests',hour:'h',
+ b_eyebrow:'Builder',b_title:'Create your certificate',
+ b_preview_note:'Preview updates in real time',
+ bs1:'Type',bs2:'Design',bs3:'Message',bs4:'Delivery',bs5:'Payment',
+ b1_h:'What are we gifting?',b1_hint:'A specific program, or an amount — the recipient chooses.',
+ b1_prog:'Program',b1_prog_s:'a specific treatment',b1_amt:'Amount',b1_amt_s:'gift card value',
+ b1_sel_prog:'Choose a program',b1_sel_opt:'Option',b1_custom:'Or enter a custom amount (from 5,000 ₸)',
+ b2_h:'Choose a design',b2_hint:'How the e-card will look.',
+ b3_h:'Personalization',b3_hint:'These details will appear on the certificate.',
+ b3_to:'To (recipient name)',b3_from:'From',b3_msg:'Message',b3_msg_ph:'E.g.: Happy birthday! Rest your body and soul 🌿',
+ b4_h:'Delivery',b4_hint:'We will send the certificate instantly or on a chosen day — e.g. right on the birthday.',
+ b4_email:'Email',b4_wa:'WhatsApp',b4_contact_e:'Recipient email',b4_contact_w:'Recipient WhatsApp number',
+ b4_now:'Right after payment',b4_date:'On a chosen date',b4_datetime:'Delivery date & time',b4_copy:'A copy will also be sent to you',
+ b5_h:'Payment',b5_hint:'Demo mode: payment is simulated, no real charge is made.',
+ b5_kaspi:'Kaspi.kz',b5_kaspi_s:'pay in the app',b5_card:'Card',b5_card_s:'Visa · MasterCard',
+ b5_pay:'Pay',b5_num:'Card number',b5_exp:'MM/YY',b5_cvc:'CVC',
+ back:'Back',next:'Next',
+ sum_h:'Your order',sum_type_a:'Gift card amount',sum_type_p:'Program',sum_design:'Design',sum_delivery:'Delivery',sum_total:'Total',
+ s_title:'Certificate paid!',s_sub:'We sent the certificate to the recipient and a copy to your email. Thank you for gifting care!',
+ s_copy:'Copy',s_download:'Download PDF',s_wa:'Send via WhatsApp',s_more:'Create another',
+ ch_eyebrow:'Verification',ch_title:'Verify a certificate',ch_sub:'Enter the certificate code to see its status and balance.',
+ ch_label:'Certificate code',ch_btn:'Verify',
+ ch_ok:'Certificate is valid',ch_status:'Status',ch_active:'Active',ch_bal:'Balance',ch_till:'Valid until',ch_used:'Certificate already used',ch_bad:'Certificate not found. Check the code — format IMB-XXXX-XXXX.',ch_demo:'Demo: try code IMB-2407-A9F3',
+ f_about:'A network of Thai massage & spa salons. Therapists certified by the best schools of Thailand.',
+ f_cities:'Cities',f_nav:'Sections',f_contacts:'Contacts',f_note:'New certificate site prototype · demo data',
+ toast_copy:'Code copied',toast_fill:'Please fill in the required fields',
+ valid12:'12 months from purchase',
+ faq:[
+  ['How fast is the certificate delivered?','Instantly after payment — to the recipient\'s email or WhatsApp. Or on the date and time you choose.'],
+  ['How long is it valid?','Standard validity is 12 months from purchase. Please confirm exact terms with the salon administrator.'],
+  ['Can it be used in any city?','Yes — network certificates are accepted at all Imbir salons: Astana, Almaty, Karaganda, Pavlodar.'],
+  ['What if the program costs more than the value?','The difference can be paid at the salon. If it costs less, the remainder stays on the certificate balance.'],
+  ['Corporate orders?','Yes — for 5+ certificates message us on WhatsApp for an offer and branded cards.']
+ ]
+}
+};
+</script>
+<script>
+/* ================= STATE ================= */
+let lang='ru', view='home', catFilter='all', bStep=0;
+let B={type:'program',programId:2,optIdx:0,amount:50000,theme:'theme-emerald',to:'',from:'',msg:'',dmethod:'email',contact:'',when:'now',date:'',pay:'kaspi'};
+const t=k=>I18N[lang][k]??k;
+const fmt=n=>n.toLocaleString('ru-RU')+' ₸';
+const durTxt=m=>({60:'1',90:'1,5',120:'2',150:'2,5',180:'3'}[m]||m/60)+' '+t('hour');
+const optLabel=o=>o.pers?`${o.pers} ${t('guests')}`:durTxt(o.m);
+const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ================= NAV / I18N ================= */
+function go(v){
+  view=v;
+  ['home','catalog','builder','check','success'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==v));
+  document.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===v));
+  document.getElementById('navlinks').classList.remove('open');
+  if(v==='catalog')renderCatalog();
+  if(v==='builder')renderBuilder();
+  const ve=document.getElementById('view-'+v);
+  ve.classList.remove('view-anim');void ve.offsetWidth;ve.classList.add('view-anim');
+  initReveal();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function setLang(l){
+  lang=l;
+  document.querySelectorAll('#langSwitch button').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>el.innerHTML=t(el.dataset.i18nHtml));
+  renderNominals();renderPopular();renderFaq();renderFilters();buildMarquee();
+  if(view==='catalog')renderCatalog();
+  if(view==='builder')renderBuilder();
+  document.documentElement.lang=l==='kz'?'kk':l;
+  initReveal();
+}
+
+/* ================= HOME ================= */
+function renderNominals(){
+  document.getElementById('nominalCards').innerHTML=NOMINALS.map(n=>`
+    <div class="nom" onclick="pickAmount(${n.v})">
+      ${n.hit?`<span class="tag">${t('nom_hit')}</span>`:''}
+      <div class="amt">${fmt(n.v)}</div><div class="lbl">${t('nom_from')}</div>
+    </div>`).join('')+`
+    <div class="nom" onclick="pickAmount(0)" style="grid-column:1/-1;padding:18px">
+      <div class="amt" style="font-size:19px">✨ ${t('nom_custom')}</div>
+    </div>`;
+}
+function pickAmount(v){B.type='amount';if(v)B.amount=v;bStep=0;go('builder');}
+function pickProgram(id,oi){B.type='program';B.programId=id;B.optIdx=oi||0;bStep=1;go('builder');}
+const IMG={1:'2015/02/m1-800x600.jpg',2:'2018/08/m26-800x600.jpg',3:'2018/01/m18-800x600.jpg',4:'2018/01/m19@2x-800x600.jpg',5:'2018/01/m6-800x600.jpg',6:'2018/01/m7-800x600.jpg',7:'2015/02/m5-800x1200.jpg',8:'2018/04/m9-800x600.jpg',9:'2018/01/m10-800x600.jpg',10:'2018/01/m12-800x600.jpg',12:'2018/01/m3-800x1200.jpg',13:'2018/04/m8-800x600.jpg',15:'2015/02/m4-800x600.jpg',16:'2018/04/m22-800x600.jpg',17:'2015/02/m23-800x1200.jpg',25:'2018/01/m24-800x600.jpg',26:'2018/04/m25-800x600.jpg',27:'2018/04/m26-1-800x600.jpg'};
+const imgUrl=p=>IMG[p.id]?'https://www.imbir.kz/wp-content/uploads/'+IMG[p.id]:null;
+const fromPrice=v=>lang==='kz'?fmt(v)+' бастап':lang==='en'?'from '+fmt(v):'от '+fmt(v);
+function cardHTML(p){
+  const cn={massage:t('f_massage'),spa:t('f_spa'),set:t('f_set')}[p.cat];
+  const img=imgUrl(p), mp=Math.min(...p.opts.map(o=>o.p));
+  return `<div class="pcard">
+    <div class="ph ${p.g}">${img?`<img src="${img}" alt="${p.n[lang]}" loading="lazy" onerror="this.remove()">`:`<span class="ph-orn">❀</span>`}<span class="cat">${cn}</span><span class="price-badge">${fromPrice(mp)}</span></div>
+    <div class="body">
+      <h3>${p.n[lang]}</h3><div class="desc">${p.d[lang]}</div>
+      <div class="opts">${p.opts.map((o,i)=>`<div class="opt" data-p="${p.id}" data-i="${i}" onclick="selOpt(this)"><span>${optLabel(o)}</span><b>${fmt(o.p)}</b></div>`).join('')}</div>
+      <button class="btn btn-green" onclick="buyCard(${p.id},this)">${t('buy')}</button>
+    </div></div>`;
+}
+function selOpt(el){
+  el.parentElement.querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function buyCard(id,btn){
+  const card=btn.closest('.pcard'),sel=card.querySelector('.opt.sel');
+  pickProgram(id,sel?+sel.dataset.i:0);
+}
+function renderPopular(){
+  document.getElementById('popularGrid').innerHTML=PROGRAMS.filter(p=>p.pop).slice(0,6).map(cardHTML).join('');
+}
+function renderFaq(){
+  document.getElementById('faqList').innerHTML=I18N[lang].faq.map(f=>
+    `<details><summary>${f[0]}</summary><div class="fa-body">${f[1]}</div></details>`).join('');
+}
+
+/* ================= CATALOG ================= */
+function renderFilters(){
+  const fs=[['all','f_all'],['pop','f_pop'],['massage','f_massage'],['spa','f_spa'],['set','f_set']];
+  document.getElementById('catFilters').innerHTML=fs.map(f=>
+    `<button class="chip ${catFilter===f[0]?'active':''}" onclick="catFilter='${f[0]}';renderFilters();renderCatalog()">${t(f[1])}</button>`).join('');
+  const s=document.getElementById('sortSel'),d=document.getElementById('durSel');
+  const sv=s.value,dv=d.value;
+  s.innerHTML=`<option value="def">${t('sort_def')}</option><option value="asc">${t('sort_asc')}</option><option value="desc">${t('sort_desc')}</option>`;
+  d.innerHTML=`<option value="all">${t('dur_all')}</option><option value="60">${t('dur_60')}</option><option value="90">${t('dur_90')}</option><option value="120">${t('dur_120')}</option>`;
+  if(sv)s.value=sv;if(dv)d.value=dv;
+}
+function renderCatalog(){
+  let list=PROGRAMS.filter(p=>catFilter==='all'||(catFilter==='pop'?p.pop:p.cat===catFilter));
+  const dur=document.getElementById('durSel').value;
+  if(dur!=='all')list=list.filter(p=>p.opts.some(o=>{
+    const m=o.m||180;
+    return dur==='60'?m<=60:dur==='90'?m===90:m>=120;
+  }));
+  const sort=document.getElementById('sortSel').value;
+  const minP=p=>Math.min(...p.opts.map(o=>o.p));
+  if(sort==='asc')list=[...list].sort((a,b)=>minP(a)-minP(b));
+  if(sort==='desc')list=[...list].sort((a,b)=>minP(b)-minP(a));
+  document.getElementById('catalogGrid').innerHTML=list.map(cardHTML).join('');
+}
+
+/* ================= BUILDER ================= */
+const price=()=>B.type==='amount'?B.amount:(PROGRAMS.find(p=>p.id===B.programId)?.opts[B.optIdx]?.p||0);
+function renderBuilder(){
+  document.getElementById('bSteps').innerHTML=[1,2,3,4,5].map((n,i)=>
+    `<div class="b-step ${i===bStep?'active':i<bStep?'done':''}">${i<bStep?'✓ ':''}${t('bs'+n)}</div>`).join('');
+  const P=document.getElementById('bPanel');
+  if(bStep===0)P.innerHTML=panelType();
+  if(bStep===1)P.innerHTML=panelDesign();
+  if(bStep===2)P.innerHTML=panelPerson();
+  if(bStep===3)P.innerHTML=panelDelivery();
+  if(bStep===4)P.innerHTML=panelPay();
+  renderPreview();renderSummary();
+}
+const navBtns=(canNext=true)=>`<div class="b-nav">
+  <button class="btn btn-outline" ${bStep===0?'style="visibility:hidden"':''} onclick="bStep--;renderBuilder()">${t('back')}</button>
+  ${bStep<4?`<button class="btn btn-green" onclick="nextStep()">${t('next')} →</button>`
+           :`<button class="btn btn-gold" onclick="doPay()">${t('b5_pay')} ${fmt(price())}</button>`}
+</div>`;
+function panelType(){
+  const progSel=PROGRAMS.map(p=>`<option value="${p.id}" ${p.id===B.programId?'selected':''}>${p.n[lang]} — ${t({massage:'f_massage',spa:'f_spa',set:'f_set'}[p.cat]).toLowerCase()}</option>`).join('');
+  const prog=PROGRAMS.find(p=>p.id===B.programId);
+  return `<h3>${t('b1_h')}</h3><div class="hint">${t('b1_hint')}</div>
+  <div class="seg" style="margin-bottom:22px">
+    <button class="${B.type==='program'?'active':''}" onclick="B.type='program';renderBuilder()">🌿 ${t('b1_prog')}<small>${t('b1_prog_s')}</small></button>
+    <button class="${B.type==='amount'?'active':''}" onclick="B.type='amount';renderBuilder()">💳 ${t('b1_amt')}<small>${t('b1_amt_s')}</small></button>
+  </div>
+  ${B.type==='program'?`
+    <div class="field"><label>${t('b1_sel_prog')}</label>
+      <select onchange="B.programId=+this.value;B.optIdx=0;renderBuilder()">${progSel}</select></div>
+    <div class="field"><label>${t('b1_sel_opt')}</label>
+      <div class="seg">${prog.opts.map((o,i)=>`<button class="${i===B.optIdx?'active':''}" onclick="B.optIdx=${i};renderBuilder()">${optLabel(o)}<small>${fmt(o.p)}</small></button>`).join('')}</div></div>`
+  :`
+    <div class="amount-grid">${[15000,20000,30000,50000,70000,100000].map(v=>`<button class="${B.amount===v?'active':''}" onclick="B.amount=${v};renderBuilder()">${fmt(v)}</button>`).join('')}</div>
+    <div class="field"><label>${t('b1_custom')}</label>
+      <input type="number" min="5000" step="1000" value="${B.amount}" oninput="B.amount=Math.max(0,+this.value||0);renderPreview();renderSummary()"></div>`}
+  ${navBtns()}`;
+}
+function panelDesign(){
+  return `<h3>${t('b2_h')}</h3><div class="hint">${t('b2_hint')}</div>
+  <div class="themes">${THEMES.map(th=>`
+    <div class="theme-pick ${B.theme===th.id?'active':''}" onclick="B.theme='${th.id}';renderBuilder()">
+      <div class="swatch ${th.id}" style="border-radius:10px"></div><span>${th.n[lang]}</span>
+    </div>`).join('')}</div>
+  ${navBtns()}`;
+}
+function panelPerson(){
+  return `<h3>${t('b3_h')}</h3><div class="hint">${t('b3_hint')}</div>
+  <div class="row2">
+    <div class="field"><label>${t('b3_to')} *</label><input id="fTo" value="${esc(B.to)}" maxlength="30" oninput="B.to=this.value;renderPreview()"></div>
+    <div class="field"><label>${t('b3_from')}</label><input value="${esc(B.from)}" maxlength="30" oninput="B.from=this.value;renderPreview()"></div>
+  </div>
+  <div class="field"><label>${t('b3_msg')}</label>
+    <textarea maxlength="120" placeholder="${t('b3_msg_ph')}" oninput="B.msg=this.value;renderPreview();this.nextElementSibling.textContent=this.value.length+'/120'">${esc(B.msg)}</textarea>
+    <div class="cnt">${B.msg.length}/120</div></div>
+  ${navBtns()}`;
+}
+function panelDelivery(){
+  return `<h3>${t('b4_h')}</h3><div class="hint">${t('b4_hint')}</div>
+  <div class="seg" style="margin-bottom:18px">
+    <button class="${B.dmethod==='email'?'active':''}" onclick="B.dmethod='email';renderBuilder()">✉️ ${t('b4_email')}</button>
+    <button class="${B.dmethod==='wa'?'active':''}" onclick="B.dmethod='wa';renderBuilder()">💬 ${t('b4_wa')}</button>
+  </div>
+  <div class="field"><label>${B.dmethod==='email'?t('b4_contact_e'):t('b4_contact_w')} *</label>
+    <input id="fContact" value="${esc(B.contact)}" placeholder="${B.dmethod==='email'?'name@mail.kz':'+7 7__ ___ __ __'}" oninput="B.contact=this.value"></div>
+  <div class="seg" style="margin-bottom:18px">
+    <button class="${B.when==='now'?'active':''}" onclick="B.when='now';renderBuilder()">⚡ ${t('b4_now')}</button>
+    <button class="${B.when==='date'?'active':''}" onclick="B.when='date';renderBuilder()">📅 ${t('b4_date')}</button>
+  </div>
+  ${B.when==='date'?`<div class="field"><label>${t('b4_datetime')}</label>
+    <input type="datetime-local" value="${B.date}" oninput="B.date=this.value;renderSummary()"></div>`:''}
+  <div class="hint" style="margin:0">✓ ${t('b4_copy')}</div>
+  ${navBtns()}`;
+}
+function panelPay(){
+  return `<h3>${t('b5_h')}</h3><div class="hint">${t('b5_hint')}</div>
+  <div class="pay-methods">
+    <button class="${B.pay==='kaspi'?'active':''}" onclick="B.pay='kaspi';renderBuilder()">
+      <span class="kaspi-badge">Kaspi.kz</span><small style="font-weight:500;color:var(--muted)">${t('b5_kaspi_s')}</small></button>
+    <button class="${B.pay==='card'?'active':''}" onclick="B.pay='card';renderBuilder()">
+      <span class="card-badge"><i>VISA</i><i>MC</i></span><small style="font-weight:500;color:var(--muted)">${t('b5_card_s')}</small></button>
+  </div>
+  ${B.pay==='card'?`
+    <div class="field"><label>${t('b5_num')}</label><input placeholder="0000 0000 0000 0000" maxlength="19"></div>
+    <div class="row2">
+      <div class="field"><label>${t('b5_exp')}</label><input placeholder="12/27" maxlength="5"></div>
+      <div class="field"><label>CVC</label><input placeholder="•••" maxlength="3" type="password"></div>
+    </div>`:''}
+  ${navBtns()}`;
+}
+function nextStep(){
+  if(bStep===2&&!B.to.trim()){toast(t('toast_fill'));document.getElementById('fTo').focus();return}
+  if(bStep===3&&!B.contact.trim()){toast(t('toast_fill'));document.getElementById('fContact').focus();return}
+  bStep++;renderBuilder();
+}
+function certHTML(code){
+  const prog=PROGRAMS.find(p=>p.id===B.programId);
+  const title=B.type==='amount'?fmt(B.amount):prog.n[lang];
+  const sub=B.type==='amount'?t('sum_type_a'):prog.d[lang]+' · '+optLabel(prog.opts[B.optIdx]);
+  return `<div class="cert ${B.theme}">
+    <div class="c-orn"></div><span class="c-lotus">❀</span>
+    <div class="c-brand">IMBIR THAI SPA<small>${t('cert_gift')}</small></div>
+    <div>
+      <div class="c-title">${esc(title)}</div>
+      <div class="c-sub">${esc(sub)}</div>
+      ${B.msg?`<div class="c-sub" style="font-style:italic;margin-top:8px">«${esc(B.msg)}»</div>`:''}
+    </div>
+    <div class="c-foot">
+      <span>${B.to?esc((lang==='en'?'To: ':lang==='kz'?'Кімге: ':'Для: ')+B.to):''}${B.from?esc((lang==='en'?' · From: ':lang==='kz'?' · Кімнен: ':' · От: ')+B.from):''}</span>
+      <span class="c-code">${code||'IMB-••••-••••'}</span>
+    </div></div>`;
+}
+function renderPreview(){document.getElementById('livePreview').innerHTML=certHTML();}
+function renderSummary(){
+  const prog=PROGRAMS.find(p=>p.id===B.programId);
+  const theme=THEMES.find(x=>x.id===B.theme);
+  const rows=[
+    [B.type==='amount'?t('sum_type_a'):t('sum_type_p'),B.type==='amount'?fmt(B.amount):prog.n[lang]+' · '+optLabel(prog.opts[B.optIdx])],
+    [t('sum_design'),theme.n[lang]],
+    [t('sum_delivery'),(B.dmethod==='email'?'Email':'WhatsApp')+(B.when==='date'&&B.date?' · '+B.date.replace('T',' '):'')]
+  ];
+  document.getElementById('bSummary').innerHTML=`<b style="font-size:14px">${t('sum_h')}</b>`+
+    rows.map(r=>`<div class="srow"><span style="color:var(--muted)">${r[0]}</span><span style="text-align:right">${r[1]}</span></div>`).join('')+
+    `<div class="srow total"><span>${t('sum_total')}</span><span>${fmt(price())}</span></div>`;
+}
+let finalCode='';
+function doPay(){
+  finalCode='IMB-'+String(1000+Math.floor(Math.random()*9000))+'-'+Array.from({length:4},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*31)]).join('');
+  document.getElementById('successCert').innerHTML=certHTML(finalCode);
+  document.getElementById('finalCode').textContent=finalCode;
+  document.getElementById('printCert').innerHTML=certHTML(finalCode);
+  const msg=encodeURIComponent(`🎁 Imbir Thai Spa — ${t('cert_gift')}!\n${finalCode}\nhttps://sert.imbir.kz`);
+  document.getElementById('waShare').href=`https://wa.me/?text=${msg}`;
+  go('success');
+  confetti();
+}
+function resetBuilder(){bStep=0;B={...B,to:'',from:'',msg:'',contact:'',when:'now',date:''};}
+function copyCode(){navigator.clipboard?.writeText(finalCode);toast(t('toast_copy'));}
+
+/* ================= CHECK ================= */
+function checkCert(){
+  const code=document.getElementById('checkInput').value.trim().toUpperCase();
+  const R=document.getElementById('checkResult');
+  const till=new Date(Date.now()+300*864e5).toLocaleDateString(lang==='en'?'en-GB':'ru-RU');
+  if(code==='IMB-2407-A9F3'||/^IMB-\d{4}-[A-Z2-9]{4}$/.test(code)&&!code.endsWith('0000')){
+    R.innerHTML=`<div class="check-result ok"><b style="color:var(--emerald)">✓ ${t('ch_ok')}</b>
+      <div class="srow"><span>${t('ch_status')}</span><b>${t('ch_active')}</b></div>
+      <div class="srow"><span>${t('ch_bal')}</span><b>${fmt(50000)}</b></div>
+      <div class="srow"><span>${t('ch_till')}</span><b>${till}</b></div></div>`;
+  }else if(/^IMB-/.test(code)){
+    R.innerHTML=`<div class="check-result bad">✕ ${t('ch_used')}</div>`;
+  }else{
+    R.innerHTML=`<div class="check-result bad">✕ ${t('ch_bad')}<br><small>${t('ch_demo')}</small></div>`;
+  }
+}
+
+/* ================= MISC ================= */
+let toastT;
+function toast(m){
+  const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2400);
+}
+
+/* ================= V2 · ЭФФЕКТЫ ================= */
+const raf=typeof requestAnimationFrame!=='undefined'?(f=>requestAnimationFrame(f)):(f=>setTimeout(f,16));
+const reducedMotion=()=>typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const io=typeof IntersectionObserver!=='undefined'?new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target)}
+}),{threshold:.12}):null;
+function initReveal(){
+  if(!io)return;
+  document.querySelectorAll('.step,.nom,.pcard,.sec-head,.faq details,.check-box').forEach((el,i)=>{
+    if(!el.classList.contains('rv')){el.classList.add('rv');el.style.transitionDelay=(i%6*70)+'ms';io.observe(el)}
+  });
+}
+
+function buildMarquee(){
+  const el=document.getElementById('mqTrack');if(!el)return;
+  const items=['Imbir Thai Spa','Астана','Алматы','Караганда','Павлодар',t('cert_gift'),...PROGRAMS.filter(p=>p.pop).map(p=>p.n[lang])];
+  const s=items.join('&nbsp;&nbsp;✦&nbsp;&nbsp;')+'&nbsp;&nbsp;✦&nbsp;&nbsp;';
+  el.innerHTML=`<span>${s}</span><span>${s}</span>`;
+}
+
+function animCounters(){
+  document.querySelectorAll('[data-count]').forEach(b=>{
+    const target=+b.dataset.count,suf=b.dataset.suffix||'',t0=Date.now();
+    (function step(){
+      const k=Math.min(1,(Date.now()-t0)/1500);
+      b.textContent=Math.round(target*(1-Math.pow(1-k,3)))+suf;
+      if(k<1)raf(step);
+    })();
+  });
+}
+
+function addTilt(el){
+  if(!el||!el.addEventListener)return;
+  el.classList.add('tilt');
+  el.addEventListener('mousemove',e=>{
+    if(reducedMotion())return;
+    const r=el.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+    el.style.transform=`perspective(900px) rotateY(${(x*10).toFixed(2)}deg) rotateX(${(-y*10).toFixed(2)}deg)`;
+  });
+  el.addEventListener('mouseleave',()=>el.style.transform='');
+}
+
+function petals(){
+  if(reducedMotion())return;
+  const cv=document.getElementById('petalsCv');if(!cv||typeof cv.getContext!=='function')return;
+  const ctx=cv.getContext('2d');if(!ctx)return;
+  const hero=document.getElementById('hero');
+  const rs=()=>{cv.width=hero.offsetWidth||1200;cv.height=hero.offsetHeight||620};
+  rs();if(window.addEventListener)window.addEventListener('resize',rs);
+  const P=Array.from({length:26},()=>({x:Math.random()*cv.width,y:Math.random()*cv.height,r:2+Math.random()*3.5,s:.25+Math.random()*.75,ph:Math.random()*6.28,o:.2+Math.random()*.45}));
+  (function loop(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    P.forEach(p=>{
+      p.y+=p.s;p.ph+=.012;p.x+=Math.sin(p.ph)*.5;
+      if(p.y>cv.height+12){p.y=-12;p.x=Math.random()*cv.width}
+      ctx.beginPath();ctx.ellipse(p.x,p.y,p.r,p.r*.55,p.ph,0,6.283);
+      ctx.fillStyle=`rgba(230,207,154,${p.o})`;ctx.fill();
+    });
+    raf(loop);
+  })();
+}
+
+function confetti(){
+  if(reducedMotion())return;
+  const cv=document.getElementById('confettiCv');if(!cv||typeof cv.getContext!=='function')return;
+  const ctx=cv.getContext('2d');if(!ctx)return;
+  cv.width=window.innerWidth||1200;cv.height=window.innerHeight||800;
+  const C=['#c9a25c','#e6cf9a','#14523f','#ffffff','#8e3a6d'];
+  const P=Array.from({length:150},()=>({x:Math.random()*cv.width,y:-20-Math.random()*cv.height*.6,w:5+Math.random()*6,h:8+Math.random()*8,c:C[Math.floor(Math.random()*C.length)],v:2.2+Math.random()*3.6,a:Math.random()*6.28,va:(Math.random()-.5)*.25,sw:Math.random()*2}));
+  const t0=Date.now();
+  (function loop(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    P.forEach(p=>{
+      p.y+=p.v;p.a+=p.va;p.x+=Math.sin(p.a)*p.sw;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);
+      ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();
+    });
+    if(Date.now()-t0<2800)raf(loop);else ctx.clearRect(0,0,cv.width,cv.height);
+  })();
+}
+
+/* init */
+setLang('ru');go('home');
+animCounters();petals();
+addTilt(document.getElementById('heroTilt'));
+addTilt(document.getElementById('livePreview'));
+/* v2 */
+</script>
+</body>
+</html>
