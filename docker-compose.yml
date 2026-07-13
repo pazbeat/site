@@ -1,0 +1,71 @@
+# Production-стек: app + postgres + ежедневные бэкапы.
+# Запуск: docker compose --env-file .env.production up -d --build
+# HTTPS терминируется внешним reverse-proxy (Caddy/nginx/Traefik) перед app.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-imbir}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-imbir}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-imbir} -d ${POSTGRES_DB:-imbir}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Порт наружу не публикуем — доступ только из сети compose
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-imbir}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-imbir}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
+      CODE_ENCRYPTION_KEY: ${CODE_ENCRYPTION_KEY:?set CODE_ENCRYPTION_KEY}
+      SITE_URL: ${SITE_URL:?set SITE_URL}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MANAGER_EMAIL: ${MANAGER_EMAIL:-}
+      KASPI_PAY_MERCHANT_ID: ${KASPI_PAY_MERCHANT_ID:-}
+      KASPI_PAY_SECRET: ${KASPI_PAY_SECRET:-}
+      FREEDOM_PAY_MERCHANT_ID: ${FREEDOM_PAY_MERCHANT_ID:-}
+      FREEDOM_PAY_SECRET: ${FREEDOM_PAY_SECRET:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      RUN_SEED: ${RUN_SEED:-0}
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/ru').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-imbir}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-imbir}
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: "30"
+    volumes:
+      - ./scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
+      - backups:/backups
+    # Раз в сутки в 03:00 (Asia/Almaty ≈ UTC+5 → 22:00 UTC); контейнер спит между запусками
+    entrypoint: ["sh", "-c", "while true; do sh /usr/local/bin/backup-db.sh; sleep 86400; done"]
+
+volumes:
+  pgdata:
+  backups:

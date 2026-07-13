@@ -1,0 +1,86 @@
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+
+# Imbir Thai Spa — сайт подарочных сертификатов
+
+Полное ТЗ: [docs/prd.md](docs/prd.md). Прототип UI: [docs/prototype.html](docs/prototype.html) (референс структуры/функциональности, но палитра там устаревшая — красить строго по брендбуку). Брендбук: docs/brandbook.pdf.pdf.
+
+## Стек (зафиксировано в PRD §2)
+
+- **Next.js 15+ (App Router, TypeScript, RSC)** — фронт и бэк в одном репозитории, SSR для SEO.
+- **PostgreSQL 16 + Prisma** — только миграции, никакого raw SQL без параметризации.
+- **Tailwind CSS + shadcn/ui**, токены брендбука в конфиге Tailwind.
+- **next-intl**: RU (default) / KK / EN, маршруты `/ru /kk /en`.
+- **Auth.js (NextAuth v5)** для админки: credentials + обязательный TOTP 2FA, argon2id.
+- **pg-boss** (очереди поверх Postgres): отложенная доставка, ретраи вебхуков, синк Altegio.
+- **Zod** на каждом API-входе (сервер обязательно). Vitest (unit) + Playwright (e2e).
+- Платежи: Kaspi Pay + Freedom Pay за общим интерфейсом `PaymentProvider`.
+- Email: Resend; WhatsApp: **ChatApp** (chatapp.online) за интерфейсом `MessagingProvider`.
+
+## Дизайн-токены (брендбук, PRD §3) — СТРОГО
+
+| Токен | HEX | Использование |
+|---|---|---|
+| `brand-purple` | `#4D295D` | основной: hero/футер, заголовки, кнопки |
+| `brand-gold` | `#B69244` (градиент с `#B59243`) | акценты, рамки, цены, hover |
+| `brand-red` | `#CF0000` | ТОЛЬКО ошибки/предупреждения/бейджи скидок, не декоративно |
+| белый `#FFFFFF` | | основной фон, текст на фиолетовом |
+
+- Заголовки: **Cormorant Garamond** (Google Fonts, кириллица). Текст: **Montserrat** — принятая замена коммерческого Coco Gothic до подтверждения веб-лицензии (открытый вопрос №2). Загрузка через `next/font`.
+- Производные оттенки — только затемнение/осветление фирменных цветов. Допустим градиент фиолетовый→золото.
+- Тонкие золотые рамки 1px на карточках сертификатов; line-art имбиря (SVG-заглушки до получения исходников).
+- Премиальный «воздушный» стиль, адаптивность от 360px, уважать `prefers-reduced-motion`.
+
+## Ключевые архитектурные решения
+
+- **Цена — только из БД на сервере**; клиентские цены — отображение, не источник истины.
+- **Код сертификата** `IMB-XXXX-XXXX`: crypto.randomBytes, энтропия ≥ 40 бит, алфавит без O/0/I/1. В БД хранится **SHA-256 хэш** (`code_hash`), открытый код показывается один раз + в PDF. Поиск — по хэшу.
+- **Consent-модалка обязательна** до конструктора и на шаге оплаты; без записи согласия (`consent`: версии документов, IP, UA, timestamp) заказ не создаётся. Плейсхолдер текста: «Привет, ты точно хочешь купить?».
+- **Правовые документы версионируются**: каждое сохранение — новая неизменяемая версия; согласия ссылаются на конкретные версии.
+- **Выбор города → филиала обязателен** на первом шаге конструктора; филиал фильтрует программы (часть SPA только Астана/Алматы), сохраняется в заказе, определяет `location_id` Altegio.
+- Деньги — **integer, целые тенге** (тиынов нет).
+- **Серийный номер сертификата** (`Certificate.serial`, напр. WM001): внутренний, по салону — префикс `Salon.codePrefix` (WM/WT/WB/WR/WN/WP/WK; WS Семей — салон ещё не заведён) + атомарный счётчик `Salon.lastCertSerial`, паддинг 3 цифры. Для админки и Altegio; покупателю НЕ показывается — публичный код только случайный IMB-…. Генерится в `fulfillOrder`.
+- **Промокоды (Фаза 2)**: скидка уменьшает СУММУ ОПЛАТЫ (`order.amountKzt`), а номинал сертификата (`item.amountKzt` → баланс получателя) остаётся полным. Скидка считается только на сервере (`lib/promo.ts`); клиентское превью — через `/api/promo/validate`. Ценообразование заказа вынесено в общий `lib/pricing.ts` (`resolveOrderAmount`), используется и заказом, и превью промо. Коды хранятся в верхнем регистре; `Promo.limits` (Json): `{maxUses, validFrom, validUntil, minAmountKzt}`. Невалидный промокод не блокирует заказ — просто без скидки. maxUses считается по оплаченным заказам (soft-gate).
+- Вебхуки платежей: проверка подписи, идемпотентность, сверка суммы с заказом на сервере. Неоплаченные заказы протухают через 30 минут.
+- **Отложенная доставка (Фаза 2)**: sweeper-модель. Будущий `scheduledAt` НЕ пред-планируется в pg-boss — `enqueueDelivery` для будущей даты ничего не делает, а cron `deliver-scheduled` (каждые 5 мин, `lib/scheduled.ts`) находит наступившие (`scheduledAt<=now, sentAt=null`) и ставит немедленную доставку. Так перенос/«отправить сейчас» из `/admin/scheduled` — просто правка `scheduledAt`, переживает рестарты; идемпотентность — `sentAt`.
+- **WhatsApp-доставка (Фаза 2, ChatApp)**: `lib/messaging/` за интерфейсом `MessagingProvider` (sendText/sendFile). Адаптер `chatapp.ts`: токен через `POST /v1/tokens` (email+password+appId, кэш 23ч, ре-авторизация на 401) → `POST /v1/licenses/{licenseId}/messengers/{type}/chats/{phone}@c.us/messages-text|messages-file`. **messengerType для «[WEB] WhatsApp» = `grWhatsApp`** (не `whatsapp`); `licenseId` (напр. 45740) ≠ число из appId — узнавать через `GET /v1/licenses`. Доставка получателю в WhatsApp: текст-приветствие + ссылка на `/success?token=…` (просмотр+PDF) + PDF-файл best-effort (контракт messages-file не подтверждён в доках — проверить на своём номере перед боевым). Мок `.wa-outbox` при `WHATSAPP_MOCK=1` или без секретов — dev не шлёт реальные сообщения. Телефон→chatId: цифры, ведущая 8→7, `@c.us`.
+- **Напоминания об истечении (Фаза 2)**: cron `expiry-reminders` (раз в сутки 09:00 Almaty) → `lib/reminders.ts`. Вехи 30/7 дней, каждая шлётся один раз (`Certificate.reminder30SentAt`/`reminder7SentAt`), 7-дневная приоритетнее. Письмо держателю (email-доставка → контакт получателя, иначе — покупателю). Чистая `dueReminderMilestone` — тестируется.
+- **Altegio (Фаза 3)**: наша БД — источник истины по выпуску, Altegio — по погашениям. Все вызовы через очередь (лимит 200 req/min), ошибка синка не блокирует доставку. Наш код IMB-… передаётся кодом сертификата в Altegio.
+- Таймзона доставки: **Asia/Almaty**.
+- Статусы сертификата: `active → partially_used → used / expired / refunded / blocked` (partially_used — для номинальных).
+- Деактивация программ вместо удаления, если есть проданные сертификаты.
+
+## Безопасность (PRD §9 — каждый пункт acceptance criterion)
+
+CSP без unsafe-inline для скриптов + HSTS и пр. заголовки; `dangerouslySetInnerHTML` только для санитизированных (sanitize-html, allowlist) правовых текстов; middleware закрывает все `/admin/*` и `/api/admin/*` на сервере; rate limit на все публичные POST и `/check` (5/мин на IP); загрузка файлов — магические байты, sharp → WebP, случайные имена; секреты только в env; не логировать ПД и коды в plaintext.
+
+## Фазы (PRD §10)
+
+1. **MVP**: каркас (Next+Prisma+i18n+токены) → публичный сайт → оплата → PDF+QR+email → админка → чек-лист безопасности → деплой.
+2. WhatsApp, отложенная отправка, промокоды, корпоративные заявки, дашборд, напоминания.
+3. Altegio, KK/EN правовые тексты, A/B цен.
+
+**Каждая фаза завершается: `npm run build` без ошибок + все тесты зелёные.**
+
+## Особенности установленного стека (важно!)
+
+- **Next 16.2** (не 15): файл `middleware.ts` переименован в **`proxy.ts`** (экспорт `proxy`), документация — в `node_modules/next/dist/docs/`.
+- **Prisma 7**: `url` в `datasource` схемы запрещён — подключение задаётся в `prisma.config.ts` (`datasource.url`) и через адаптер `@prisma/adapter-pg` в конструкторе `PrismaClient`. Генератор — `prisma-client` с output в `lib/generated/prisma` (в .gitignore). Ключ `"prisma"` в package.json не поддерживается — сид настроен в `prisma.config.ts`.
+- **Tailwind v4**: токены объявлены в `@theme` в `app/globals.css`, файла tailwind.config нет.
+- Первая миграция сгенерирована офлайн (`prisma/migrations/20260709000000_init`) — при первом подключении БД выполнить `npx prisma migrate deploy` (или `migrate dev` для дальнейшей разработки).
+- **Оплата**: `PAYMENT_MOCK=1` в `.env` включает демо-провайдера (страница `/pay/mock` шлёт подписанный вебхук) — для dev/e2e; в production не включать. Kaspi-адаптер — каркас до получения договора (PRD §12 №6). Локальная БД — Docker-контейнер `imbir-pg` (postgres:16-alpine, user/pass/db: imbir). pg-boss стартует через `instrumentation.ts` (cron `expire-orders` каждые 5 мин).
+- **Безопасность**: CSP с per-request nonce + security-заголовки навешиваются в `proxy.ts` (`lib/security.ts`); в dev послабления для Turbopack HMR (unsafe-eval/inline), в production строго (`script-src 'self' 'nonce-…' 'strict-dynamic'`). next-intl копирует заголовки запроса в rewrite, поэтому nonce (в заголовке `content-security-policy` запроса) доходит до Next и проставляется скриптам. Чек-лист §9 — `docs/SECURITY.md`. Бэкапы — `scripts/backup-db.sh` (cron). `npm audit`: транзитивный postcss-advisory внутри Next не эксплуатируется (не форсить fix — откатит Next до v9).
+- **Админка** (`/admin/*`, вне i18n): Auth.js v5 — конфиг разделён на `lib/auth.config.ts` (edge-safe, для `proxy.ts`) и `lib/auth.ts` (Credentials + argon2 + prisma, только Node). `proxy.ts` закрывает `/admin/*` (редирект на login) и `/api/admin/*` (401). Создание админа: `npx tsx scripts/create-admin.ts <email> <pass> [superadmin|manager]` — печатает TOTP QR. **otplib v13**: `generateSecret`/`generateURI({issuer,label,secret})`/`verifySync({token,secret}).valid` (нет `authenticator`). TOTP-секрет и код сертификата шифруются AES-GCM (`lib/crypto.ts`, `CODE_ENCRYPTION_KEY`). Мутации пишут `auditLog`. Правовые тексты — sanitize-html на сервере, каждая правка = новая неизменяемая `LegalVersion`. Варианты программы редактируются по `id` (обновление на месте; удаление только без проданных сертификатов).
+
+## Команды
+
+- `npm run dev` / `npm run build` / `npm test` (Vitest) / `npm run test:e2e` (Playwright)
+- `npx prisma migrate dev` — миграции (нужен PostgreSQL, `DATABASE_URL` в `.env`)
+- `npx prisma db seed` — сид: 27 программ, 4 номинала, 7 филиалов (данные — PRD Приложение А)
+
+## Открытые вопросы бизнеса (PRD §12, не блокируют Фазу 1)
+
+Altegio-токены и location_id; лицензия Coco Gothic; SVG логотипа/line-art; реальные правовые тексты; провайдер WhatsApp; тип договора Kaspi Pay + тестовая среда; юридический срок действия сертификата.
