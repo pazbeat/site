@@ -158,6 +158,9 @@ export async function deliverCertificate(certificateId: string): Promise<void> {
     const { getMessenger } = await import("./messaging");
     const messenger = getMessenger();
     const link = `${siteUrl()}/${locale}/success?token=${certificate.order.successToken}`;
+    console.log(
+      `[delivery] WhatsApp → ${certificate.deliveryContact} (provider=${messenger.id})`,
+    );
     await messenger.sendText(
       certificate.deliveryContact,
       whatsappRecipientText({
@@ -167,6 +170,7 @@ export async function deliverCertificate(certificateId: string): Promise<void> {
         link,
       }),
     );
+    console.log(`[delivery] WhatsApp text OK → ${certificate.deliveryContact}`);
     // PDF-файл: ChatApp качает вложение по публичному URL. На localhost URL
     // недоступен извне → упадёт; поэтому best-effort (текст со ссылкой выше
     // уже доставлен). На публичном хостинге доставит PDF.
