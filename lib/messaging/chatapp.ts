@@ -8,13 +8,16 @@ import {
 /**
  * ChatApp (chatapp.online) — провайдер WhatsApp (PRD §12 №5).
  * Поток: POST /v1/tokens (email+password+appId → accessToken 24ч) →
- * POST /v1/licenses/{licenseId}/messengers/whatsapp/chats/{chatId}/messages-*.
+ * POST /v1/licenses/{licenseId}/messengers/{type}/chats/{chatId}/messages/text|file.
  * Токен кэшируется в памяти процесса и переполучается по истечении/401.
  *
- * ВНИМАНИЕ: точный контракт messages-file в публичной документации ChatApp
- * не раскрыт — реализован multipart (наиболее вероятный вариант) и помечен
- * как best-effort; перед боевым запуском проверить отправку файла на свой
- * номер. Текстовая доставка (messages-text) документирована и надёжна.
+ * Эндпоинты выверены по живому API (2026-07-13):
+ *  - текст:  POST …/messages/text  body {text}
+ *  - файл:   POST …/messages/file  body {file: URL, fileName, text}
+ *    ВНИМАНИЕ: `file` — это ПУБЛИЧНЫЙ URL, который сервер ChatApp скачивает
+ *    сам (бинарная/multipart-загрузка не поддерживается). На localhost URL
+ *    недоступен извне → доставка файла падает; поэтому в delivery.ts она
+ *    best-effort, а получателю всё равно уходит текст со ссылкой на PDF.
  */
 
 const BASE_URL = process.env.CHATAPP_BASE_URL ?? "https://api.chatapp.online";
@@ -116,7 +119,7 @@ export class ChatAppProvider implements MessagingProvider {
     const chatId = normalizeWhatsAppChatId(toPhone);
     const response = await authedFetch(
       cfg,
-      chatUrl(cfg, chatId, "messages-text"),
+      chatUrl(cfg, chatId, "messages/text"),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -138,20 +141,24 @@ export class ChatAppProvider implements MessagingProvider {
   ): Promise<void> {
     const cfg = readConfig();
     if (!cfg) throw new Error("chatapp_not_configured");
+    if (!file.url) {
+      // ChatApp качает файл по URL — без публичной ссылки отправить нельзя.
+      throw new Error("chatapp_file_requires_url");
+    }
     const chatId = normalizeWhatsAppChatId(toPhone);
-
-    // best-effort multipart (см. примечание в шапке файла)
-    const form = new FormData();
-    const blob = new Blob([new Uint8Array(file.content)], {
-      type: file.mimeType ?? "application/octet-stream",
-    });
-    form.append("file", blob, file.filename);
-    if (caption) form.append("text", caption);
 
     const response = await authedFetch(
       cfg,
-      chatUrl(cfg, chatId, "messages-file"),
-      { method: "POST", body: form },
+      chatUrl(cfg, chatId, "messages/file"),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file: file.url,
+          fileName: file.filename,
+          ...(caption ? { text: caption } : {}),
+        }),
+      },
     );
     if (!response.ok) {
       const body = await response.text();

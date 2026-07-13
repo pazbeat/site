@@ -167,12 +167,16 @@ export async function deliverCertificate(certificateId: string): Promise<void> {
         link,
       }),
     );
-    // PDF-файл: контракт messages-file не подтверждён — не роняем доставку
+    // PDF-файл: ChatApp качает вложение по публичному URL. На localhost URL
+    // недоступен извне → упадёт; поэтому best-effort (текст со ссылкой выше
+    // уже доставлен). На публичном хостинге доставит PDF.
     try {
+      const pdfUrl = `${siteUrl()}/api/certificates/pdf?token=${certificate.order.successToken}`;
       await messenger.sendFile(certificate.deliveryContact, {
         filename,
         content: pdf,
         mimeType: "application/pdf",
+        url: pdfUrl,
       });
     } catch (error) {
       console.error("whatsapp file send failed (non-fatal)", error);

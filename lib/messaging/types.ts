@@ -8,6 +8,13 @@ export type MessengerFile = {
   filename: string;
   content: Buffer;
   mimeType?: string;
+  /**
+   * Публичный URL файла. ChatApp скачивает вложение по ссылке (бинарная
+   * загрузка не поддерживается), поэтому для реальной доставки нужен URL,
+   * доступный из интернета. На localhost недоступен → доставка файла
+   * best-effort. Мок сохраняет `content`.
+   */
+  url?: string;
 };
 
 export interface MessagingProvider {
