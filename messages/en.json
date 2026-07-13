@@ -173,6 +173,16 @@
     "note": "Test mode: no real charge is made. Kaspi Pay and Freedom Pay are connected under contract.",
     "error": "Payment failed. Please try again."
   },
+  "KaspiPay": {
+    "title": "Pay with Kaspi",
+    "loading": "Preparing payment…",
+    "scan": "Scan the QR code in the Kaspi.kz app, or tap the button from your phone.",
+    "openApp": "Open Kaspi.kz",
+    "waiting": "Waiting for payment confirmation…",
+    "paid": "Payment received! Redirecting…",
+    "error": "Could not create the payment. Please refresh.",
+    "retry": "Refresh"
+  },
   "Consent": {
     "checkbox": "I have read and fully accept the public offer, the privacy policy and the rules",
     "accept": "Accept",
