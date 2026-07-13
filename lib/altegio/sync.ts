@@ -1,0 +1,112 @@
+import "server-only";
+import { prisma } from "../db";
+import { decryptSecret } from "../crypto";
+import { isAltegioConfigured } from "./client";
+
+/**
+ * Синхронизация выпущенного сертификата в Altegio (Фаза 3). Наша БД — источник
+ * истины по выпуску; в Altegio уходит наш публичный код IMB-… номером
+ * сертификата, чтобы кассир мог погасить. Ошибка синка НЕ блокирует доставку.
+ *
+ * TEST-режим (ALTEGIO_TEST!=0): в комментарий/название добавляется «[ТЕСТ]»,
+ * чтобы записи в Altegio были явно помечены.
+ *
+ * Боевая запись включается флагом ALTEGIO_SYNC=1. Пока флаг выключен —
+ * конвейер только ЛОГИРУЕТ payload (dry-run), реальный HTTP-вызов не делается.
+ * Точный эндпоинт выпуска в Altegio (POST …) ещё уточняется — см.
+ * issueCertificate ниже.
+ */
+
+export type AltegioCertPayload = {
+  companyId: number;
+  /** Наш публичный код IMB-XXXX-XXXX — становится номером сертификата. */
+  number: string;
+  /** Внутренний серийник (WM001…), для сверки в CRM. */
+  serial: string | null;
+  balanceKzt: number;
+  comment: string;
+};
+
+export function isAltegioTest(): boolean {
+  return process.env.ALTEGIO_TEST !== "0";
+}
+
+export function isAltegioSyncEnabled(): boolean {
+  return process.env.ALTEGIO_SYNC === "1";
+}
+
+/** Комментарий к сертификату в Altegio. В TEST-режиме — с пометкой «[ТЕСТ]». */
+export function buildCertComment(input: {
+  test: boolean;
+  serial: string | null;
+  orderId: string;
+}): string {
+  const prefix = input.test ? "[ТЕСТ] " : "";
+  const serial = input.serial ? `${input.serial} · ` : "";
+  return `${prefix}Сайт Imbir · ${serial}заказ ${input.orderId}`;
+}
+
+/**
+ * РЕАЛЬНЫЙ выпуск сертификата в Altegio. Эндпоинт ещё не подтверждён
+ * (стандартные пути loyalty/certificates отвечают 404 — вероятно, нужен
+ * sale-документ либо расширенный scope токена). До подтверждения — заглушка.
+ */
+async function issueCertificate(payload: AltegioCertPayload): Promise<void> {
+  throw new Error(
+    `altegio_issue_endpoint_unconfirmed (№ ${payload.number}, company ${payload.companyId})`,
+  );
+}
+
+/**
+ * Синхронизирует один сертификат. Идемпотентность и постановку в очередь
+ * (лимит 200/min) добавим вместе с боевым эндпоинтом. Сейчас: dry-run-лог,
+ * а при ALTEGIO_SYNC=1 — попытка реального выпуска.
+ */
+export async function syncCertificateToAltegio(
+  certificateId: string,
+): Promise<void> {
+  if (!isAltegioConfigured()) {
+    console.log("[altegio] не сконфигурирован — пропуск синка");
+    return;
+  }
+
+  const cert = await prisma.certificate.findUnique({
+    where: { id: certificateId },
+    include: { salon: true },
+  });
+  if (!cert) throw new Error(`altegio sync: certificate ${certificateId} not found`);
+
+  const companyId = cert.salon.altegioLocationId;
+  if (!companyId) {
+    console.log(
+      `[altegio] у салона ${cert.salonId} нет altegioLocationId — пропуск`,
+    );
+    return;
+  }
+
+  const code = cert.codeEncrypted ? decryptSecret(cert.codeEncrypted) : null;
+  if (!code) throw new Error("altegio sync: certificate code unavailable");
+
+  const payload: AltegioCertPayload = {
+    companyId,
+    number: code,
+    serial: cert.serial,
+    balanceKzt: cert.amountKzt ?? cert.balanceKzt,
+    comment: buildCertComment({
+      test: isAltegioTest(),
+      serial: cert.serial,
+      orderId: cert.orderId,
+    }),
+  };
+
+  if (!isAltegioSyncEnabled()) {
+    console.log(
+      `[altegio] DRY-RUN (ALTEGIO_SYNC выкл) → company ${payload.companyId}, ` +
+        `№ ${payload.number}, ${payload.balanceKzt}₸, "${payload.comment}"`,
+    );
+    return;
+  }
+
+  await issueCertificate(payload);
+  console.log(`[altegio] выпущен сертификат ${payload.number} в company ${payload.companyId}`);
+}
