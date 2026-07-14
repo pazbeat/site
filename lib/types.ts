@@ -12,6 +12,7 @@ export type DesignBgStyle = {
 export type DesignDto = {
   id: number;
   name: string;
+  imageUrl: string | null;
   bgStyle: DesignBgStyle;
   textColor: string;
 };

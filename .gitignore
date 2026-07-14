@@ -40,6 +40,15 @@ yarn-error.log*
 # dev mail mock
 /.mail-outbox
 
+# WhatsApp mock outbox
+/.wa-outbox
+
+# runtime-загруженные картинки дизайнов (сид-открытки в public/designs — в гите)
+/public/uploads
+
+# исходники открыток (оптимизированные WebP лежат в public/designs)
+/sert design/
+
 # dev whatsapp mock
 /.wa-outbox
 

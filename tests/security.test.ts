@@ -21,8 +21,8 @@ describe("buildCsp (PRD §9.2)", () => {
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("base-uri 'self'");
     expect(csp).toContain("upgrade-insecure-requests");
-    // фото программ и data:-QR разрешены
-    expect(csp).toContain("img-src 'self' data: https://www.imbir.kz");
+    // фото программ, data:-QR и blob:-предпросмотр разрешены
+    expect(csp).toContain("img-src 'self' data: blob: https://www.imbir.kz");
   });
 
   it("dev: послабления для Turbopack HMR (eval/inline/ws), без upgrade", () => {

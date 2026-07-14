@@ -1,19 +1,6 @@
 import type { DesignBgStyle } from "@/lib/types";
 
-/**
- * Превью сертификата: белая/фирменная карточка с тонкой золотой рамкой 1px
- * (брендбук, PRD §3.3). Используется в hero, конструкторе и на успехе.
- */
-export function CertPreview({
-  bgStyle,
-  textColor,
-  giftLabel,
-  title,
-  subtitle,
-  forLabel,
-  message,
-  code = "IMB-••••-••••",
-}: Readonly<{
+type CertPreviewProps = Readonly<{
   bgStyle: DesignBgStyle;
   textColor: string;
   giftLabel: string;
@@ -22,7 +9,89 @@ export function CertPreview({
   forLabel?: string;
   message?: string;
   code?: string;
-}>) {
+  /** Картинка-открытка. Если задана — арт сверху + фирменная панель снизу. */
+  imageUrl?: string | null;
+}>;
+
+/**
+ * Превью сертификата. Два режима:
+ *  1) imageUrl задан — художественная открытка бренда сверху + фиолетовая
+ *     панель с персонализацией/кодом снизу (панель = bgStyle/textColor).
+ *  2) без картинки — старый CSS-фон с тонкой золотой рамкой (фолбэк, hero).
+ */
+export function CertPreview(props: CertPreviewProps) {
+  if (props.imageUrl) return <ImageCertPreview {...props} />;
+  return <LegacyCertPreview {...props} />;
+}
+
+function ImageCertPreview({
+  bgStyle,
+  textColor,
+  giftLabel,
+  title,
+  subtitle,
+  forLabel,
+  message,
+  code = "IMB-••••-••••",
+  imageUrl,
+}: CertPreviewProps) {
+  const panelBg =
+    bgStyle.kind === "gradient"
+      ? `linear-gradient(${bgStyle.angle ?? 135}deg, ${bgStyle.from}, ${bgStyle.to})`
+      : (bgStyle.color ?? "#4D295D");
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-brand-gold/40 bg-white shadow-2xl">
+      {/* Художественная открытка — показываем целиком, без обрезки заголовка */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна */}
+      <img
+        src={imageUrl ?? ""}
+        alt={title}
+        className="block w-full"
+      />
+      {/* Фирменная панель с персонализацией и кодом */}
+      <div
+        className="flex flex-col gap-2 p-5"
+        style={{ background: panelBg, color: textColor }}
+      >
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="font-display text-lg leading-tight sm:text-xl">
+            {title}
+          </div>
+          <div className="text-[9px] font-semibold tracking-[0.28em] whitespace-nowrap uppercase opacity-75">
+            {giftLabel}
+          </div>
+        </div>
+        {subtitle && <div className="text-xs opacity-80">{subtitle}</div>}
+        {(forLabel || message) && (
+          <div className="border-t border-white/15 pt-2">
+            {forLabel && <div className="text-xs opacity-90">{forLabel}</div>}
+            {message && (
+              <div className="mt-1 line-clamp-2 font-display text-sm italic opacity-90">
+                «{message}»
+              </div>
+            )}
+          </div>
+        )}
+        <div className="mt-1 flex items-center justify-between border-t border-white/15 pt-2 text-[11px] opacity-90">
+          <span className="font-display tracking-[0.12em]">IMBIR THAI SPA</span>
+          <span className="font-bold tracking-[0.15em]">{code}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LegacyCertPreview({
+  bgStyle,
+  textColor,
+  giftLabel,
+  title,
+  subtitle,
+  forLabel,
+  message,
+  code = "IMB-••••-••••",
+}: CertPreviewProps) {
   const background =
     bgStyle.kind === "gradient"
       ? `linear-gradient(${bgStyle.angle ?? 135}deg, ${bgStyle.from}, ${bgStyle.to})`

@@ -580,7 +580,7 @@ export function BuilderClient({
               <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
                 {t("s2Hint")}
               </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {designs.map((d, index) => (
                   <button
                     key={d.id}
@@ -592,16 +592,26 @@ export function BuilderClient({
                         : "border-transparent hover:border-brand-purple-100"
                     }`}
                   >
-                    <span
-                      aria-hidden
-                      className="block h-16 rounded-xl border border-brand-purple-100"
-                      style={{
-                        background:
-                          d.bgStyle.kind === "gradient"
-                            ? `linear-gradient(${d.bgStyle.angle ?? 135}deg, ${d.bgStyle.from}, ${d.bgStyle.to})`
-                            : d.bgStyle.color,
-                      }}
-                    />
+                    {d.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
+                      <img
+                        src={d.imageUrl}
+                        alt={d.name}
+                        loading="lazy"
+                        className="block aspect-[1400/903] w-full rounded-xl border border-brand-purple-100 object-cover"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="block aspect-[1400/903] w-full rounded-xl border border-brand-purple-100"
+                        style={{
+                          background:
+                            d.bgStyle.kind === "gradient"
+                              ? `linear-gradient(${d.bgStyle.angle ?? 135}deg, ${d.bgStyle.from}, ${d.bgStyle.to})`
+                              : d.bgStyle.color,
+                        }}
+                      />
+                    )}
                     <span className="mt-1.5 block text-center text-xs font-bold text-brand-purple-950/60">
                       {d.name}
                     </span>
@@ -872,6 +882,7 @@ export function BuilderClient({
         {/* Живой предпросмотр + сводка */}
         <aside className="lg:sticky lg:top-24">
           <CertPreview
+            imageUrl={design.imageUrl}
             bgStyle={design.bgStyle}
             textColor={design.textColor}
             giftLabel={t("certGift")}

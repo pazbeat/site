@@ -57,6 +57,7 @@ export function toDesignDto(design: Design, locale: string): DesignDto {
   return {
     id: design.id,
     name: pickL10n(design.names, locale),
+    imageUrl: design.imageUrl,
     bgStyle: design.bgStyle as DesignBgStyle,
     textColor: design.textColor,
   };

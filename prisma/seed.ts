@@ -5,6 +5,7 @@
  */
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type ProgramCategory } from "../lib/generated/prisma/client";
+import { DESIGN_SEED, PANEL_BG, PANEL_TEXT } from "./designs-data";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -101,29 +102,14 @@ const NOMINALS = [
   { amountKzt: 100000, label: null },
 ];
 
-// Дизайны открыток — только фирменная палитра (PRD §3.1, §6.3)
-const DESIGNS = [
-  {
-    names: { ru: "Фиолетовый", kk: "Күлгін", en: "Purple" },
-    bgStyle: { kind: "solid", color: "#4D295D" },
-    textColor: "#FFFFFF",
-  },
-  {
-    names: { ru: "Золото", kk: "Алтын", en: "Gold" },
-    bgStyle: { kind: "gradient", from: "#B69244", to: "#B59243", angle: 120 },
-    textColor: "#FFFFFF",
-  },
-  {
-    names: { ru: "Фиолетовый с золотом", kk: "Алтын жалатылған күлгін", en: "Purple & Gold" },
-    bgStyle: { kind: "gradient", from: "#4D295D", to: "#B69244", angle: 135 },
-    textColor: "#FFFFFF",
-  },
-  {
-    names: { ru: "Белый с золотой рамкой", kk: "Алтын жиекті ақ", en: "White with gold frame" },
-    bgStyle: { kind: "solid", color: "#FFFFFF", border: "#B69244" },
-    textColor: "#4D295D",
-  },
-];
+// Дизайны — художественные открытки бренда (public/designs/…webp).
+// Каталог в prisma/designs-data.ts; персонализация/код рисуются в панели снизу.
+const DESIGNS = DESIGN_SEED.map((d) => ({
+  names: d.names,
+  imageUrl: d.file,
+  bgStyle: PANEL_BG,
+  textColor: PANEL_TEXT,
+}));
 
 const LEGAL_PLACEHOLDERS: Array<{
   type: "offer" | "privacy" | "rules" | "consent_modal";
