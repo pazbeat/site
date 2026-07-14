@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "../db";
 import { decryptSecret } from "../crypto";
 import { isAltegioConfigured } from "./client";
+import { issueCertificateOperation } from "./operations";
 
 /**
  * Синхронизация выпущенного сертификата в Altegio (Фаза 3). Наша БД — источник
@@ -47,20 +48,11 @@ export function buildCertComment(input: {
 }
 
 /**
- * РЕАЛЬНЫЙ выпуск сертификата в Altegio. Эндпоинт ещё не подтверждён
- * (стандартные пути loyalty/certificates отвечают 404 — вероятно, нужен
- * sale-документ либо расширенный scope токена). До подтверждения — заглушка.
- */
-async function issueCertificate(payload: AltegioCertPayload): Promise<void> {
-  throw new Error(
-    `altegio_issue_endpoint_unconfirmed (№ ${payload.number}, company ${payload.companyId})`,
-  );
-}
-
-/**
- * Синхронизирует один сертификат. Идемпотентность и постановку в очередь
- * (лимит 200/min) добавим вместе с боевым эндпоинтом. Сейчас: dry-run-лог,
- * а при ALTEGIO_SYNC=1 — попытка реального выпуска.
+ * Синхронизирует один сертификат в Altegio (выпуск через storage-операцию,
+ * см. lib/altegio/operations.ts). При ALTEGIO_SYNC=1 — реальная запись;
+ * иначе dry-run-лог. Идемпотентность — по уникальному номеру сертификата
+ * (повторный выпуск → already_exists). В TEST-режиме уходит товар
+ * «Тестовый 1тенге» на филиал 225022 (запись явно помечена как тест).
  */
 export async function syncCertificateToAltegio(
   certificateId: string,
@@ -72,7 +64,7 @@ export async function syncCertificateToAltegio(
 
   const cert = await prisma.certificate.findUnique({
     where: { id: certificateId },
-    include: { salon: true },
+    include: { salon: true, order: true },
   });
   if (!cert) throw new Error(`altegio sync: certificate ${certificateId} not found`);
 
@@ -107,6 +99,22 @@ export async function syncCertificateToAltegio(
     return;
   }
 
-  await issueCertificate(payload);
-  console.log(`[altegio] выпущен сертификат ${payload.number} в company ${payload.companyId}`);
+  const result = await issueCertificateOperation({
+    code,
+    amountKzt: payload.balanceKzt,
+    buyerName: cert.fromName,
+    buyerEmail: cert.order.buyerEmail,
+    buyerPhone:
+      cert.deliveryMethod === "whatsapp" ? cert.deliveryContact : undefined,
+    orderId: cert.orderId,
+  });
+
+  if (result.status === "already_exists") {
+    console.log(`[altegio] сертификат ${code} уже существует — идемпотентно ок`);
+  } else {
+    console.log(
+      `[altegio] выпущен сертификат ${code} → document ${result.documentId} ` +
+        `(тест-филиал ${result.companyId}; выбранный салон company ${companyId})`,
+    );
+  }
 }
