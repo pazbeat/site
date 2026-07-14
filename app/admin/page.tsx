@@ -71,6 +71,30 @@ export default async function AdminDashboard() {
     }),
   ]);
 
+  // Продажи по филиалам за 30 дней
+  const branchAgg = await prisma.order.groupBy({
+    by: ["salonId"],
+    where: { status: "paid", createdAt: { gte: since30 } },
+    _sum: { amountKzt: true },
+    _count: { _all: true },
+  });
+  const branchSalons = await prisma.salon.findMany({
+    where: { id: { in: branchAgg.map((b) => b.salonId) } },
+    select: { id: true, city: true, name: true },
+  });
+  const branchNameById = new Map(
+    branchSalons.map((s) => [s.id, `${s.city} · ${s.name}`] as const),
+  );
+  const branchRows = branchAgg
+    .map((b) => ({
+      id: b.salonId,
+      name: branchNameById.get(b.salonId) ?? "—",
+      count: b._count._all,
+      sum: b._sum.amountKzt ?? 0,
+    }))
+    .sort((a, b) => b.sum - a.sum);
+  const branchMax = Math.max(1, ...branchRows.map((b) => b.sum));
+
   // Топ-программы: разворачиваем programOptionId → название программы
   const optionIds = topOptions
     .map((t) => t.programOptionId)
@@ -194,6 +218,52 @@ export default async function AdminDashboard() {
           )}
         </section>
       </div>
+
+      <section className="mt-5 rounded-2xl border border-brand-purple-100 bg-white p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-brand-purple">
+            Продажи по филиалам · 30 дней
+          </h2>
+          <Link
+            href="/admin/sales"
+            className="text-xs font-semibold text-brand-gold hover:underline"
+          >
+            Подробнее →
+          </Link>
+        </div>
+        {branchRows.length ? (
+          <ul className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
+            {branchRows.map((b) => (
+              <li key={b.id} className="py-1">
+                <div className="mb-1 flex justify-between gap-3 text-sm">
+                  <Link
+                    href={`/admin/orders?salon=${b.id}&status=paid`}
+                    className="truncate text-brand-purple-950/80 hover:underline"
+                  >
+                    {b.name}
+                  </Link>
+                  <span className="whitespace-nowrap font-semibold text-brand-purple">
+                    {formatKzt(b.sum)}{" "}
+                    <span className="font-normal text-brand-purple-950/45">
+                      · {b.count}
+                    </span>
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-brand-purple-50">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-gold"
+                    style={{ width: `${Math.round((b.sum / branchMax) * 100)}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-brand-purple-950/50">
+            Нет продаж за 30 дней.
+          </p>
+        )}
+      </section>
     </AdminChrome>
   );
 }
