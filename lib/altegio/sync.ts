@@ -107,6 +107,7 @@ export async function syncCertificateToAltegio(
     buyerPhone:
       cert.deliveryMethod === "whatsapp" ? cert.deliveryContact : undefined,
     orderId: cert.orderId,
+    comment: payload.comment,
   });
 
   if (result.status === "already_exists") {
@@ -114,7 +115,8 @@ export async function syncCertificateToAltegio(
   } else {
     console.log(
       `[altegio] выпущен сертификат ${code} → document ${result.documentId} ` +
-        `(тест-филиал ${result.companyId}; выбранный салон company ${companyId})`,
+        `(филиал ${result.companyId}, клиент ${result.clientId}, ` +
+        `тел ${result.clientPhone}; выбранный салон company ${companyId})`,
     );
   }
 }

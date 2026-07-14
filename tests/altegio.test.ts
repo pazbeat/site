@@ -25,13 +25,31 @@ describe("altegio buildCertComment", () => {
 });
 
 describe("altegio buildStorageOperation", () => {
-  const op = buildStorageOperation({
-    code: "IMB-ABCD-EFGH",
-    amountKzt: 20000,
-    buyerName: "Иван",
-    buyerEmail: "iван@example.com",
-    orderId: "ord1",
-  });
+  const ctx = {
+    companyId: 225022,
+    storageId: 424028,
+    masterId: 1004429,
+    accountId: 430646,
+    clientId: 184315997,
+    client: { id: 184315997, name: "[ТЕСТ] Сайт Imbir", phone: "77000000199" },
+    good: {
+      good_id: 24847459,
+      unit_id: 216760,
+      loyalty_certificate_type_id: 286962,
+      title: "Энергия Сиама Сайт 35000",
+    },
+    comment: "[ТЕСТ] сайт Imbir · заказ ord1",
+  };
+  const op = buildStorageOperation(
+    {
+      code: "IMB-ABCD-EFGH",
+      amountKzt: 20000,
+      buyerName: "Иван",
+      buyerEmail: "iван@example.com",
+      orderId: "ord1",
+    },
+    ctx,
+  );
   const tx = op.goods_transactions[0];
 
   it("кладёт наш код в good_special_number транзакции", () => {
@@ -43,10 +61,15 @@ describe("altegio buildStorageOperation", () => {
     expect(tx.sale_amount).toBe(20000);
   });
 
-  it("использует тест-товар и его cert-type", () => {
-    expect(tx.good_id).toBe(23833850);
-    expect(tx.good.loyalty_certificate_type_id).toBe(266333);
+  it("продаёт реальный товар-сертификат из контекста", () => {
+    expect(tx.good_id).toBe(24847459);
     expect(op.storage_id).toBe(424028);
+  });
+
+  it("привязывает клиента (client_id) — иначе сертификат не виден в CRM", () => {
+    expect(op.client_id).toBe(184315997);
+    expect(tx.client_id).toBe(184315997);
+    expect(op.phone).toBe("77000000199");
   });
 });
 
