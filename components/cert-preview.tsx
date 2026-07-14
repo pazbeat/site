@@ -25,8 +25,6 @@ export function CertPreview(props: CertPreviewProps) {
 }
 
 function ImageCertPreview({
-  bgStyle,
-  textColor,
   giftLabel,
   title,
   subtitle,
@@ -35,47 +33,36 @@ function ImageCertPreview({
   code = "IMB-••••-••••",
   imageUrl,
 }: CertPreviewProps) {
-  const panelBg =
-    bgStyle.kind === "gradient"
-      ? `linear-gradient(${bgStyle.angle ?? 135}deg, ${bgStyle.from}, ${bgStyle.to})`
-      : (bgStyle.color ?? "#4D295D");
-
   return (
-    <div className="overflow-hidden rounded-2xl border border-brand-gold/40 bg-white shadow-2xl">
-      {/* Художественная открытка — показываем целиком, без обрезки заголовка */}
+    <div className="relative overflow-hidden rounded-2xl border border-brand-gold/40 shadow-2xl">
+      {/* Художественная открытка целиком, горизонтально */}
       {/* eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна */}
-      <img
-        src={imageUrl ?? ""}
-        alt={title}
-        className="block w-full"
-      />
-      {/* Фирменная панель с персонализацией и кодом */}
-      <div
-        className="flex flex-col gap-2 p-5"
-        style={{ background: panelBg, color: textColor }}
-      >
+      <img src={imageUrl ?? ""} alt={title} className="block w-full" />
+      {/* Текст поверх низа картинки на фирменной подложке-градиенте */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-brand-purple via-brand-purple/85 to-transparent px-5 pt-12 pb-4 text-white">
         <div className="flex items-baseline justify-between gap-3">
           <div className="font-display text-lg leading-tight sm:text-xl">
             {title}
           </div>
-          <div className="text-[9px] font-semibold tracking-[0.28em] whitespace-nowrap uppercase opacity-75">
+          <div className="text-[9px] font-semibold tracking-[0.26em] whitespace-nowrap uppercase opacity-80">
             {giftLabel}
           </div>
         </div>
-        {subtitle && <div className="text-xs opacity-80">{subtitle}</div>}
-        {(forLabel || message) && (
-          <div className="border-t border-white/15 pt-2">
-            {forLabel && <div className="text-xs opacity-90">{forLabel}</div>}
+        {subtitle && <div className="text-xs opacity-85">{subtitle}</div>}
+        <div className="mt-1.5 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            {forLabel && (
+              <div className="truncate text-xs opacity-90">{forLabel}</div>
+            )}
             {message && (
-              <div className="mt-1 line-clamp-2 font-display text-sm italic opacity-90">
+              <div className="truncate font-display text-sm italic opacity-85">
                 «{message}»
               </div>
             )}
           </div>
-        )}
-        <div className="mt-1 flex items-center justify-between border-t border-white/15 pt-2 text-[11px] opacity-90">
-          <span className="font-display tracking-[0.12em]">IMBIR THAI SPA</span>
-          <span className="font-bold tracking-[0.15em]">{code}</span>
+          <span className="text-sm font-bold tracking-[0.15em] whitespace-nowrap">
+            {code}
+          </span>
         </div>
       </div>
     </div>
