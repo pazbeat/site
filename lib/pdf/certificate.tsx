@@ -48,6 +48,11 @@ export type CertificatePdfData = {
   locale: string;
   bgStyle: DesignBgStyle;
   textColor: string;
+  /**
+   * JPEG data-URL художественной открытки (react-pdf не умеет WebP —
+   * конвертация в lib/delivery.ts). Если задан — макет «арт + панель».
+   */
+  imageDataUrl?: string;
 };
 
 const GOLD = "#B69244";
@@ -110,6 +115,140 @@ const styles = StyleSheet.create({
   },
   meta: { fontSize: 8, color: "#2c1736", marginTop: 8, textAlign: "center" },
 });
+
+// ---- Макет с картинкой-открыткой (A5 портрет): арт сверху + панель снизу ----
+const imgStyles = StyleSheet.create({
+  page: { padding: 16, backgroundColor: "#FFFFFF" },
+  card: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: GOLD,
+  },
+  art: { width: "100%", objectFit: "cover" },
+  panel: { flex: 1, padding: 20, flexDirection: "column" },
+  headRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+  brand: { fontSize: 12, letterSpacing: 2 },
+  gift: {
+    fontSize: 7,
+    letterSpacing: 3,
+    textTransform: "uppercase",
+    opacity: 0.75,
+  },
+  title: { fontSize: 22, marginTop: 12 },
+  subtitle: { fontSize: 10, opacity: 0.85, marginTop: 3 },
+  names: { fontSize: 11, marginTop: 10 },
+  from: { fontSize: 10, opacity: 0.8, marginTop: 2 },
+  message: { fontSize: 11, fontStyle: "italic", opacity: 0.92, marginTop: 8 },
+  footer: {
+    marginTop: "auto",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+  metaLine: { fontSize: 8, opacity: 0.85, marginTop: 3 },
+  qrBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    padding: 8,
+    alignItems: "center",
+  },
+  qrImg: { width: 92, height: 92 },
+  qrCode: {
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: 1.5,
+    color: "#4D295D",
+    marginTop: 4,
+  },
+});
+
+function CertificatePdfWithImage({
+  data,
+}: Readonly<{ data: CertificatePdfData }>) {
+  const panelBg =
+    data.bgStyle.kind === "gradient"
+      ? (data.bgStyle.from ?? "#4D295D")
+      : (data.bgStyle.color ?? "#4D295D");
+  const text = data.textColor || "#FFFFFF";
+  const displayFamily = data.locale === "kk" ? "Montserrat" : "Cormorant";
+
+  return (
+    <Document
+      title={`Imbir Thai Spa — ${data.giftLabel}`}
+      author="Imbir Thai Spa"
+    >
+      <Page size="A5" style={imgStyles.page}>
+        <View style={imgStyles.card}>
+          {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+          <Image src={data.imageDataUrl} style={imgStyles.art} />
+          <View style={[imgStyles.panel, { backgroundColor: panelBg }]}>
+            <View style={imgStyles.headRow}>
+              <Text
+                style={[
+                  imgStyles.brand,
+                  { fontFamily: displayFamily, color: text },
+                ]}
+              >
+                IMBIR THAI SPA
+              </Text>
+              <Text style={[imgStyles.gift, { color: text }]}>
+                {data.giftLabel}
+              </Text>
+            </View>
+
+            <Text
+              style={[
+                imgStyles.title,
+                { fontFamily: displayFamily, color: text },
+              ]}
+            >
+              {data.title}
+            </Text>
+            {data.subtitle ? (
+              <Text style={[imgStyles.subtitle, { color: text }]}>
+                {data.subtitle}
+              </Text>
+            ) : null}
+
+            <Text style={[imgStyles.names, { color: text }]}>
+              {data.toName}
+            </Text>
+            <Text style={[imgStyles.from, { color: text }]}>
+              {data.fromName}
+            </Text>
+            {data.message ? (
+              <Text style={[imgStyles.message, { color: text }]}>
+                «{data.message}»
+              </Text>
+            ) : null}
+
+            <View style={imgStyles.footer}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={[imgStyles.metaLine, { color: text }]}>
+                  {data.validUntilLabel}: {data.validUntil}
+                </Text>
+                <Text style={[imgStyles.metaLine, { color: text }]}>
+                  {data.salonLine}
+                </Text>
+              </View>
+              <View style={imgStyles.qrBox}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+                <Image src={data.qrDataUrl} style={imgStyles.qrImg} />
+                <Text style={imgStyles.qrCode}>{data.code}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Page>
+    </Document>
+  );
+}
 
 function CertificatePdf({ data }: Readonly<{ data: CertificatePdfData }>) {
   const background =
@@ -180,5 +319,10 @@ function CertificatePdf({ data }: Readonly<{ data: CertificatePdfData }>) {
 export async function renderCertificatePdf(
   data: CertificatePdfData,
 ): Promise<Buffer> {
-  return Buffer.from(await renderToBuffer(<CertificatePdf data={data} />));
+  const element = data.imageDataUrl ? (
+    <CertificatePdfWithImage data={data} />
+  ) : (
+    <CertificatePdf data={data} />
+  );
+  return Buffer.from(await renderToBuffer(element));
 }

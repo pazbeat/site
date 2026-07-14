@@ -94,6 +94,7 @@ export default async function SuccessPage({
 
         <div className="mx-auto mb-8 max-w-md text-left">
           <CertPreview
+            imageUrl={certificate.design.imageUrl}
             bgStyle={certificate.design.bgStyle as DesignBgStyle}
             textColor={certificate.design.textColor}
             giftLabel={tCommon("certificate")}

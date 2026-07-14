@@ -1,4 +1,7 @@
 import "server-only";
+import path from "node:path";
+import { readFile } from "node:fs/promises";
+import sharp from "sharp";
 import QRCode from "qrcode";
 import { prisma } from "./db";
 import { decryptSecret } from "./crypto";
@@ -103,9 +106,34 @@ export async function buildCertificatePdf(certificateId: string): Promise<{
     locale,
     bgStyle: certificate.design.bgStyle as DesignBgStyle,
     textColor: certificate.design.textColor,
+    imageDataUrl: await designImageDataUrl(certificate.design.imageUrl),
   });
 
   return { pdf, filename: labels.filename, certificate };
+}
+
+/**
+ * Художественная открытка (WebP из public/) → JPEG data-URL для PDF:
+ * react-pdf не поддерживает WebP. Ошибка/пустой путь → undefined
+ * (PDF откатывается на CSS-макет). Пути только внутри public/ (без ../).
+ */
+async function designImageDataUrl(
+  imageUrl: string | null,
+): Promise<string | undefined> {
+  if (!imageUrl || !imageUrl.startsWith("/") || imageUrl.includes("..")) {
+    return undefined;
+  }
+  try {
+    const abs = path.join(process.cwd(), "public", imageUrl);
+    const input = await readFile(abs);
+    const jpeg = await sharp(input)
+      .resize({ width: 1000, withoutEnlargement: true })
+      .jpeg({ quality: 82 })
+      .toBuffer();
+    return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+  } catch {
+    return undefined;
+  }
 }
 
 function loadCertificate(id: string) {

@@ -1,54 +1,37 @@
 import { requireSuperadmin } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
-import { ToggleActiveButton } from "@/components/admin/toggle-active";
-import { DesignEditor } from "@/components/admin/design-editor";
-import { toggleDesignActiveAction } from "./actions";
+import { DesignsAdmin, type AdminDesign } from "@/components/admin/designs-admin";
 import { prisma } from "@/lib/db";
 import { pickL10n } from "@/lib/l10n";
-import type { DesignBgStyle } from "@/lib/types";
-
-function preview(bg: DesignBgStyle): string {
-  return bg.kind === "gradient"
-    ? `linear-gradient(${bg.angle ?? 135}deg, ${bg.from}, ${bg.to})`
-    : (bg.color ?? "#4D295D");
-}
 
 export default async function AdminDesignsPage() {
   const admin = await requireSuperadmin();
   const designs = await prisma.design.findMany({ orderBy: { sort: "asc" } });
+  const counts = await prisma.certificate.groupBy({
+    by: ["designId"],
+    _count: { _all: true },
+  });
+  const usedById = new Map(counts.map((c) => [c.designId, c._count._all]));
+
+  const items: AdminDesign[] = designs.map((d) => ({
+    id: d.id,
+    nameRu: pickL10n(d.names, "ru"),
+    nameKk: pickL10n(d.names, "kk"),
+    nameEn: pickL10n(d.names, "en"),
+    imageUrl: d.imageUrl,
+    active: d.active,
+    usedCount: usedById.get(d.id) ?? 0,
+  }));
 
   return (
     <AdminChrome email={admin.email} role={admin.role} title="Дизайны открыток">
-      <DesignEditor />
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {designs.map((d) => (
-          <div
-            key={d.id}
-            className="rounded-2xl border border-brand-purple-100 bg-white p-4"
-          >
-            <div
-              className="mb-3 flex h-24 items-center justify-center rounded-xl border border-brand-gold text-sm font-bold"
-              style={{
-                background: preview(d.bgStyle as DesignBgStyle),
-                color: d.textColor,
-              }}
-            >
-              {pickL10n(d.names, "ru")}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-brand-purple-950/55">
-                {d.active ? "Активен" : "Скрыт"}
-              </span>
-              <ToggleActiveButton
-                id={d.id}
-                active={d.active}
-                action={toggleDesignActiveAction}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+      <p className="mb-5 max-w-2xl text-sm text-brand-purple-950/60">
+        Художественные открытки, из которых покупатель выбирает оформление
+        сертификата. Персонализация (кому/от/сообщение) и код с QR добавляются в
+        фирменной панели под картинкой автоматически. Порядок здесь = порядок в
+        конструкторе.
+      </p>
+      <DesignsAdmin designs={items} />
     </AdminChrome>
   );
 }

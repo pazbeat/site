@@ -14,8 +14,9 @@ export function buildCsp(nonce: string, isDev: boolean): string {
     // Стили: unsafe-inline допустим (PRD запрещает inline только для скриптов);
     // Tailwind/Next инжектят inline-стили
     `style-src 'self' 'unsafe-inline'`,
-    // Фото программ (imbir.kz) и data:-URI (QR-превью в конструкторе)
-    `img-src 'self' data: https://www.imbir.kz`,
+    // Фото программ (imbir.kz), data:-URI (QR-превью), blob: (предпросмотр
+    // загружаемой открытки в админке)
+    `img-src 'self' data: blob: https://www.imbir.kz`,
     `font-src 'self'`,
     `connect-src 'self'` + (isDev ? " ws:" : ""),
     `object-src 'none'`,

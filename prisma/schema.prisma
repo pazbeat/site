@@ -151,6 +151,10 @@ model Design {
   id           Int           @id @default(autoincrement())
   /// {ru, kk, en}
   names        Json
+  /// Публичный путь к картинке-открытке (/designs/…webp). Если задан —
+  /// сертификат рендерится как «картинка + фирменная панель», а bgStyle/
+  /// textColor задают цвет панели. Пусто — старый CSS-фон (фолбэк).
+  imageUrl     String?       @map("image_url")
   /// Параметры внешнего вида: фон/градиент из фирменной палитры и т.п.
   bgStyle      Json          @map("bg_style")
   textColor    String        @map("text_color")
