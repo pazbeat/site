@@ -102,6 +102,8 @@ export async function syncCertificateToAltegio(
   const result = await issueCertificateOperation({
     code,
     amountKzt: payload.balanceKzt,
+    companyId,
+    programTitle: null,
     buyerName: cert.fromName,
     buyerEmail: cert.order.buyerEmail,
     buyerPhone:
@@ -116,7 +118,8 @@ export async function syncCertificateToAltegio(
     console.log(
       `[altegio] выпущен сертификат ${code} → document ${result.documentId} ` +
         `(филиал ${result.companyId}, клиент ${result.clientId}, ` +
-        `тел ${result.clientPhone}; выбранный салон company ${companyId})`,
+        `оплачен=${result.paid}, фолбэк=${result.fallback}; ` +
+        `выбранный салон company ${companyId})`,
     );
   }
 }
