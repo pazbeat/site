@@ -33,7 +33,7 @@ export const getActiveDesigns = cache(async () => {
   });
 });
 
-/** Актуальная версия правового документа. */
+/** Актуальная версия правового документа (каноническая, RU). */
 export const getLegalCurrentVersion = cache(async (type: LegalDocType) => {
   const doc = await prisma.legalDocument.findUnique({
     where: { type },
@@ -41,6 +41,28 @@ export const getLegalCurrentVersion = cache(async (type: LegalDocType) => {
   });
   return doc?.currentVersion ?? null;
 });
+
+/**
+ * Версия правового документа для локали: последняя версия с нужным языком,
+ * иначе — каноническая (RU). Возвращает контент + фактический язык (для
+ * баннера «доступно только на русском», если случился фолбэк).
+ */
+export const getLegalVersionForLocale = cache(
+  async (type: LegalDocType, locale: string) => {
+    const doc = await prisma.legalDocument.findUnique({
+      where: { type },
+      include: { currentVersion: true },
+    });
+    if (!doc?.currentVersion) return null;
+    if (locale === "ru") return doc.currentVersion;
+
+    const localized = await prisma.legalVersion.findFirst({
+      where: { documentId: doc.id, lang: locale },
+      orderBy: { createdAt: "desc" },
+    });
+    return localized ?? doc.currentVersion;
+  },
+);
 
 /** id актуальных версий всех правовых документов — для записи согласия. */
 export const getCurrentLegalVersionIds = cache(async () => {

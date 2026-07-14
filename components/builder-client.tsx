@@ -72,6 +72,8 @@ export function BuilderClient({
   );
   const [acceptedNow, setAcceptedNow] = useState(false);
   const consented = storedConsent || acceptedNow;
+  // Повторное согласие на шаге оплаты (PRD §5.2 — до оплаты)
+  const [payConsentOpen, setPayConsentOpen] = useState(false);
   const acceptConsent = () => {
     try {
       sessionStorage.setItem(CONSENT_KEY, consentVersionsKey);
@@ -357,6 +359,18 @@ export function BuilderClient({
     <>
       {!consented && (
         <ConsentModal html={consentHtml} onAccept={acceptConsent} />
+      )}
+
+      {/* Повторное согласие перед оплатой */}
+      {payConsentOpen && (
+        <ConsentModal
+          html={consentHtml}
+          onAccept={() => {
+            setPayConsentOpen(false);
+            submit();
+          }}
+          onDecline={() => setPayConsentOpen(false)}
+        />
       )}
 
       <div className="mb-7 flex flex-wrap gap-1.5">
@@ -870,7 +884,7 @@ export function BuilderClient({
               <button
                 type="button"
                 disabled={submitting}
-                onClick={submit}
+                onClick={() => setPayConsentOpen(true)}
                 className="bg-gold-gradient rounded-full px-7 py-3 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5 disabled:opacity-50"
               >
                 {t("s5Pay", { price: formatKzt(total) })}

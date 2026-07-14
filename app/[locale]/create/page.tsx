@@ -9,7 +9,6 @@ import {
   getActiveSalons,
   getCurrentLegalVersionIds,
   getCustomAmountBounds,
-  getLegalCurrentVersion,
 } from "@/lib/data";
 import {
   toDesignDto,
@@ -38,14 +37,13 @@ export default async function CreatePage({
   setRequestLocale(locale);
   const t = await getTranslations("Builder");
 
-  const [salons, programs, nominals, designs, bounds, consent, versionIds] =
+  const [salons, programs, nominals, designs, bounds, versionIds] =
     await Promise.all([
       getActiveSalons(),
       getActivePrograms(),
       getActiveNominals(),
       getActiveDesigns(),
       getCustomAmountBounds(),
-      getLegalCurrentVersion("consent_modal"),
       getCurrentLegalVersionIds(),
     ]);
 
@@ -69,7 +67,7 @@ export default async function CreatePage({
           nominals={nominals.map(toNominalDto)}
           designs={designs.map((d) => toDesignDto(d, locale))}
           bounds={bounds}
-          consentHtml={consent?.contentHtmlSanitized ?? ""}
+          consentHtml=""
           consentVersionsKey={JSON.stringify(versionIds)}
           initialOptionId={initialOptionId}
           initialNominalId={initialNominalId}
