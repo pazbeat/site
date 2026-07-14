@@ -6,7 +6,7 @@ import { prisma } from "../lib/db";
 
 async function main() {
   const salon = await prisma.salon.findFirst({
-    where: { active: true, altegioLocationId: { not: null } },
+    where: { active: true, altegioLocationId: 225022 },
     select: { id: true, name: true, altegioLocationId: true },
   });
   const design = await prisma.design.findFirst({ where: { active: true } });
@@ -23,8 +23,8 @@ async function main() {
         amountKzt: 20000,
         designId: design.id,
         toName: "Получатель Тест",
-        fromName: "Отправитель Тест",
-        delivery: { method: "email", contact: "izecreamchik@gmail.com" },
+        fromName: "Покупатель Тест",
+        delivery: { method: "whatsapp", contact: "77000000177" },
         locale: "ru",
       },
     },

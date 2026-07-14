@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { buildCertComment } from "../lib/altegio/sync";
-import { buildStorageOperation } from "../lib/altegio/operations";
+import {
+  buildStorageOperation,
+  normalizePhone,
+} from "../lib/altegio/operations";
 import { SALON_PREFIX_TO_ALTEGIO } from "../lib/altegio/mapping";
+import {
+  resolveGoodId,
+  branchParams,
+  BRANCH_PARAMS,
+} from "../lib/altegio/catalog";
 
 describe("altegio buildCertComment", () => {
   it("помечает тестовые записи префиксом [ТЕСТ]", () => {
@@ -39,6 +47,8 @@ describe("altegio buildStorageOperation", () => {
       title: "Энергия Сиама Сайт 35000",
     },
     comment: "[ТЕСТ] сайт Imbir · заказ ord1",
+    markPaid: false,
+    fallback: false,
   };
   const op = buildStorageOperation(
     {
@@ -78,5 +88,41 @@ describe("altegio salon mapping", () => {
     const ids = Object.values(SALON_PREFIX_TO_ALTEGIO);
     expect(ids).toHaveLength(7);
     expect(new Set(ids).size).toBe(7);
+  });
+});
+
+describe("altegio catalog", () => {
+  it("резолвит good_id по номиналу и филиалу", () => {
+    // Мангилик 225022, номинал 20000 → good из order_ids заказчика
+    expect(resolveGoodId(225022, { nominalKzt: 20000 })).toBe(23911851);
+    expect(resolveGoodId(271994, { nominalKzt: 50000 })).toBe(23911914);
+  });
+
+  it("предпочитает программу по названию, если она есть", () => {
+    expect(
+      resolveGoodId(225022, {
+        nominalKzt: 99999,
+        programTitle: "Энергия Сиама Сайт",
+      }),
+    ).toBe(24847459);
+  });
+
+  it("возвращает null для неизвестного номинала", () => {
+    expect(resolveGoodId(225022, { nominalKzt: 12345 })).toBeNull();
+  });
+
+  it("даёт складские параметры для всех 8 филиалов", () => {
+    expect(Object.keys(BRANCH_PARAMS)).toHaveLength(8);
+    const wm = branchParams(225022);
+    expect(wm?.storageId).toBe(424028);
+    expect(wm?.accountId).toBe(551001);
+    expect(wm?.prefix).toBe("WM");
+  });
+});
+
+describe("altegio normalizePhone", () => {
+  it("приводит 8… к 7… и убирает не-цифры", () => {
+    expect(normalizePhone("8 (777) 900-50-00")).toBe("77779005000");
+    expect(normalizePhone("+7 701 000 00 00")).toBe("77010000000");
   });
 });
