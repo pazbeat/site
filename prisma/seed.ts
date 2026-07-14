@@ -3,6 +3,8 @@
  * Переводы KK/EN — из утверждённого прототипа docs/prototype.html.
  * Запуск: npx prisma db seed (нужен DATABASE_URL).
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type ProgramCategory } from "../lib/generated/prisma/client";
 import { DESIGN_SEED, PANEL_BG, PANEL_TEXT } from "./designs-data";
@@ -111,14 +113,23 @@ const DESIGNS = DESIGN_SEED.map((d) => ({
   textColor: PANEL_TEXT,
 }));
 
+// Реальные правовые тексты (санитизированный HTML в prisma/legal/*.ru.html,
+// импортированы из docx заказчика скриптом scripts/import-legal.ts).
+function legalHtml(type: string): string {
+  return readFileSync(
+    path.join(process.cwd(), "prisma", "legal", `${type}.ru.html`),
+    "utf8",
+  );
+}
+
 const LEGAL_PLACEHOLDERS: Array<{
   type: "offer" | "privacy" | "rules" | "consent_modal";
   html: string;
 }> = [
   { type: "consent_modal", html: "<p>Привет, ты точно хочешь купить?</p>" },
-  { type: "offer", html: "<p>Публичная оферта — текст в подготовке. Плейсхолдер до получения от бизнеса (PRD, открытый вопрос №4).</p>" },
-  { type: "privacy", html: "<p>Политика конфиденциальности — текст в подготовке. Плейсхолдер до получения от бизнеса (PRD, открытый вопрос №4).</p>" },
-  { type: "rules", html: "<p>Правила использования сертификатов — текст в подготовке. Плейсхолдер до получения от бизнеса (PRD, открытый вопрос №4).</p>" },
+  { type: "offer", html: legalHtml("offer") },
+  { type: "privacy", html: legalHtml("privacy") },
+  { type: "rules", html: legalHtml("rules") },
 ];
 
 async function main() {
