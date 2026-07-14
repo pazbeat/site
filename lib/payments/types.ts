@@ -1,6 +1,6 @@
 /** Общий интерфейс платёжных провайдеров (PRD §2): Kaspi Pay и Freedom Pay за ним. */
 
-export type PaymentProviderId = "kaspi" | "freedom" | "mock";
+export type PaymentProviderId = "kaspi" | "freedom" | "forte" | "mock";
 
 export type CreatePaymentParams = {
   orderId: string;

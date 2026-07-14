@@ -11,6 +11,7 @@ const EXPIRE_ORDERS = "expire-orders";
 const DELIVER_CERT = "deliver-certificate";
 const DELIVER_SCHEDULED = "deliver-scheduled";
 const EXPIRY_REMINDERS = "expiry-reminders";
+const POLL_KASPI = "poll-kaspi";
 const ORDER_TTL_MS = 30 * 60_000;
 
 type DeliverJob = { certificateId: string };
@@ -66,6 +67,16 @@ async function createBoss(): Promise<PgBoss> {
   await boss.work(DELIVER_SCHEDULED, async () => {
     const { deliverDueScheduled } = await import("./scheduled");
     await deliverDueScheduled();
+  });
+
+  // Фоновый добор Kaspi-оплат (страница могла закрыться) — каждую минуту.
+  await boss.createQueue(POLL_KASPI);
+  await boss.schedule(POLL_KASPI, "* * * * *", undefined, {
+    tz: "Asia/Almaty",
+  });
+  await boss.work(POLL_KASPI, async () => {
+    const { pollPendingPayments } = await import("./kaspi-poller");
+    await pollPendingPayments();
   });
 
   // Напоминания об истечении (за 30 и 7 дней) — раз в сутки, 09:00 Almaty.
