@@ -11,7 +11,8 @@ import "server-only";
  * Наш публичный код IMB-… передаётся номером сертификата в Altegio.
  */
 
-const BASE_URL = process.env.ALTEGIO_BASE_URL ?? "https://api.alteg.io/api/v1";
+// Боевой хост записи/чтения (совпадает с рабочим Node-RED заказчика).
+const BASE_URL = process.env.ALTEGIO_BASE_URL ?? "https://app.alteg.io/api/v1";
 
 export type AltegioConfig = {
   partnerToken: string;
