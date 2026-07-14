@@ -99,17 +99,39 @@ export async function syncCertificateToAltegio(
     return;
   }
 
-  const result = await issueCertificateOperation({
-    code,
-    amountKzt: payload.balanceKzt,
-    companyId,
-    programTitle: null,
-    buyerName: cert.fromName,
-    buyerEmail: cert.order.buyerEmail,
-    buyerPhone:
-      cert.deliveryMethod === "whatsapp" ? cert.deliveryContact : undefined,
-    orderId: cert.orderId,
-    comment: payload.comment,
+  let result;
+  try {
+    result = await issueCertificateOperation({
+      code,
+      amountKzt: payload.balanceKzt,
+      companyId,
+      programTitle: null,
+      buyerName: cert.fromName,
+      buyerEmail: cert.order.buyerEmail,
+      buyerPhone:
+        cert.deliveryMethod === "whatsapp" ? cert.deliveryContact : undefined,
+      orderId: cert.orderId,
+      comment: payload.comment,
+    });
+  } catch (error) {
+    // Помечаем провал синка, чтобы он был виден в админке.
+    await prisma.certificate
+      .update({
+        where: { id: certificateId },
+        data: { altegioSyncStatus: "failed" },
+      })
+      .catch(() => {});
+    throw error;
+  }
+
+  await prisma.certificate.update({
+    where: { id: certificateId },
+    data: {
+      altegioSyncStatus: "synced",
+      altegioSyncedAt: new Date(),
+      altegioCertId:
+        result.status === "issued" ? String(result.documentId) : undefined,
+    },
   });
 
   if (result.status === "already_exists") {

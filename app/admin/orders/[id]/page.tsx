@@ -154,6 +154,16 @@ export default async function AdminOrderPage({
                       : "—"
                 }
               />
+              <Row
+                label="Синк Altegio"
+                value={
+                  cert.altegioSyncStatus === "synced"
+                    ? `✓ синхронизирован${cert.altegioCertId ? ` (док ${cert.altegioCertId})` : ""}`
+                    : cert.altegioSyncStatus === "failed"
+                      ? "✕ ошибка синка"
+                      : "⏳ ожидает"
+                }
+              />
             </dl>
           </div>
 
