@@ -184,7 +184,11 @@
     "retry": "Refresh"
   },
   "Consent": {
-    "checkbox": "I have read and fully accept the public offer, the privacy policy and the rules",
+    "title": "Consent to the terms",
+    "notice": "By purchasing an Imbir Thai Spa gift certificate, you enter into a public contract under the terms of the public offer. Placing and paying for an order constitutes full and unconditional acceptance of all terms of the documents listed below.\n\nThe public offer sets out the terms for providing SPA services and purchasing gift certificates, the payment procedure, and the rights and obligations of the parties.\n\nThe privacy and personal data processing policy describes what data we collect, for what purpose, how we store and protect it, and your rights as a data subject.\n\nThe rules for the purchase, use and refund of certificates establish the certificate's validity period, how it is used at the network's salons, and the terms and procedure for refunds.\n\nBefore continuing, please read the full texts of the documents via the links below and confirm your consent.",
+    "readDocs": "Please review the documents:",
+    "scrollHint": "Scroll to the end of the text to continue ↓",
+    "checkbox": "I confirm that I have read the terms of the public offer, the privacy and personal data processing policy, and the rules for the purchase, use and refund of certificates, fully accept them and give my consent to enter into the public contract.",
     "accept": "Accept",
     "decline": "Decline"
   },

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
-import { getLegalCurrentVersion } from "@/lib/data";
+import { getLegalVersionForLocale } from "@/lib/data";
 
 const TYPES = ["offer", "privacy", "rules"] as const;
 type LegalType = (typeof TYPES)[number];
@@ -29,7 +29,7 @@ export default async function LegalPage({
   if (!isLegalType(type)) notFound();
   setRequestLocale(locale);
   const t = await getTranslations("Legal");
-  const version = await getLegalCurrentVersion(type);
+  const version = await getLegalVersionForLocale(type, locale);
   if (!version) notFound();
 
   return (
