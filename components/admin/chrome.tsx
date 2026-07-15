@@ -9,6 +9,7 @@ const NAV: Array<{ href: string; label: string; roles: AdminRole[] }> = [
   { href: "/admin/certificates", label: "Сертификаты", roles: ["superadmin", "manager"] },
   { href: "/admin/scheduled", label: "Отложенные отправки", roles: ["superadmin", "manager"] },
   { href: "/admin/corporate", label: "Корп. заявки", roles: ["superadmin", "manager"] },
+  { href: "/admin/salons", label: "Города и филиалы", roles: ["superadmin"] },
   { href: "/admin/programs", label: "Программы", roles: ["superadmin"] },
   { href: "/admin/nominals", label: "Номиналы", roles: ["superadmin"] },
   { href: "/admin/designs", label: "Дизайны", roles: ["superadmin"] },
