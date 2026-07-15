@@ -33,6 +33,13 @@ type Step = 0 | 1 | 2 | 3 | 4;
 const CONSENT_KEY = "imbir-consent";
 const emptySubscribe = () => () => {};
 
+/** Превью дизайна для сетки выбора (public/designs/thumbs, 360px). */
+function designThumb(url: string): string {
+  return url.startsWith("/designs/")
+    ? url.replace("/designs/", "/designs/thumbs/")
+    : url;
+}
+
 const inputCls =
   "w-full rounded-xl border-[1.5px] border-brand-purple-100 bg-white px-3.5 py-3 text-sm outline-none transition-colors focus:border-brand-gold";
 const labelCls = "mb-1.5 block text-[13px] font-bold";
@@ -626,9 +633,16 @@ export function BuilderClient({
                     }`}
                   >
                     {d.imageUrl ? (
+                      // В сетке — лёгкое превью (~8 КБ вместо ~60 КБ);
+                      // если превью нет (старые загрузки) — фолбэк на оригинал
                       // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
                       <img
-                        src={d.imageUrl}
+                        src={designThumb(d.imageUrl)}
+                        onError={(e) => {
+                          if (e.currentTarget.src !== new URL(d.imageUrl!, location.href).href) {
+                            e.currentTarget.src = d.imageUrl!;
+                          }
+                        }}
                         alt={d.name}
                         loading="lazy"
                         className="block aspect-[1400/903] w-full rounded-xl border border-brand-purple-100 object-cover"
