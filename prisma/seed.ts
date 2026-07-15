@@ -3,7 +3,7 @@
  * Переводы KK/EN — из утверждённого прототипа docs/prototype.html.
  * Запуск: npx prisma db seed (нужен DATABASE_URL).
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type ProgramCategory } from "../lib/generated/prisma/client";
@@ -113,13 +113,11 @@ const DESIGNS = DESIGN_SEED.map((d) => ({
   textColor: PANEL_TEXT,
 }));
 
-// Реальные правовые тексты (санитизированный HTML в prisma/legal/*.ru.html,
-// импортированы из docx заказчика скриптом scripts/import-legal.ts).
-function legalHtml(type: string): string {
-  return readFileSync(
-    path.join(process.cwd(), "prisma", "legal", `${type}.ru.html`),
-    "utf8",
-  );
+// Реальные правовые тексты (санитизированный HTML в prisma/legal/*.{lang}.html;
+// RU импортирован из docx заказчика, KK/EN — переводы; scripts/import-legal.ts).
+function legalHtml(type: string, lang: string): string | null {
+  const file = path.join(process.cwd(), "prisma", "legal", `${type}.${lang}.html`);
+  return existsSync(file) ? readFileSync(file, "utf8") : null;
 }
 
 const LEGAL_PLACEHOLDERS: Array<{
@@ -127,9 +125,9 @@ const LEGAL_PLACEHOLDERS: Array<{
   html: string;
 }> = [
   { type: "consent_modal", html: "<p>Привет, ты точно хочешь купить?</p>" },
-  { type: "offer", html: legalHtml("offer") },
-  { type: "privacy", html: legalHtml("privacy") },
-  { type: "rules", html: legalHtml("rules") },
+  { type: "offer", html: legalHtml("offer", "ru") ?? "" },
+  { type: "privacy", html: legalHtml("privacy", "ru") ?? "" },
+  { type: "rules", html: legalHtml("rules", "ru") ?? "" },
 ];
 
 async function main() {
@@ -178,17 +176,21 @@ async function main() {
     const document = await prisma.legalDocument.create({
       data: { type: doc.type },
     });
-    const version = await prisma.legalVersion.create({
-      data: {
-        documentId: document.id,
-        contentHtmlSanitized: doc.html,
-        lang: "ru",
-      },
+    // RU — актуальная версия; KK/EN — переводы (если есть файлы)
+    const ruVersion = await prisma.legalVersion.create({
+      data: { documentId: document.id, contentHtmlSanitized: doc.html, lang: "ru" },
     });
     await prisma.legalDocument.update({
       where: { id: document.id },
-      data: { currentVersionId: version.id },
+      data: { currentVersionId: ruVersion.id },
     });
+    for (const lang of ["kk", "en"] as const) {
+      const html = legalHtml(doc.type, lang);
+      if (!html) continue;
+      await prisma.legalVersion.create({
+        data: { documentId: document.id, contentHtmlSanitized: html, lang },
+      });
+    }
   }
 
   await prisma.setting.createMany({
