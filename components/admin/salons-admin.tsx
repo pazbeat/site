@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toastResult } from "./toast";
+import { ConfirmButton } from "./confirm-button";
 import {
   createSalonAction,
   updateSalonAction,
@@ -62,7 +64,9 @@ export function SalonsAdmin({ salons }: Readonly<{ salons: AdminSalon[] }>) {
 
       {adding ? (
         <div className="rounded-2xl border border-brand-purple-100 bg-white p-5">
-          <div className="mb-3 text-sm font-bold text-brand-purple">Новый салон</div>
+          <div className="mb-3 text-sm font-bold text-brand-purple">
+            Новый салон
+          </div>
           <SalonForm
             submitLabel="Добавить салон"
             onSubmit={createSalonAction}
@@ -71,7 +75,11 @@ export function SalonsAdmin({ salons }: Readonly<{ salons: AdminSalon[] }>) {
           />
         </div>
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={btnPrimary}>
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className={btnPrimary}
+        >
           + Добавить салон
         </button>
       )}
@@ -107,8 +115,9 @@ function CityGroup({
       fd.set("cityKk", form.cityKk);
       fd.set("cityEn", form.cityEn);
       const res = await renameCityAction(fd);
+      // Ошибку города показываем на месте — она про конкретное поле формы
       if (res?.error) setError(res.error);
-      else {
+      else if (toastResult(res, "Город обновлён.")) {
         setEditing(false);
         router.refresh();
       }
@@ -147,14 +156,19 @@ function CityGroup({
               </div>
             </div>
             <p className="text-xs text-brand-purple-950/50">
-              Переводы применятся ко всем салонам города. Смена русского названия
-              заодно обновит списки городов в программах.
+              Переводы применятся ко всем салонам города. Смена русского
+              названия заодно обновит списки городов в программах.
             </p>
             {error && (
               <p className="text-xs font-semibold text-brand-red">{error}</p>
             )}
             <div className="flex gap-2">
-              <button type="button" disabled={pending} onClick={save} className={btnPrimary}>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={save}
+                className={btnPrimary}
+              >
                 Сохранить город
               </button>
               <button
@@ -162,7 +176,11 @@ function CityGroup({
                 onClick={() => {
                   setEditing(false);
                   setError("");
-                  setForm({ city, cityKk: items[0].cityKk, cityEn: items[0].cityEn });
+                  setForm({
+                    city,
+                    cityKk: items[0].cityKk,
+                    cityEn: items[0].cityEn,
+                  });
                 }}
                 className="rounded-full border border-brand-purple-100 px-5 py-2 text-sm text-brand-purple-950/60"
               >
@@ -181,7 +199,11 @@ function CityGroup({
                 {items.length}
               </p>
             </div>
-            <button type="button" onClick={() => setEditing(true)} className={btnGhost}>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className={btnGhost}
+            >
               Изменить город
             </button>
           </>
@@ -210,14 +232,10 @@ function SalonRow({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
-  const [error, setError] = useState("");
 
-  function run(fn: () => Promise<Result>) {
-    setError("");
+  function run(fn: () => Promise<Result>, done: string) {
     start(async () => {
-      const res = await fn();
-      if (res?.error) setError(res.error);
-      else router.refresh();
+      if (toastResult(await fn(), done)) router.refresh();
     });
   }
 
@@ -249,7 +267,9 @@ function SalonRow({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-bold text-brand-purple">{salon.name}</span>
+            <span className="text-sm font-bold text-brand-purple">
+              {salon.name}
+            </span>
             {salon.codePrefix && (
               <span className="rounded-full bg-brand-purple-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-brand-purple">
                 {salon.codePrefix}
@@ -266,25 +286,40 @@ function SalonRow({
               </span>
             )}
           </div>
-          <div className="mt-1 text-sm text-brand-purple-950/75">{salon.address}</div>
+          <div className="mt-1 text-sm text-brand-purple-950/75">
+            {salon.address}
+          </div>
           <div className="mt-0.5 text-xs text-brand-purple-950/45">
             KK: {salon.addressKk} · EN: {salon.addressEn}
           </div>
           <div className="mt-0.5 text-xs text-brand-purple-950/45">
             {salon.phone}
-            {salon.altegioLocationId ? ` · Altegio ${salon.altegioLocationId}` : ""}
+            {salon.altegioLocationId
+              ? ` · Altegio ${salon.altegioLocationId}`
+              : ""}
             {` · заказов ${salon.ordersCount}, сертификатов ${salon.certsCount}`}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <button type="button" onClick={() => setEditing(true)} className={btnGhost}>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className={btnGhost}
+          >
             Изменить
           </button>
           <button
             type="button"
             disabled={pending}
-            onClick={() => run(() => toggleSalonActiveAction(fd()))}
+            onClick={() =>
+              run(
+                () => toggleSalonActiveAction(fd()),
+                salon.active
+                  ? "Салон скрыт из конструктора."
+                  : "Салон снова виден.",
+              )
+            }
             className={btnGhost}
           >
             {salon.active ? "Скрыть" : "Показать"}
@@ -292,7 +327,9 @@ function SalonRow({
           <button
             type="button"
             disabled={pending || isFirst}
-            onClick={() => run(() => moveSalonAction(fd({ dir: "up" })))}
+            onClick={() =>
+              run(() => moveSalonAction(fd({ dir: "up" })), "Порядок изменён.")
+            }
             className={btnGhost}
             title="Выше"
           >
@@ -301,29 +338,33 @@ function SalonRow({
           <button
             type="button"
             disabled={pending || isLast}
-            onClick={() => run(() => moveSalonAction(fd({ dir: "down" })))}
+            onClick={() =>
+              run(
+                () => moveSalonAction(fd({ dir: "down" })),
+                "Порядок изменён.",
+              )
+            }
             className={btnGhost}
             title="Ниже"
           >
             ↓
           </button>
           {canDelete && (
-            <button
-              type="button"
+            <ConfirmButton
+              label="Удалить"
+              title={`Удалить салон «${salon.name}»?`}
+              body="На салон не завязано ни заказов, ни сертификатов, так что история не пострадает. Отменить нельзя."
+              confirmLabel="Удалить"
+              danger
               disabled={pending}
-              onClick={() => {
-                if (confirm(`Удалить салон «${salon.name}»?`)) {
-                  run(() => deleteSalonAction(fd()));
-                }
-              }}
-              className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-brand-red hover:bg-red-50"
-            >
-              Удалить
-            </button>
+              className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-brand-red hover:bg-red-50 disabled:opacity-50"
+              onConfirm={() =>
+                run(() => deleteSalonAction(fd()), "Салон удалён.")
+              }
+            />
           )}
         </div>
       </div>
-      {error && <p className="mt-2 text-xs font-semibold text-brand-red">{error}</p>}
     </li>
   );
 }
@@ -374,11 +415,21 @@ function SalonForm({
         </div>
         <div>
           <label className={labelCls}>Город KK *</label>
-          <input name="cityKk" defaultValue={salon?.cityKk} required className={inputCls} />
+          <input
+            name="cityKk"
+            defaultValue={salon?.cityKk}
+            required
+            className={inputCls}
+          />
         </div>
         <div>
           <label className={labelCls}>Город EN *</label>
-          <input name="cityEn" defaultValue={salon?.cityEn} required className={inputCls} />
+          <input
+            name="cityEn"
+            defaultValue={salon?.cityEn}
+            required
+            className={inputCls}
+          />
         </div>
       </div>
 
@@ -396,15 +447,30 @@ function SalonForm({
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className={labelCls}>Адрес RU *</label>
-          <input name="address" defaultValue={salon?.address} required className={inputCls} />
+          <input
+            name="address"
+            defaultValue={salon?.address}
+            required
+            className={inputCls}
+          />
         </div>
         <div>
           <label className={labelCls}>Адрес KK *</label>
-          <input name="addressKk" defaultValue={salon?.addressKk} required className={inputCls} />
+          <input
+            name="addressKk"
+            defaultValue={salon?.addressKk}
+            required
+            className={inputCls}
+          />
         </div>
         <div>
           <label className={labelCls}>Адрес EN *</label>
-          <input name="addressEn" defaultValue={salon?.addressEn} required className={inputCls} />
+          <input
+            name="addressEn"
+            defaultValue={salon?.addressEn}
+            required
+            className={inputCls}
+          />
         </div>
       </div>
 

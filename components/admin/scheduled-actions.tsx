@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toastResult } from "./toast";
 
 type ActionFn = (fd: FormData) => Promise<{ ok?: boolean; error?: string }>;
 
@@ -21,14 +22,10 @@ export function ScheduledActions({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [when, setWhen] = useState(scheduledLocal);
-  const [error, setError] = useState("");
 
-  const run = (action: ActionFn, fd: FormData) => {
-    setError("");
+  const run = (action: ActionFn, fd: FormData, done: string) => {
     startTransition(async () => {
-      const result = await action(fd);
-      if (result?.error) setError(result.error);
-      else router.refresh();
+      if (toastResult(await action(fd), done)) router.refresh();
     });
   };
 
@@ -40,7 +37,7 @@ export function ScheduledActions({
         onClick={() => {
           const fd = new FormData();
           fd.set("certificateId", certificateId);
-          run(sendNow, fd);
+          run(sendNow, fd, "Отправка поставлена в очередь.");
         }}
         className="rounded-lg bg-brand-purple px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-purple-600 disabled:opacity-50"
       >
@@ -60,14 +57,13 @@ export function ScheduledActions({
             const fd = new FormData();
             fd.set("certificateId", certificateId);
             fd.set("scheduledAt", when);
-            run(reschedule, fd);
+            run(reschedule, fd, "Дата отправки перенесена.");
           }}
           className="rounded-lg border-[1.5px] border-brand-purple px-3 py-1.5 text-xs font-bold text-brand-purple hover:bg-brand-purple-50 disabled:opacity-50"
         >
           Перенести
         </button>
       </div>
-      {error && <span className="text-xs font-semibold text-brand-red">{error}</span>}
     </div>
   );
 }

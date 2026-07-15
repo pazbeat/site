@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toastResult } from "./toast";
 
 /** Селект статуса, отправляющий server action при изменении. */
 export function StatusSelect({
@@ -27,8 +28,7 @@ export function StatusSelect({
         fd.set("id", id);
         fd.set("status", e.target.value);
         startTransition(async () => {
-          await action(fd);
-          router.refresh();
+          if (toastResult(await action(fd), "Статус изменён.")) router.refresh();
         });
       }}
       className="rounded-lg border-[1.5px] border-brand-purple-100 px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-brand-gold disabled:opacity-50"

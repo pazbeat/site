@@ -2,6 +2,8 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toastResult } from "./toast";
+import { ConfirmButton } from "./confirm-button";
 import {
   uploadDesignAction,
   renameDesignAction,
@@ -23,7 +25,9 @@ export type AdminDesign = {
 const inputCls =
   "w-full rounded-lg border-[1.5px] border-brand-purple-100 px-3 py-2 text-sm outline-none focus:border-brand-gold";
 
-export function DesignsAdmin({ designs }: Readonly<{ designs: AdminDesign[] }>) {
+export function DesignsAdmin({
+  designs,
+}: Readonly<{ designs: AdminDesign[] }>) {
   return (
     <div className="space-y-6">
       <Uploader />
@@ -45,18 +49,14 @@ function Uploader() {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, start] = useTransition();
-  const [error, setError] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
 
   return (
     <form
       ref={formRef}
       action={(fd) => {
-        setError("");
         start(async () => {
-          const res = await uploadDesignAction(fd);
-          if (res?.error) setError(res.error);
-          else {
+          if (toastResult(await uploadDesignAction(fd), "Дизайн добавлен.")) {
             formRef.current?.reset();
             setPreview(null);
             router.refresh();
@@ -99,12 +99,24 @@ function Uploader() {
           </label>
         </div>
         <div className="space-y-2">
-          <input name="nameRu" required placeholder="Название RU" className={inputCls} />
-          <input name="nameKk" required placeholder="Название KK" className={inputCls} />
-          <input name="nameEn" required placeholder="Название EN" className={inputCls} />
-          {error && (
-            <p className="text-sm font-semibold text-brand-red">{error}</p>
-          )}
+          <input
+            name="nameRu"
+            required
+            placeholder="Название RU"
+            className={inputCls}
+          />
+          <input
+            name="nameKk"
+            required
+            placeholder="Название KK"
+            className={inputCls}
+          />
+          <input
+            name="nameEn"
+            required
+            placeholder="Название EN"
+            className={inputCls}
+          />
           <button
             type="submit"
             disabled={pending}
@@ -126,19 +138,18 @@ function DesignCard({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState(false);
-  const [error, setError] = useState("");
   const [names, setNames] = useState({
     ru: design.nameRu,
     kk: design.nameKk,
     en: design.nameEn,
   });
 
-  function run(fn: () => Promise<{ error?: string; ok?: boolean } | undefined>) {
-    setError("");
+  function run(
+    fn: () => Promise<{ error?: string; ok?: boolean } | undefined>,
+    done: string,
+  ) {
     start(async () => {
-      const res = await fn();
-      if (res?.error) setError(res.error);
-      else router.refresh();
+      if (toastResult(await fn(), done)) router.refresh();
     });
   }
 
@@ -152,7 +163,9 @@ function DesignCard({
   return (
     <div
       className={`overflow-hidden rounded-2xl border bg-white ${
-        design.active ? "border-brand-purple-100" : "border-brand-purple-100/60 opacity-70"
+        design.active
+          ? "border-brand-purple-100"
+          : "border-brand-purple-100/60 opacity-70"
       }`}
     >
       <div className="relative aspect-[1400/903] bg-brand-purple-50">
@@ -211,7 +224,7 @@ function DesignCard({
                     );
                     if (!res?.error) setEditing(false);
                     return res;
-                  })
+                  }, "Название сохранено.")
                 }
                 className="rounded-full bg-brand-purple px-4 py-1.5 text-xs font-bold text-white disabled:opacity-50"
               >
@@ -248,7 +261,10 @@ function DesignCard({
                 type="button"
                 disabled={pending}
                 onClick={() =>
-                  run(() => toggleDesignActiveAction(fd({})))
+                  run(
+                    () => toggleDesignActiveAction(fd({})),
+                    design.active ? "Дизайн скрыт." : "Дизайн снова виден.",
+                  )
                 }
                 className="rounded-full border border-brand-purple-100 px-3 py-1 font-semibold text-brand-purple hover:bg-brand-purple-50"
               >
@@ -264,7 +280,12 @@ function DesignCard({
               <button
                 type="button"
                 disabled={pending || isFirst}
-                onClick={() => run(() => moveDesignAction(fd({ dir: "up" })))}
+                onClick={() =>
+                  run(
+                    () => moveDesignAction(fd({ dir: "up" })),
+                    "Порядок изменён.",
+                  )
+                }
                 className="rounded-full border border-brand-purple-100 px-2.5 py-1 text-brand-purple-950/70 hover:bg-brand-purple-50 disabled:opacity-30"
                 title="Выше"
               >
@@ -273,30 +294,32 @@ function DesignCard({
               <button
                 type="button"
                 disabled={pending || isLast}
-                onClick={() => run(() => moveDesignAction(fd({ dir: "down" })))}
+                onClick={() =>
+                  run(
+                    () => moveDesignAction(fd({ dir: "down" })),
+                    "Порядок изменён.",
+                  )
+                }
                 className="rounded-full border border-brand-purple-100 px-2.5 py-1 text-brand-purple-950/70 hover:bg-brand-purple-50 disabled:opacity-30"
                 title="Ниже"
               >
                 ↓
               </button>
               {design.usedCount === 0 && (
-                <button
-                  type="button"
+                <ConfirmButton
+                  label="Удалить"
+                  title={`Удалить дизайн «${design.nameRu}»?`}
+                  body="Открытка исчезнет из конструктора, файл будет удалён. Отменить нельзя."
+                  confirmLabel="Удалить"
+                  danger
                   disabled={pending}
-                  onClick={() => {
-                    if (confirm(`Удалить дизайн «${design.nameRu}»?`)) {
-                      run(() => deleteDesignAction(fd({})));
-                    }
-                  }}
-                  className="rounded-full border border-red-200 px-3 py-1 font-semibold text-brand-red hover:bg-red-50"
-                >
-                  Удалить
-                </button>
+                  className="rounded-full border border-red-200 px-3 py-1 font-semibold text-brand-red hover:bg-red-50 disabled:opacity-50"
+                  onConfirm={() =>
+                    run(() => deleteDesignAction(fd({})), "Дизайн удалён.")
+                  }
+                />
               )}
             </div>
-            {error && (
-              <p className="mt-2 text-xs font-semibold text-brand-red">{error}</p>
-            )}
           </>
         )}
       </div>

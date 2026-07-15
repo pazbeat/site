@@ -11,15 +11,31 @@ export type AdminSession = {
   role: AdminRole;
 };
 
+/**
+ * Проверяет, что за сессией стоит живой активный пользователь.
+ * Сессия — JWT на 12 часов и в БД не смотрит, поэтому без этой проверки
+ * отключённый (или удалённый) админ сохранял бы доступ до истечения токена,
+ * а смена роли применялась бы только после перелогина.
+ */
+export async function loadActiveAdmin(
+  sessionUserId: string | undefined,
+): Promise<AdminSession | null> {
+  const id = Number(sessionUserId);
+  if (!Number.isInteger(id)) return null;
+  const user = await prisma.adminUser.findUnique({
+    where: { id },
+    select: { id: true, email: true, role: true, active: true },
+  });
+  if (!user?.active) return null;
+  return { id: String(user.id), email: user.email, role: user.role };
+}
+
 /** Требует любую админ-сессию; иначе — на логин (дублирует proxy на уровне страницы). */
 export async function requireAdmin(): Promise<AdminSession> {
   const session = await auth();
-  if (!session?.user?.id) redirect("/admin/login");
-  return {
-    id: session.user.id,
-    email: session.user.email ?? "",
-    role: session.user.role,
-  };
+  const admin = await loadActiveAdmin(session?.user?.id);
+  if (!admin) redirect("/admin/login");
+  return admin;
 }
 
 /** Требует роль superadmin (контент, пользователи, правовые тексты). */
