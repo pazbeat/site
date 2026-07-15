@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CertPreview } from "./cert-preview";
 import { ConsentModal } from "./consent-modal";
@@ -128,6 +128,14 @@ export function BuilderClient({
     /** Сумма, к которой применена скидка — чтобы сбросить превью при её смене */
     appliedTo: number;
   } | null>(null);
+
+  // Показ конструктора для A/B цен — один раз за вкладку, иначе перезагрузки
+  // раздували бы знаменатель конверсии
+  useEffect(() => {
+    if (sessionStorage.getItem("imbir_ab_view")) return;
+    sessionStorage.setItem("imbir_ab_view", "1");
+    void fetch("/api/ab/view", { method: "POST" }).catch(() => {});
+  }, []);
 
   const selectedSalon = salons.find((s) => s.id === salonId) ?? null;
   // Ключ города — русский (совпадает с ProgramDto.cities), подпись — локализованная

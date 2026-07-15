@@ -150,8 +150,23 @@ model Nominal {
   label     String?
   active    Boolean @default(true)
   sort      Int     @default(0)
+  /// A/B-тест цен (PRD §10): "A"/"B" — номинал видит только своя группа,
+  /// null — видят все. Если ни у одного номинала нет варианта, теста нет.
+  variant   String? @db.VarChar(1)
 
   @@map("nominals")
+}
+
+/// Показы конструктора по вариантам A/B — знаменатель конверсии.
+/// Заказы и выручку не дублируем: они считаются из Order.abVariant.
+model AbStat {
+  id      Int      @id @default(autoincrement())
+  day     DateTime @db.Date
+  variant String   @db.VarChar(1)
+  views   Int      @default(0)
+
+  @@unique([day, variant])
+  @@map("ab_stats")
 }
 
 model Design {
@@ -220,6 +235,8 @@ model Order {
   /// Токен страницы успеха: передаётся в success_url провайдера,
   /// авторизует покупателя на одноразовый показ кода
   successToken    String           @unique @default(cuid()) @map("success_token")
+  /// Группа A/B-теста цен, в которой покупатель видел номиналы
+  abVariant       String?          @db.VarChar(1) @map("ab_variant")
   createdAt       DateTime         @default(now()) @map("created_at")
   certificates    Certificate[]
 

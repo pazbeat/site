@@ -11,6 +11,31 @@ const schema = z.object({
   label: z.string().trim().max(40).optional(),
 });
 
+/**
+ * Группа A/B-теста цен: "A"/"B" — номинал видит только своя половина
+ * посетителей, пусто — видят все. Тест идёт, пока хотя бы у одного номинала
+ * проставлена группа (PRD §10).
+ */
+export async function setNominalVariantAction(formData: FormData) {
+  const admin = await requireSuperadmin();
+  const id = z.coerce.number().int().positive().safeParse(formData.get("id"));
+  const raw = String(formData.get("variant") ?? "");
+  const variant = raw === "A" || raw === "B" ? raw : null;
+  if (!id.success) return { error: "Номинал не найден." };
+
+  await prisma.nominal.update({ where: { id: id.data }, data: { variant } });
+  await auditLog({
+    actor: admin.email,
+    action: "nominal.set_variant",
+    entity: "nominal",
+    entityId: String(id.data),
+    diff: { variant },
+  });
+  revalidatePath("/admin/nominals");
+  revalidatePath("/admin/experiments");
+  return { ok: true, message: variant ? `Номинал только для группы ${variant}.` : "Номинал видят все." };
+}
+
 export async function saveNominalAction(formData: FormData) {
   const admin = await requireSuperadmin();
   const parsed = schema.safeParse({
