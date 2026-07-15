@@ -17,6 +17,7 @@ export default async function NewProgramPage() {
           descEn: "",
           popular: false,
           active: true,
+          photoUrl: null,
           cities: "",
           options: [{ durationMin: "", persons: "", priceKzt: "" }],
         }}

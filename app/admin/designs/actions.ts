@@ -1,42 +1,17 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
-import { writeFile, unlink } from "node:fs/promises";
-import path from "node:path";
 import { revalidatePath } from "next/cache";
-import sharp from "sharp";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireSuperadmin, auditLog } from "@/lib/admin/guard";
+import { deleteUpload, saveImageUpload } from "@/lib/admin/upload";
 import { PANEL_BG, PANEL_TEXT } from "@/prisma/designs-data";
-
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "designs");
-const MAX_BYTES = 8 * 1024 * 1024; // 8 МБ
 
 const names = z.object({
   nameRu: z.string().trim().min(1).max(80),
   nameKk: z.string().trim().min(1).max(80),
   nameEn: z.string().trim().min(1).max(80),
 });
-
-/** Проверка магических байт: JPEG / PNG / WebP (PRD §9 — не доверять MIME). */
-function sniffImage(buf: Buffer): "jpeg" | "png" | "webp" | null {
-  if (buf.length < 12) return null;
-  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "jpeg";
-  if (
-    buf[0] === 0x89 &&
-    buf[1] === 0x50 &&
-    buf[2] === 0x4e &&
-    buf[3] === 0x47
-  )
-    return "png";
-  if (
-    buf.toString("ascii", 0, 4) === "RIFF" &&
-    buf.toString("ascii", 8, 12) === "WEBP"
-  )
-    return "webp";
-  return null;
-}
 
 /** Загрузка новой открытки-дизайна: файл → WebP со случайным именем. */
 export async function uploadDesignAction(formData: FormData) {
@@ -49,33 +24,12 @@ export async function uploadDesignAction(formData: FormData) {
   });
   if (!parsedNames.success) return { error: "Заполните названия (RU/KK/EN)." };
 
-  const file = formData.get("image");
-  if (!(file instanceof File) || file.size === 0) {
-    return { error: "Выберите картинку." };
-  }
-  if (file.size > MAX_BYTES) return { error: "Файл больше 8 МБ." };
-
-  const input = Buffer.from(await file.arrayBuffer());
-  if (!sniffImage(input)) {
-    return { error: "Только JPEG, PNG или WebP." };
-  }
-
-  let webp: Buffer;
-  try {
-    webp = await sharp(input)
-      .rotate() // учесть EXIF-ориентацию
-      .resize({ width: 1400, withoutEnlargement: true })
-      .webp({ quality: 82 })
-      .toBuffer();
-  } catch {
-    return { error: "Не удалось обработать изображение." };
-  }
-
-  const fileName = `${randomUUID()}.webp`;
-  const { mkdir } = await import("node:fs/promises");
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  await writeFile(path.join(UPLOAD_DIR, fileName), webp);
-  const imageUrl = `/uploads/designs/${fileName}`;
+  const upload = await saveImageUpload(formData.get("image"), {
+    folder: "designs",
+    width: 1400,
+  });
+  if (!upload.ok) return { error: upload.error };
+  const imageUrl = upload.url;
 
   const count = await prisma.design.count();
   const d = parsedNames.data;
@@ -161,12 +115,7 @@ export async function deleteDesignAction(formData: FormData) {
   }
 
   await prisma.design.delete({ where: { id } });
-
-  // Удаляем файл только если это загруженный пользователем аплоад
-  if (design.imageUrl?.startsWith("/uploads/designs/")) {
-    const abs = path.join(process.cwd(), "public", design.imageUrl);
-    await unlink(abs).catch(() => {});
-  }
+  await deleteUpload(design.imageUrl, "designs");
   await auditLog({
     actor: admin.email,
     action: "design.delete",

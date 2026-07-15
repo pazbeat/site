@@ -66,6 +66,97 @@ h3,
   );
 }
 
+/*
+ * Оформление правовых текстов (санитизированный HTML из админки).
+ * Нужно своё: preflight Tailwind сбрасывает заголовки и маркеры списков,
+ * а плагина typography в проекте нет — без этих правил оферта и правила
+ * выглядели сплошной простынёй, а таблицы приложений схлопывались.
+ * Один и тот же класс используют публичная страница и редактор в админке.
+ */
+.legal-content {
+  line-height: 1.65;
+}
+.legal-content h1,
+.legal-content h2,
+.legal-content h3,
+.legal-content h4 {
+  font-family: var(--font-display);
+  color: var(--color-brand-purple);
+  font-weight: 600;
+  margin: 1.5em 0 0.5em;
+  line-height: 1.25;
+}
+.legal-content h1 {
+  font-size: 1.7rem;
+}
+.legal-content h2 {
+  font-size: 1.4rem;
+}
+.legal-content h3 {
+  font-size: 1.2rem;
+}
+.legal-content h4 {
+  font-size: 1.05rem;
+}
+.legal-content p {
+  margin: 0.75em 0;
+}
+.legal-content ul,
+.legal-content ol {
+  margin: 0.75em 0;
+  padding-left: 1.5rem;
+}
+.legal-content ul {
+  list-style: disc;
+}
+.legal-content ol {
+  list-style: decimal;
+}
+.legal-content li {
+  margin: 0.3em 0;
+}
+.legal-content a {
+  color: var(--color-brand-purple);
+  text-decoration: underline;
+}
+.legal-content strong,
+.legal-content b {
+  font-weight: 600;
+}
+.legal-content em,
+.legal-content i {
+  font-style: italic;
+}
+.legal-content blockquote {
+  border-left: 3px solid var(--color-brand-gold);
+  padding-left: 1rem;
+  margin: 1em 0;
+  color: color-mix(in srgb, var(--color-brand-purple-950) 75%, transparent);
+}
+.legal-content hr {
+  border: 0;
+  border-top: 1px solid var(--color-brand-purple-100);
+  margin: 1.5em 0;
+}
+/* Таблицы приложений (противопоказания, анкета, заявление на возврат) */
+.legal-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.95em;
+}
+.legal-content th,
+.legal-content td {
+  border: 1px solid var(--color-brand-purple-100);
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+.legal-content th {
+  background: color-mix(in srgb, var(--color-brand-purple) 6%, transparent);
+  font-weight: 600;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
