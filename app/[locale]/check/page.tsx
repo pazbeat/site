@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
+import { localeAlternates } from "@/lib/seo";
 import { CheckForm } from "@/components/check-form";
 
 export async function generateMetadata({
@@ -8,7 +9,7 @@ export async function generateMetadata({
 }: Readonly<{ params: Promise<{ locale: Locale }> }>): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "Check" });
-  return { title: t("title") };
+  return { title: t("title"), alternates: localeAlternates(locale, "/check") };
 }
 
 export default async function CheckPage({
