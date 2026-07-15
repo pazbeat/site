@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { AB_COOKIE, isAbVariant } from "@/lib/ab";
 import { prisma } from "@/lib/db";
 import { getCurrentLegalVersionIds } from "@/lib/data";
 import { resolveOrderAmount } from "@/lib/pricing";
@@ -12,7 +13,7 @@ import { orderSchema } from "@/lib/validation";
  * согласие с версиями документов записывается атомарно с заказом.
  * Сертификат создаётся позже — после подтверждения оплаты вебхуком.
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const ip = clientIp(request);
   const limited = rateLimit(`orders:${ip}`);
   if (!limited.ok) {
@@ -76,6 +77,9 @@ export async function POST(request: Request) {
     ts: new Date().toISOString(),
   };
 
+  // Группа A/B-теста цен, в которой покупатель видел номиналы (PRD §10)
+  const abRaw = request.cookies.get(AB_COOKIE)?.value;
+
   const order = await prisma.order.create({
     data: {
       salonId: input.salonId,
@@ -85,6 +89,7 @@ export async function POST(request: Request) {
       amountKzt: payableKzt,
       promoId,
       paymentProvider: input.provider ?? null,
+      abVariant: isAbVariant(abRaw) ? abRaw : null,
       consent,
       item: {
         ...itemSnapshot,

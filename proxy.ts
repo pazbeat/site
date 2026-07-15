@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authConfig } from "./lib/auth.config";
 import { routing } from "./i18n/routing";
 import { buildCsp } from "./lib/security";
+import { AB_COOKIE, pickVariant } from "./lib/ab";
 
 const intl = createIntlMiddleware(routing);
 // Edge-safe экземпляр: только чтение JWT-сессии, без БД/argon2
@@ -34,7 +35,29 @@ export default async function proxy(request: NextRequest) {
   const response = await route(patched, request, pathname);
   response.headers.set("Content-Security-Policy", csp);
   applySecurityHeaders(response.headers);
+  assignAbVariant(request, response, pathname);
   return response;
+}
+
+/**
+ * Липкая группа A/B-теста цен (PRD §10). Назначаем здесь, потому что кука
+ * должна проставиться до рендера конструктора, а серверные компоненты писать
+ * куки не умеют. Аналитическая, не персональная: одна буква, без ПД.
+ */
+function assignAbVariant(
+  request: NextRequest,
+  response: NextResponse,
+  pathname: string,
+) {
+  if (pathname.startsWith("/admin") || pathname.startsWith("/api")) return;
+  if (request.cookies.has(AB_COOKIE)) return;
+
+  response.cookies.set(AB_COOKIE, pickVariant(), {
+    maxAge: 180 * 24 * 60 * 60,
+    sameSite: "lax",
+    path: "/",
+    httpOnly: false, // читаем и на клиенте, чтобы засчитать показ конструктора
+  });
 }
 
 async function route(

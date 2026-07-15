@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
 import { BuilderClient } from "@/components/builder-client";
+import { AB_COOKIE, filterByVariant, isAbVariant } from "@/lib/ab";
 import {
   getActiveDesigns,
   getActiveNominals,
@@ -50,6 +52,11 @@ export default async function CreatePage({
   const initialOptionId = Number(query.option) || undefined;
   const initialNominalId = Number(query.nominal) || undefined;
 
+  // A/B цен: показываем номиналы своей группы (PRD §10). Куку ставит proxy.
+  const abRaw = (await cookies()).get(AB_COOKIE)?.value;
+  const abVariant = isAbVariant(abRaw) ? abRaw : null;
+  const visibleNominals = filterByVariant(nominals, abVariant);
+
   return (
     <main className="flex-1 py-14 sm:py-18">
       <div className="mx-auto max-w-6xl px-5">
@@ -64,7 +71,7 @@ export default async function CreatePage({
         <BuilderClient
           salons={salons.map((s) => toSalonDto(s, locale))}
           programs={programs.map((p) => toProgramDto(p, locale))}
-          nominals={nominals.map(toNominalDto)}
+          nominals={visibleNominals.map(toNominalDto)}
           designs={designs.map((d) => toDesignDto(d, locale))}
           bounds={bounds}
           consentHtml=""
