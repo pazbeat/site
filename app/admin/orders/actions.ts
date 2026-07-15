@@ -204,6 +204,108 @@ export async function syncAltegioAction(formData: FormData) {
   return { ok: true, message: ACTION_LABEL[action.kind] };
 }
 
+/**
+ * Ручной выпуск сертификата: покупатель оплатил (прислал чек), но заказ
+ * повис pending/expired — вебхука у Kaspi нет, поллер мог не добрать.
+ * Помечает заказ оплаченным и выпускает сертификат тем же путём, что и
+ * автоматика (fulfillOrder идемпотентен, второй сертификат не появится).
+ */
+export async function manualFulfillAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const orderId = String(formData.get("orderId") ?? "");
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return { error: "Заказ не найден." };
+  if (order.status === "paid") {
+    return { error: "Заказ уже оплачен — сертификат выпущен автоматикой." };
+  }
+  if (order.status !== "pending" && order.status !== "expired") {
+    return { error: `Заказ в статусе «${order.status}» — выпуск невозможен.` };
+  }
+
+  const { fulfillOrder } = await import("@/lib/certificates");
+  const result = await fulfillOrder(order.id, `manual:${admin.email}`);
+  if (result.status !== "fulfilled") {
+    return { error: `Не получилось выпустить: ${result.status}.` };
+  }
+
+  await auditLog({
+    actor: admin.email,
+    action: "order.manual_fulfill",
+    entity: "order",
+    entityId: order.id,
+    diff: { statusBefore: order.status, certificateId: result.certificateId },
+  });
+  revalidatePath("/admin/orders");
+  return {
+    ok: true,
+    message: "Сертификат выпущен и поставлен в доставку получателю.",
+  };
+}
+
+const editCertSchema = z.object({
+  certificateId: z.string().min(1),
+  toName: z.string().trim().min(1).max(80),
+  fromName: z.string().trim().min(1).max(80),
+  /// Лимит поздравления как в конструкторе (PRD §5.1)
+  message: z.string().trim().max(120),
+  deliveryContact: z.string().trim().min(1).max(120),
+});
+
+/**
+ * Правка персонализации выпущенного сертификата (опечатка в имени, новый
+ * текст поздравления, неверный контакт доставки). PDF собирается из БД при
+ * каждой отправке/скачивании, поэтому после правки достаточно нажать
+ * «Отправить повторно» — уйдёт уже исправленная версия.
+ */
+export async function editCertAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const parsed = editCertSchema.safeParse({
+    certificateId: formData.get("certificateId"),
+    toName: formData.get("toName"),
+    fromName: formData.get("fromName"),
+    message: formData.get("message") ?? "",
+    deliveryContact: formData.get("deliveryContact"),
+  });
+  if (!parsed.success) {
+    return { error: "Проверьте поля: имена до 80 символов, поздравление до 120." };
+  }
+
+  const cert = await prisma.certificate.findUnique({
+    where: { id: parsed.data.certificateId },
+  });
+  if (!cert) return { error: "Сертификат не найден." };
+
+  const data = {
+    toName: parsed.data.toName,
+    fromName: parsed.data.fromName,
+    message: parsed.data.message || null,
+    deliveryContact: parsed.data.deliveryContact,
+  };
+  await prisma.certificate.update({ where: { id: cert.id }, data });
+
+  await auditLog({
+    actor: admin.email,
+    action: "certificate.edit",
+    entity: "certificate",
+    entityId: cert.id,
+    diff: {
+      before: {
+        toName: cert.toName,
+        fromName: cert.fromName,
+        message: cert.message,
+        deliveryContact: cert.deliveryContact,
+      },
+      after: data,
+    },
+  });
+  revalidatePath("/admin/orders");
+  return {
+    ok: true,
+    message:
+      "Сохранено. Чтобы получатель увидел исправленный PDF — нажмите «Отправить повторно».",
+  };
+}
+
 export async function resendAction(formData: FormData) {
   const admin = await requireAdmin();
   const certificateId = String(formData.get("certificateId") ?? "");

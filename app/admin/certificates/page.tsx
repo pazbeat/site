@@ -173,13 +173,18 @@ export default async function AdminCertificatesPage({
                   </Link>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  {c.serial ? (
-                    <span className="font-semibold">{c.serial}</span>
-                  ) : null}
-                  <span className="text-brand-purple-950/55">
-                    {c.serial ? " · " : ""}
-                    {c.codeDisplay}
-                  </span>
+                  <Link
+                    href={`/admin/orders/${c.order.id}`}
+                    className="hover:underline"
+                  >
+                    {c.serial ? (
+                      <span className="font-semibold">{c.serial}</span>
+                    ) : null}
+                    <span className="text-brand-purple-950/55">
+                      {c.serial ? " · " : ""}
+                      {c.codeDisplay}
+                    </span>
+                  </Link>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap font-medium">
                   {formatKzt(c.balanceKzt)}
