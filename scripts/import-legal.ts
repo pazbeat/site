@@ -1,16 +1,16 @@
 /**
- * Импорт реальных правовых текстов из rules/*.docx (присланы заказчиком) →
- * санитизированный HTML в prisma/legal/*.ru.html (в гит, для сида) + новая
- * актуальная версия в БД (как ручное сохранение в /admin/legal).
+ * Импорт правовых текстов в БД + синхронизация HTML-файлов.
+ *  - RU: из rules/*.docx (присланы заказчиком) через mammoth.
+ *  - KK/EN: из prisma/legal/{type}.{lang}.html (переводы, в гите).
+ * Каждый язык → отдельная неизменяемая LegalVersion; RU — актуальная
+ * (currentVersion). Отдача по локали — lib/data.ts getLegalVersionForLocale.
  *
  * Запуск: npx tsx scripts/import-legal.ts
- * Требует локальную папку rules/ (в .gitignore) с исходными .docx.
- *
- * Санитизация зеркалит lib/admin/sanitize.ts (тот модуль server-only и не
- * импортируется в tsx-скрипт). При правках allowlist — синхронизировать оба.
+ * Для RU требуется локальная папка rules/ (в .gitignore) с .docx.
+ * Санитизация зеркалит lib/admin/sanitize.ts (server-only, в tsx не грузится).
  */
 import "dotenv/config";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import path from "node:path";
 import mammoth from "mammoth";
 import sanitizeHtml from "sanitize-html";
@@ -20,11 +20,12 @@ import { PrismaClient } from "../lib/generated/prisma/client";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const DOCS: Array<{ file: string; type: "offer" | "privacy" | "rules" }> = [
-  { file: "oferta.docx", type: "offer" },
-  { file: "privacy_policy.docx", type: "privacy" },
-  { file: "rules.docx", type: "rules" },
+const DOCS: Array<{ docx: string; type: "offer" | "privacy" | "rules" }> = [
+  { docx: "oferta.docx", type: "offer" },
+  { docx: "privacy_policy.docx", type: "privacy" },
+  { docx: "rules.docx", type: "rules" },
 ];
+const LANGS = ["ru", "kk", "en"] as const;
 
 // Зеркало lib/admin/sanitize.ts
 function sanitizeLegalHtml(dirty: string): string {
@@ -52,33 +53,61 @@ function sanitizeLegalHtml(dirty: string): string {
   });
 }
 
+const outDir = path.join(process.cwd(), "prisma", "legal");
+
+async function exists(p: string) {
+  return access(p).then(() => true).catch(() => false);
+}
+
+/** RU-контент из docx, KK/EN — из html-файла перевода. */
+async function loadHtml(
+  type: string,
+  lang: string,
+  docx: string,
+): Promise<string | null> {
+  if (lang === "ru") {
+    const src = path.join(process.cwd(), "rules", docx);
+    if (!(await exists(src))) return null;
+    const { value } = await mammoth.convertToHtml({ buffer: await readFile(src) });
+    return value.replace(/http:\/\/(www\.)?imbir\.kz/gi, "https://$1imbir.kz");
+  }
+  const file = path.join(outDir, `${type}.${lang}.html`);
+  if (!(await exists(file))) return null;
+  return readFile(file, "utf8");
+}
+
 async function main() {
-  const outDir = path.join(process.cwd(), "prisma", "legal");
   await mkdir(outDir, { recursive: true });
 
-  for (const { file, type } of DOCS) {
-    const src = path.join(process.cwd(), "rules", file);
-    const buffer = await readFile(src);
-    const { value: rawHtml } = await mammoth.convertToHtml({ buffer });
-    // Ссылки http://…imbir.kz → https (иначе санитайзер выкинет href)
-    const httpsHtml = rawHtml.replace(/http:\/\/(www\.)?imbir\.kz/gi, "https://$1imbir.kz");
-    const clean = sanitizeLegalHtml(httpsHtml);
-
-    await writeFile(path.join(outDir, `${type}.ru.html`), clean, "utf8");
-
+  for (const { docx, type } of DOCS) {
     const document = await prisma.legalDocument.upsert({
       where: { type },
       create: { type },
       update: {},
     });
-    const version = await prisma.legalVersion.create({
-      data: { documentId: document.id, contentHtmlSanitized: clean, lang: "ru" },
-    });
-    await prisma.legalDocument.update({
-      where: { id: document.id },
-      data: { currentVersionId: version.id },
-    });
-    console.log(`${type}: ${clean.length} симв. → версия #${version.id} (актуальная)`);
+
+    for (const lang of LANGS) {
+      const raw = await loadHtml(type, lang, docx);
+      if (raw === null) {
+        console.log(`${type}/${lang}: пропуск (нет источника)`);
+        continue;
+      }
+      const clean = sanitizeLegalHtml(raw);
+      await writeFile(path.join(outDir, `${type}.${lang}.html`), clean, "utf8");
+
+      const version = await prisma.legalVersion.create({
+        data: { documentId: document.id, contentHtmlSanitized: clean, lang },
+      });
+      if (lang === "ru") {
+        await prisma.legalDocument.update({
+          where: { id: document.id },
+          data: { currentVersionId: version.id },
+        });
+      }
+      console.log(
+        `${type}/${lang}: ${clean.length} симв. → версия #${version.id}${lang === "ru" ? " (актуальная)" : ""}`,
+      );
+    }
   }
 }
 
