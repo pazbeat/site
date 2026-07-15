@@ -28,11 +28,13 @@ const SYNC_LABEL: Record<string, string> = {
   pending: "⏳ Altegio",
   synced: "✓ Altegio",
   failed: "✕ Altegio",
+  missing: "⚠ нет в Altegio",
 };
 const SYNC_BADGE: Record<string, string> = {
   pending: "text-amber-600",
   synced: "text-emerald-600",
   failed: "text-brand-red",
+  missing: "text-brand-red",
 };
 
 export default async function AdminCertificatesPage({

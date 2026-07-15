@@ -9,6 +9,7 @@ import { prisma } from "./db";
 
 const EXPIRE_ORDERS = "expire-orders";
 const EXPIRE_CERTS = "expire-certificates";
+const ALTEGIO_REDEMPTIONS = "altegio-redemptions";
 const DELIVER_CERT = "deliver-certificate";
 const DELIVER_SCHEDULED = "deliver-scheduled";
 const EXPIRY_REMINDERS = "expiry-reminders";
@@ -88,6 +89,17 @@ async function createBoss(): Promise<PgBoss> {
   await boss.work(POLL_KASPI, async () => {
     const { pollPendingPayments } = await import("./kaspi-poller");
     await pollPendingPayments();
+  });
+
+  // Сверка погашений с Altegio (CRM — источник истины по погашениям) — раз в
+  // 15 минут: запросов немного, они сгруппированы по клиентам (лимит 200/мин).
+  await boss.createQueue(ALTEGIO_REDEMPTIONS);
+  await boss.schedule(ALTEGIO_REDEMPTIONS, "*/15 * * * *", undefined, {
+    tz: "Asia/Almaty",
+  });
+  await boss.work(ALTEGIO_REDEMPTIONS, async () => {
+    const { syncRedemptionsFromAltegio } = await import("./altegio/redemptions");
+    await syncRedemptionsFromAltegio();
   });
 
   // Напоминания об истечении (за 30 и 7 дней) — раз в сутки, 09:00 Almaty.

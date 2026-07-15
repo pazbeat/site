@@ -54,6 +54,8 @@ enum AltegioSyncStatus {
   pending
   synced
   failed
+  /// Был выпущен, но пропал из Altegio (удалён/возврат в CRM) — нужен разбор менеджером
+  missing
 }
 
 enum LegalDocType {
@@ -267,10 +269,22 @@ model Certificate {
   altegioSyncStatus AltegioSyncStatus @default(pending) @map("altegio_sync_status")
   altegioCertId     String?           @map("altegio_certificate_id")
   altegioSyncedAt   DateTime?         @map("altegio_synced_at")
+  /// Филиал Altegio, где сертификат реально выпущен (в тест-режиме — фолбэк-филиал)
+  altegioCompanyId  Int?              @map("altegio_company_id")
+  /// Телефон клиента в Altegio — единственный ключ, по которому CRM отдаёт
+  /// сертификат обратно (loyalty/certificates требует phone)
+  altegioClientPhone String?          @map("altegio_client_phone")
+  /// id записи в loyalty/certificates Altegio
+  altegioNumberId   Int?              @map("altegio_number_id")
+  /// Момент последней сверки состояния с Altegio
+  altegioCheckedAt  DateTime?         @map("altegio_checked_at")
+  /// Баланс по данным Altegio на момент последней сверки
+  altegioBalanceKzt Int?              @map("altegio_balance_kzt")
   createdAt         DateTime          @default(now()) @map("created_at")
   redemptions       Redemption[]
 
   @@index([status, validUntil])
+  @@index([altegioSyncStatus, altegioCompanyId])
   @@map("certificates")
 }
 
