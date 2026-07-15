@@ -19,7 +19,9 @@ export function buildCsp(nonce: string, isDev: boolean): string {
     `img-src 'self' data: blob: https://www.imbir.kz`,
     `font-src 'self'`,
     `connect-src 'self'` + (isDev ? " ws:" : ""),
-    `object-src 'none'`,
+    // 'self' — PDF-вьюер Chrome в iframe работает как plugin-document и
+    // подпадает под object-src; 'none' блокировал просмотр прайса на /prices
+    `object-src 'self'`,
     `base-uri 'self'`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,

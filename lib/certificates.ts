@@ -42,6 +42,11 @@ type OrderItem = {
  * Подтверждение оплаты (PRD §5.3): идемпотентный переход pending→paid
  * + генерация сертификата. Повторный вебхук не создаёт второй сертификат:
  * атомарный updateMany со статусом-guard'ом.
+ *
+ * Принимаем и expired: у Kaspi/Forte нет вебхуков, и оплата могла прийти
+ * после нашего 30-минутного протухания (API провайдера лежал, сервер
+ * рестартовал, покупатель оплатил старый счёт). Деньги первичны —
+ * оплаченный заказ воскресает, сертификат выпускается.
  */
 export async function fulfillOrder(
   orderId: string,
@@ -53,7 +58,7 @@ export async function fulfillOrder(
   | { status: "not_payable" }
 > {
   const claimed = await prisma.order.updateMany({
-    where: { id: orderId, status: "pending" },
+    where: { id: orderId, status: { in: ["pending", "expired"] } },
     data: { status: "paid", paymentId: externalPaymentId },
   });
 

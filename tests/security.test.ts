@@ -17,7 +17,10 @@ describe("buildCsp (PRD §9.2)", () => {
   it("production: базовые директивы и запреты", () => {
     const csp = buildCsp("n", false);
     expect(csp).toContain("default-src 'self'");
-    expect(csp).toContain("object-src 'none'");
+    // 'self', не 'none': PDF-вьюер Chrome (просмотр прайса на /prices) —
+    // plugin-document и подпадает под object-src; чужие плагины закрыты
+    expect(csp).toContain("object-src 'self'");
+    expect(csp).toContain("frame-src 'self'");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("base-uri 'self'");
     expect(csp).toContain("upgrade-insecure-requests");

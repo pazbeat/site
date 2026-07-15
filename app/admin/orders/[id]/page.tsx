@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { CertActions } from "@/components/admin/cert-actions";
+import { CertEdit } from "@/components/admin/cert-edit";
+import { ManualFulfill } from "@/components/admin/manual-fulfill";
 import { prisma } from "@/lib/db";
 import { formatKzt } from "@/lib/format";
 
@@ -59,6 +61,12 @@ export default async function AdminOrderPage({
     ip?: string;
     ts?: string;
   };
+  const item = order.item as {
+    toName?: string;
+    fromName?: string;
+    message?: string;
+    delivery?: { method?: string; contact?: string };
+  };
   const cert = order.certificates[0];
 
   return (
@@ -84,9 +92,21 @@ export default async function AdminOrderPage({
               label="Провайдер"
               value={order.paymentProvider ?? "—"}
             />
+            <Row label="ID оплаты" value={order.paymentId ?? "—"} />
             <Row
               label="Создан"
               value={order.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+            />
+            <Row label="Кому" value={item.toName ?? "—"} />
+            <Row label="От кого" value={item.fromName ?? "—"} />
+            <Row label="Поздравление" value={item.message || "—"} />
+            <Row
+              label="Доставка"
+              value={
+                item.delivery
+                  ? `${item.delivery.method}: ${item.delivery.contact}`
+                  : "—"
+              }
             />
           </dl>
         </section>
@@ -132,6 +152,7 @@ export default async function AdminOrderPage({
             <dl className="text-sm">
               <Row label="Кому" value={cert.toName} />
               <Row label="От кого" value={cert.fromName} />
+              <Row label="Поздравление" value={cert.message ?? "—"} />
               <Row
                 label="Тип"
                 value={
@@ -175,6 +196,17 @@ export default async function AdminOrderPage({
             </dl>
           </div>
 
+          <div className="mb-4">
+            <CertEdit
+              certificateId={cert.id}
+              toName={cert.toName}
+              fromName={cert.fromName}
+              message={cert.message}
+              deliveryMethod={cert.deliveryMethod}
+              deliveryContact={cert.deliveryContact}
+            />
+          </div>
+
           <CertActions
             certificateId={cert.id}
             balanceKzt={cert.balanceKzt}
@@ -204,9 +236,16 @@ export default async function AdminOrderPage({
           )}
         </section>
       ) : (
-        <p className="mt-5 rounded-2xl border border-brand-purple-100 bg-white p-5 text-sm text-brand-purple-950/60">
-          Сертификат ещё не выпущен (заказ не оплачен).
-        </p>
+        <section className="mt-5 rounded-2xl border border-brand-purple-100 bg-white p-5">
+          <p className="mb-4 text-sm text-brand-purple-950/60">
+            Сертификат ещё не выпущен (заказ не оплачен). Если покупатель
+            подтвердил оплату чеком или выпиской, а автоматика её не увидела —
+            выпустите сертификат вручную.
+          </p>
+          {(order.status === "pending" || order.status === "expired") && (
+            <ManualFulfill orderId={order.id} />
+          )}
+        </section>
       )}
     </AdminChrome>
   );

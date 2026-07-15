@@ -10,11 +10,16 @@ import { ForteBankProvider } from "./payments/forte";
  * добирает такие заказы: опрашивает провайдера по всем ожидающим заказам в
  * пределах TTL и исполняет оплаченные (fulfillOrder идемпотентен).
  *
+ * Опрашиваются и протухшие (expired) заказы до суток назад: оплата могла
+ * пройти, пока API провайдера или наш сервер были недоступны, либо покупатель
+ * оплатил счёт позже 30 минут. fulfillOrder такие заказы воскрешает.
+ *
  * Работает только с боевыми провайдерами (при PAYMENT_MOCK=1 — пропуск).
  */
 
-// Окно опроса: заказы не старше 35 мин (TTL протухания — 30 мин + запас).
-const POLL_WINDOW_MS = 35 * 60_000;
+// Окно опроса: сутки. Свежие pending ловятся за минуты; хвост из expired —
+// страховка от простоя провайдера/сервера. Объём мал (десятки заказов в день).
+const POLL_WINDOW_MS = 24 * 60 * 60_000;
 
 export async function pollPendingKaspiOrders(): Promise<{
   checked: number;
@@ -26,7 +31,7 @@ export async function pollPendingKaspiOrders(): Promise<{
 
   const orders = await prisma.order.findMany({
     where: {
-      status: "pending",
+      status: { in: ["pending", "expired"] },
       paymentProvider: "kaspi",
       paymentId: { not: null },
       createdAt: { gte: new Date(Date.now() - POLL_WINDOW_MS) },
@@ -68,7 +73,7 @@ export async function pollPendingForteOrders(): Promise<{
 
   const orders = await prisma.order.findMany({
     where: {
-      status: "pending",
+      status: { in: ["pending", "expired"] },
       paymentProvider: "forte",
       paymentId: { not: null },
       createdAt: { gte: new Date(Date.now() - POLL_WINDOW_MS) },
