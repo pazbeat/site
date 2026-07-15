@@ -36,12 +36,13 @@ export function toProgramDto(
   };
 }
 
-export function toSalonDto(salon: Salon): SalonDto {
+export function toSalonDto(salon: Salon, locale: string): SalonDto {
   return {
     id: salon.id,
-    city: salon.city,
+    cityKey: salon.city,
+    city: pickL10n(salon.cityNames, locale) || salon.city,
     name: salon.name,
-    address: salon.address,
+    address: pickL10n(salon.addressNames, locale) || salon.address,
   };
 }
 

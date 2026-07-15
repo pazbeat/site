@@ -38,8 +38,12 @@ export type ProgramDto = {
 
 export type SalonDto = {
   id: number;
+  /** Русский ключ города: значение селекта и связь с ProgramDto.cities */
+  cityKey: string;
+  /** Локализованный город — только для показа */
   city: string;
   name: string;
+  /** Локализованный адрес — только для показа */
   address: string;
 };
 

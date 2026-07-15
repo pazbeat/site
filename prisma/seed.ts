@@ -8,6 +8,7 @@ import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type ProgramCategory } from "../lib/generated/prisma/client";
 import { DESIGN_SEED, PANEL_BG, PANEL_TEXT } from "./designs-data";
+import { SALON_SEED } from "./salons-data";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -80,22 +81,7 @@ const PROGRAMS: SeedProgram[] = [
   { cat: "set", n: { ru: "Sanuk", kk: "Sanuk", en: "Sanuk" }, d: { ru: "Сет процедур, 1,5 часа", kk: "Ем-шаралар сеті, 1,5 сағат", en: "Treatment set, 1.5 hours" }, opts: [{ m: 90, p: 28000 }] },
 ];
 
-// codePrefix — префикс серийного номера сертификата (WM001…) для салона
-const SALONS: Array<{
-  city: string;
-  name: string;
-  address: string;
-  codePrefix: string;
-}> = [
-  { city: "Астана", name: "Имбирь на Мәңгілік Ел", address: "пр. Мәңгілік Ел 29/2", codePrefix: "WM" },
-  { city: "Астана", name: "Имбирь на Тәуелсіздік", address: "пр. Тәуелсіздік 40/5 (по старому 46/6)", codePrefix: "WT" },
-  { city: "Астана", name: "Имбирь в ЖК «Глория»", address: "пр. Әліхан Бөкейхан 24 (ЖК «Глория»)", codePrefix: "WB" },
-  { city: "Алматы", name: "Имбирь в ЖК «Шанырак»", address: "ул. Наурызбай Батыра 99/1, ЖК «Шанырак»", codePrefix: "WN" },
-  { city: "Алматы", name: "Имбирь в ЖК «Вавилон»", address: "ул. Розыбакиева 247, ЖК «Вавилон»", codePrefix: "WR" },
-  { city: "Караганда", name: "Имбирь в БЦ «Grey Plaza»", address: "ул. Гоголя 34А, БЦ «Grey Plaza»", codePrefix: "WK" },
-  { city: "Павлодар", name: "Имбирь в гостинице «Иртыш»", address: "ул. Ак. Бектурова 79, гостиница «Иртыш»", codePrefix: "WP" },
-  // Семей (WS) — филиал будет добавлен после получения адреса
-];
+const SALONS = SALON_SEED;
 
 const NOMINALS = [
   { amountKzt: 15000, label: null as string | null },

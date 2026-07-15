@@ -53,6 +53,16 @@ function siteUrl(): string {
   return process.env.SITE_URL ?? "http://localhost:3000";
 }
 
+/** «Город, адрес» филиала на языке заказа (фолбэк — русские поля). */
+function salonLine(
+  salon: { city: string; cityNames: unknown; address: string; addressNames: unknown },
+  locale: string,
+): string {
+  const city = pickL10n(salon.cityNames, locale) || salon.city;
+  const address = pickL10n(salon.addressNames, locale) || salon.address;
+  return `${city}, ${address}`;
+}
+
 /** Собирает PDF сертификата по id; null — если код недоступен. */
 export async function buildCertificatePdf(certificateId: string): Promise<{
   pdf: Buffer;
@@ -100,7 +110,7 @@ export async function buildCertificatePdf(certificateId: string): Promise<{
     message: certificate.message ?? undefined,
     validUntilLabel: labels.validUntil,
     validUntil: certificate.validUntil.toISOString().slice(0, 10),
-    salonLine: `${certificate.salon.city}, ${certificate.salon.address}`,
+    salonLine: salonLine(certificate.salon, locale),
     giftLabel: labels.gift,
     codeLabel: labels.code,
     locale,
