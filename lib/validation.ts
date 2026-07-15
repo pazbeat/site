@@ -93,6 +93,7 @@ export const checkSchema = z.object({
 export const corporateSchema = z.object({
   company: z.string().trim().min(1).max(120),
   contact: z.string().trim().min(1).max(160),
-  qty: z.number().int().min(1).max(10_000),
+  /// Корпоративные заказы — от 10 сертификатов
+  qty: z.number().int().min(10).max(10_000),
   comment: z.string().trim().max(1000).optional().default(""),
 });

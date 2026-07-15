@@ -84,13 +84,14 @@ export function CorporateForm() {
         <input
           id="c-qty"
           type="number"
-          min={1}
+          min={10}
           max={10000}
           required
           className={inputCls}
           value={qty}
           onChange={(e) => setQty(e.target.value)}
         />
+        <p className="mt-1.5 text-xs text-brand-purple-950/55">{t("qtyHint")}</p>
       </div>
       <div className="mb-6">
         <label className={labelCls} htmlFor="c-comment">

@@ -72,7 +72,7 @@ export async function fulfillOrder(
 
   const validityMonthsRaw = await getSetting("certificate_validity_months");
   const validityMonths =
-    typeof validityMonthsRaw === "number" ? validityMonthsRaw : 12;
+    typeof validityMonthsRaw === "number" ? validityMonthsRaw : 3;
   const validUntil = new Date();
   validUntil.setMonth(validUntil.getMonth() + validityMonths);
 

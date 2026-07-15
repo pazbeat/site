@@ -49,6 +49,9 @@ yarn-error.log*
 # исходники открыток (оптимизированные WebP лежат в public/designs)
 /sert design/
 
+# исходники прайсов от заказчика (копии, которые раздаёт сайт, — в public/price)
+/price/
+
 # dev whatsapp mock
 /.wa-outbox
 
