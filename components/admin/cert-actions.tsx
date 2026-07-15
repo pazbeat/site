@@ -8,9 +8,10 @@ import {
   redeemAction,
   refundAction,
   resendAction,
+  syncAltegioAction,
 } from "@/app/admin/orders/actions";
 
-type ActionResult = { ok?: boolean; error?: string } | undefined;
+type ActionResult = { ok?: boolean; error?: string; message?: string } | undefined;
 
 const box = "rounded-xl border border-brand-purple-100 bg-white p-4";
 const inputCls =
@@ -41,7 +42,7 @@ export function CertActions({
       const result = await action(fd);
       if (result?.error) setMessage(result.error);
       else {
-        setMessage("Готово.");
+        setMessage(result?.message ?? "Готово.");
         router.refresh();
       }
     });
@@ -141,6 +142,17 @@ export function CertActions({
               className={`${btn} border-[1.5px] border-brand-purple-100 hover:border-brand-gold`}
             >
               Отправить повторно
+            </button>
+          </form>
+          <form action={(fd) => run(syncAltegioAction, fd)}>
+            <input type="hidden" name="certificateId" value={certificateId} />
+            <button
+              type="submit"
+              disabled={pending}
+              className={`${btn} border-[1.5px] border-brand-purple-100 hover:border-brand-gold`}
+              title="Подтянуть погашения из CRM, не дожидаясь автосверки"
+            >
+              Сверить с Altegio
             </button>
           </form>
           <form

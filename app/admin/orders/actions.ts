@@ -156,6 +156,54 @@ export async function refundAction(formData: FormData) {
   return { ok: true };
 }
 
+const ACTION_LABEL: Record<string, string> = {
+  noop: "Совпадает с Altegio — изменений нет.",
+  missing: "Сертификата нет в Altegio! Проверьте CRM: возможно, продажа удалена.",
+};
+
+/** Ручная сверка с Altegio — не ждать крона (раз в 15 минут). */
+export async function syncAltegioAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const certificateId = String(formData.get("certificateId") ?? "");
+  const { syncOneCertificate } = await import("@/lib/altegio/redemptions");
+  const result = await syncOneCertificate(certificateId);
+
+  if (!result.ok) {
+    const human: Record<string, string> = {
+      altegio_not_configured: "Altegio не настроен (нет токенов в env).",
+      not_issued_in_altegio: "Сертификат не выпускался в Altegio — сверять нечего.",
+      code_unavailable: "Код сертификата недоступен.",
+      not_found: "Сертификат не найден.",
+    };
+    return { error: human[result.error] ?? `Altegio: ${result.error}` };
+  }
+
+  const { action, applied } = result;
+  await auditLog({
+    actor: admin.email,
+    action: "certificate.altegio_sync",
+    entity: "certificate",
+    entityId: certificateId,
+    diff: { action, applied },
+  });
+  revalidatePath("/admin/orders");
+
+  if (action.kind === "sync") {
+    const verb = action.redeemedKzt > 0 ? "погашено" : "возвращено на баланс";
+    const body = `Из Altegio: ${verb} ${Math.abs(action.redeemedKzt)} ₸, остаток ${action.balanceKzt} ₸.`;
+    return {
+      ok: true,
+      message: applied
+        ? body
+        : `${body} НЕ применено: тест-режим Altegio (ALTEGIO_TEST=1) — там у сертификата баланс фолбэк-товара, а не наш номинал.`,
+    };
+  }
+  if (action.kind === "skip") {
+    return { ok: true, message: `Статус «${action.reason}» выставлен вручную — CRM его не меняет.` };
+  }
+  return { ok: true, message: ACTION_LABEL[action.kind] };
+}
+
 export async function resendAction(formData: FormData) {
   const admin = await requireAdmin();
   const certificateId = String(formData.get("certificateId") ?? "");

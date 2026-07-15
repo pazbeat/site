@@ -95,3 +95,31 @@ export function listCertificateTypes(
     cfg,
   );
 }
+
+export type AltegioCertificate = {
+  id: number;
+  /** Номер сертификата = наш публичный код IMB-XXXX-XXXX */
+  number: string;
+  /** Остаток по данным CRM — источник истины по погашениям */
+  balance: number;
+  default_balance: number;
+  status: { id: number; slug: string; title: string };
+};
+
+/**
+ * Сертификаты клиента в филиале. Выверено живьём (2026-07-15): это
+ * ЕДИНСТВЕННЫЙ доступный путь чтения — `phone` обязателен, поиска по номеру
+ * («Missing phone number»), выборки по филиалу целиком, chain-level списка и
+ * истории операций у API нет. Поэтому телефон клиента мы запоминаем при
+ * выпуске (Certificate.altegioClientPhone).
+ */
+export function listClientCertificates(
+  companyId: number,
+  phone: string,
+): Promise<AltegioCertificate[]> {
+  const q = new URLSearchParams({
+    company_id: String(companyId),
+    phone,
+  });
+  return altegioRequest<AltegioCertificate[]>(`loyalty/certificates/?${q}`);
+}

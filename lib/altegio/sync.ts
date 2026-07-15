@@ -124,15 +124,29 @@ export async function syncCertificateToAltegio(
     throw error;
   }
 
+  // Филиал и телефон клиента — ключ, по которому потом читаем состояние
+  // обратно (Altegio отдаёт сертификаты только списком по клиенту).
   await prisma.certificate.update({
     where: { id: certificateId },
     data: {
       altegioSyncStatus: "synced",
       altegioSyncedAt: new Date(),
+      altegioCompanyId: result.companyId,
+      altegioClientPhone:
+        result.status === "issued" ? result.clientPhone : undefined,
       altegioCertId:
         result.status === "issued" ? String(result.documentId) : undefined,
     },
   });
+
+  // Сразу подтягиваем состояние из CRM: заодно проверяем, что сертификат там
+  // действительно виден, и запоминаем его id.
+  try {
+    const { syncOneCertificate } = await import("./redemptions");
+    await syncOneCertificate(certificateId);
+  } catch (error) {
+    console.error("[altegio] первичная сверка не удалась", error);
+  }
 
   if (result.status === "already_exists") {
     console.log(`[altegio] сертификат ${code} уже существует — идемпотентно ок`);

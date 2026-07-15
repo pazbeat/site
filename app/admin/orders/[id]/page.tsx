@@ -161,9 +161,17 @@ export default async function AdminOrderPage({
                     ? `✓ синхронизирован${cert.altegioCertId ? ` (док ${cert.altegioCertId})` : ""}`
                     : cert.altegioSyncStatus === "failed"
                       ? "✕ ошибка синка"
-                      : "⏳ ожидает"
+                      : cert.altegioSyncStatus === "missing"
+                        ? "⚠ пропал из Altegio — проверьте CRM"
+                        : "⏳ ожидает"
                 }
               />
+              {cert.altegioCheckedAt && (
+                <Row
+                  label="Сверка с CRM"
+                  value={`остаток по Altegio ${formatKzt(cert.altegioBalanceKzt ?? 0)} · ${cert.altegioCheckedAt.toISOString().slice(0, 16).replace("T", " ")}`}
+                />
+              )}
             </dl>
           </div>
 
