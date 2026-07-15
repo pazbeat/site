@@ -44,7 +44,7 @@ export default async function LegalPage({
           </p>
         )}
         <article
-          className="prose prose-sm max-w-none text-brand-purple-950"
+          className="legal-content max-w-none text-sm text-brand-purple-950"
           // Контент санитизирован на сервере при сохранении (PRD §6.4, §9.2)
           dangerouslySetInnerHTML={{ __html: version.contentHtmlSanitized }}
         />

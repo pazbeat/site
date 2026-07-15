@@ -34,6 +34,7 @@ export default async function EditProgramPage({
           descEn: pickL10n(program.descriptions, "en"),
           popular: program.popular,
           active: program.active,
+          photoUrl: program.photoUrl,
           cities: program.cities.join(", "),
           options: program.options.map((o) => ({
             id: o.id,

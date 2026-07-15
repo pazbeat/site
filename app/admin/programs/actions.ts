@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireSuperadmin, auditLog } from "@/lib/admin/guard";
+import { deleteUpload, saveImageUpload } from "@/lib/admin/upload";
 
 const optionSchema = z.object({
   id: z.coerce.number().int().positive().optional(),
@@ -62,12 +63,32 @@ export async function saveProgramAction(formData: FormData) {
     .map((c) => c.trim())
     .filter(Boolean);
 
+  const current = d.id
+    ? await prisma.program.findUnique({ where: { id: d.id } })
+    : null;
+
+  // Фото: новый файл заменяет прежний, галочка «удалить» — очищает.
+  // Старый аплоад подчищаем, чтобы не копить мусор в public/uploads.
+  let photoUrl = current?.photoUrl ?? null;
+  const file = formData.get("photo");
+  const removePhoto = formData.get("removePhoto") === "on";
+  if (file instanceof File && file.size > 0) {
+    const upload = await saveImageUpload(file, { folder: "programs", width: 1200 });
+    if (!upload.ok) return { error: upload.error };
+    await deleteUpload(photoUrl, "programs");
+    photoUrl = upload.url;
+  } else if (removePhoto && photoUrl) {
+    await deleteUpload(photoUrl, "programs");
+    photoUrl = null;
+  }
+
   const data = {
     category: d.category,
     names: { ru: d.nameRu, kk: d.nameKk, en: d.nameEn },
     descriptions: { ru: d.descRu, kk: d.descKk, en: d.descEn },
     popular: d.popular,
     active: d.active,
+    photoUrl,
     cities,
   };
 

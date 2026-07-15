@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { RichText } from "./rich-text";
+import { toastResult } from "./toast";
 import { saveLegalAction } from "@/app/admin/legal/actions";
 
 type Version = {
@@ -27,7 +29,6 @@ export function LegalEditor({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [content, setContent] = useState(currentHtml);
-  const [message, setMessage] = useState("");
 
   return (
     <details className="rounded-2xl border border-brand-purple-100 bg-white p-5">
@@ -42,12 +43,8 @@ export function LegalEditor({
 
       <form
         action={(fd) => {
-          setMessage("");
           startTransition(async () => {
-            const result = await saveLegalAction(fd);
-            if (result?.error) setMessage(result.error);
-            else {
-              setMessage("Создана новая версия.");
+            if (toastResult(await saveLegalAction(fd), "Создана новая версия.")) {
               router.refresh();
             }
           });
@@ -67,14 +64,8 @@ export function LegalEditor({
             <option value="en">EN</option>
           </select>
         </div>
-        <textarea
-          name="content"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={8}
-          placeholder="<p>Текст документа (разрешён базовый HTML)…</p>"
-          className="w-full rounded-xl border-[1.5px] border-brand-purple-100 px-3 py-2 font-mono text-sm outline-none focus:border-brand-gold"
-        />
+        <input type="hidden" name="content" value={content} />
+        <RichText value={content} onChange={setContent} />
         <div className="mt-3 flex items-center gap-3">
           <button
             type="submit"
@@ -83,11 +74,10 @@ export function LegalEditor({
           >
             Сохранить как новую версию
           </button>
-          {message && (
-            <span className="text-sm font-semibold text-brand-purple">
-              {message}
-            </span>
-          )}
+          <span className="text-xs text-brand-purple-950/50">
+            Прежняя версия остаётся в истории — согласия покупателей ссылаются
+            именно на неё.
+          </span>
         </div>
       </form>
 

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "./toast";
 import { saveProgramAction } from "@/app/admin/programs/actions";
 
 type Option = {
@@ -22,6 +23,7 @@ export type ProgramEditorData = {
   descEn: string;
   popular: boolean;
   active: boolean;
+  photoUrl: string | null;
   cities: string;
   options: Option[];
 };
@@ -37,6 +39,8 @@ export function ProgramEditor({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [options, setOptions] = useState<Option[]>(initial.options);
+  const [preview, setPreview] = useState<string | null>(initial.photoUrl);
+  const [removePhoto, setRemovePhoto] = useState(false);
 
   const setOpt = (i: number, patch: Partial<Option>) =>
     setOptions((prev) =>
@@ -61,7 +65,10 @@ export function ProgramEditor({
     startTransition(async () => {
       const result = await saveProgramAction(formData);
       if (result?.error) setError(result.error);
-      else router.push("/admin/programs");
+      else {
+        toast(initial.id ? "Программа сохранена." : "Программа создана.");
+        router.push("/admin/programs");
+      }
     });
   };
 
@@ -105,6 +112,53 @@ export function ProgramEditor({
         <div>
           <label className={labelCls}>Описание EN</label>
           <textarea name="descEn" defaultValue={initial.descEn} className={inputCls} rows={2} />
+        </div>
+      </div>
+
+      <div>
+        <label className={labelCls}>Фото программы</label>
+        <div className="flex flex-wrap items-start gap-4">
+          <label className="flex h-28 w-44 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-brand-purple-100 bg-brand-purple-50/40 text-center text-xs text-brand-purple-950/50 hover:border-brand-gold">
+            {preview && !removePhoto ? (
+              // eslint-disable-next-line @next/next/no-img-element -- динамический путь/blob
+              <img
+                src={preview}
+                alt="Фото программы"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="px-3">
+                Нажмите, чтобы выбрать
+                <br />
+                JPEG / PNG / WebP
+              </span>
+            )}
+            <input
+              type="file"
+              name="photo"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  setPreview(URL.createObjectURL(f));
+                  setRemovePhoto(false);
+                }
+              }}
+            />
+          </label>
+          {initial.photoUrl && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="removePhoto"
+                checked={removePhoto}
+                onChange={(e) => setRemovePhoto(e.target.checked)}
+                className="h-4 w-4 accent-brand-purple"
+              />
+              Удалить фото
+            </label>
+          )}
         </div>
       </div>
 
