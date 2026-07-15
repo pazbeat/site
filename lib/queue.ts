@@ -8,6 +8,7 @@ import { prisma } from "./db";
  */
 
 const EXPIRE_ORDERS = "expire-orders";
+const EXPIRE_CERTS = "expire-certificates";
 const DELIVER_CERT = "deliver-certificate";
 const DELIVER_SCHEDULED = "deliver-scheduled";
 const EXPIRY_REMINDERS = "expiry-reminders";
@@ -45,6 +46,16 @@ async function createBoss(): Promise<PgBoss> {
   });
   await boss.work(EXPIRE_ORDERS, async () => {
     await expirePendingOrders();
+  });
+
+  // Сгорание сертификатов по сроку — раз в сутки, 00:10 Almaty.
+  await boss.createQueue(EXPIRE_CERTS);
+  await boss.schedule(EXPIRE_CERTS, "10 0 * * *", undefined, {
+    tz: "Asia/Almaty",
+  });
+  await boss.work(EXPIRE_CERTS, async () => {
+    const { expireCertificates } = await import("./expiry");
+    await expireCertificates();
   });
 
   await boss.createQueue(DELIVER_CERT, {

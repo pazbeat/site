@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
+import { PeriodPicker } from "@/components/admin/period-picker";
+import {
+  almatyDayKey,
+  eachDay,
+  monthLabel,
+  periodFilter,
+  resolvePeriod,
+} from "@/lib/admin/period";
 import { prisma } from "@/lib/db";
 import { formatKzt } from "@/lib/format";
 import { pickL10n } from "@/lib/l10n";
 import type { Prisma } from "@/lib/generated/prisma/client";
-
-const PERIODS: Array<{ value: string; label: string; days: number }> = [
-  { value: "7", label: "7 дней", days: 7 },
-  { value: "30", label: "30 дней", days: 30 },
-  { value: "90", label: "90 дней", days: 90 },
-  { value: "365", label: "Год", days: 365 },
-  { value: "0", label: "Всё время", days: 0 },
-];
 
 const PROVIDER_LABEL: Record<string, string> = {
   kaspi: "Kaspi",
@@ -64,17 +64,15 @@ function Bar({
 
 export default async function AdminSalesPage({
   searchParams,
-}: Readonly<{ searchParams: Promise<{ days?: string }> }>) {
+}: Readonly<{
+  searchParams: Promise<{ month?: string; from?: string; to?: string }>;
+}>) {
   const admin = await requireAdmin();
-  const { days } = await searchParams;
-  const period = PERIODS.find((p) => p.value === days) ?? PERIODS[1];
+  const period = resolvePeriod(await searchParams);
 
   const where: Prisma.OrderWhereInput = { status: "paid" };
-  if (period.days > 0) {
-    const since = new Date();
-    since.setDate(since.getDate() - period.days);
-    where.createdAt = { gte: since };
-  }
+  const createdAt = periodFilter(period);
+  if (createdAt) where.createdAt = createdAt;
 
   const orders = await prisma.order.findMany({
     where,
@@ -170,49 +168,45 @@ export default async function AdminSalesPage({
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
-  // Продажи по дням (последние 14 суток периода)
-  const byDay = new Map<string, { count: number; sum: number }>();
+  // Динамика: по дням, если период укладывается в ~2 месяца, иначе по месяцам
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const span =
+    period.from && period.to ? period.to.getTime() - period.from.getTime() : null;
+  const daily = span !== null && span <= 62 * DAY_MS;
+
+  const buckets = new Map<string, { count: number; sum: number }>();
   for (const o of orders) {
-    const day = o.createdAt.toISOString().slice(0, 10);
-    const cur = byDay.get(day) ?? { count: 0, sum: 0 };
+    const key = daily
+      ? almatyDayKey(o.createdAt)
+      : almatyDayKey(o.createdAt).slice(0, 7);
+    const cur = buckets.get(key) ?? { count: 0, sum: 0 };
     cur.count++;
     cur.sum += o.amountKzt;
-    byDay.set(day, cur);
+    buckets.set(key, cur);
   }
-  const days14: Array<{ day: string; count: number; sum: number }> = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const v = byDay.get(key) ?? { count: 0, sum: 0 };
-    days14.push({ day: key.slice(5), ...v });
-  }
-  const dayMax = Math.max(1, ...days14.map((d) => d.sum));
+
+  // Пустые дни периода тоже показываем — иначе провалы в продажах не видны
+  const chartKeys = daily
+    ? eachDay(period.from!, period.to!)
+    : [...buckets.keys()].sort();
+  const chart = chartKeys.map((key) => ({
+    key,
+    label: daily ? key.slice(8) : `${key.slice(5)}.${key.slice(2, 4)}`,
+    title: daily ? key : monthLabel(key),
+    ...(buckets.get(key) ?? { count: 0, sum: 0 }),
+  }));
+  const chartMax = Math.max(1, ...chart.map((d) => d.sum));
 
   const avgCheck = totalCount > 0 ? Math.round(totalSum / totalCount) : 0;
 
   return (
     <AdminChrome email={admin.email} role={admin.role} title="Продажи">
-      <div className="mb-5 flex flex-wrap gap-2">
-        {PERIODS.map((p) => (
-          <Link
-            key={p.value}
-            href={`/admin/sales?days=${p.value}`}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
-              p.value === period.value
-                ? "bg-brand-purple text-white"
-                : "border border-brand-purple-100 text-brand-purple-950/70 hover:bg-brand-purple-50"
-            }`}
-          >
-            {p.label}
-          </Link>
-        ))}
-      </div>
+      <PeriodPicker basePath="/admin/sales" period={period} />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-brand-purple-100 bg-white p-5">
           <div className="text-xs font-semibold tracking-wide text-brand-purple-950/55 uppercase">
-            Выручка за период
+            Выручка · {period.label}
           </div>
           <div className="mt-2 font-display text-3xl text-brand-purple">
             {formatKzt(totalSum)}
@@ -282,28 +276,32 @@ export default async function AdminSalesPage({
 
         <section className="rounded-2xl border border-brand-purple-100 bg-white p-5">
           <h2 className="mb-3 text-sm font-bold text-brand-purple">
-            Динамика (14 дней)
+            Динамика · {daily ? "по дням" : "по месяцам"}
           </h2>
-          <div className="flex h-40 items-end gap-1">
-            {days14.map((d) => (
-              <div
-                key={d.day}
-                className="group flex flex-1 flex-col items-center justify-end"
-                title={`${d.day}: ${formatKzt(d.sum)} · ${d.count}`}
-              >
+          {chart.length ? (
+            <div className="flex h-40 items-end gap-1">
+              {chart.map((d) => (
                 <div
-                  className="w-full rounded-t bg-gradient-to-t from-brand-purple to-brand-gold"
-                  style={{
-                    height: `${Math.round((d.sum / dayMax) * 100)}%`,
-                    minHeight: d.sum > 0 ? "3px" : "0",
-                  }}
-                />
-                <span className="mt-1 rotate-0 text-[9px] text-brand-purple-950/45">
-                  {d.day}
-                </span>
-              </div>
-            ))}
-          </div>
+                  key={d.key}
+                  className="group flex flex-1 flex-col items-center justify-end"
+                  title={`${d.title}: ${formatKzt(d.sum)} · ${d.count}`}
+                >
+                  <div
+                    className="w-full rounded-t bg-gradient-to-t from-brand-purple to-brand-gold"
+                    style={{
+                      height: `${Math.round((d.sum / chartMax) * 100)}%`,
+                      minHeight: d.sum > 0 ? "3px" : "0",
+                    }}
+                  />
+                  <span className="mt-1 text-[9px] text-brand-purple-950/45">
+                    {d.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-brand-purple-950/50">Нет продаж за период.</p>
+          )}
         </section>
 
         <section className="rounded-2xl border border-brand-purple-100 bg-white p-5">

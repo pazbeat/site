@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
+import { PeriodPicker } from "@/components/admin/period-picker";
+import { periodFilter, resolvePeriod } from "@/lib/admin/period";
 import { prisma } from "@/lib/db";
 import { formatKzt } from "@/lib/format";
 import { pickL10n } from "@/lib/l10n";
@@ -14,14 +16,19 @@ const CERT_STATUS_LABEL: Record<string, string> = {
   blocked: "Заблокированы",
 };
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<{ month?: string; from?: string; to?: string }>;
+}>) {
   const admin = await requireAdmin();
-  const since30 = new Date();
-  since30.setDate(since30.getDate() - 30);
+  const period = resolvePeriod(await searchParams);
+  const createdAt = periodFilter(period);
+  const periodWhere = createdAt ? { createdAt } : {};
 
   const [
     paidAgg,
-    revenue30,
+    revenuePeriod,
     activeAgg,
     pending,
     scheduled,
@@ -37,7 +44,7 @@ export default async function AdminDashboard() {
       _count: true,
     }),
     prisma.order.aggregate({
-      where: { status: "paid", createdAt: { gte: since30 } },
+      where: { status: "paid", ...periodWhere },
       _sum: { amountKzt: true },
       _count: true,
     }),
@@ -71,10 +78,10 @@ export default async function AdminDashboard() {
     }),
   ]);
 
-  // Продажи по филиалам за 30 дней
+  // Продажи по филиалам за выбранный период
   const branchAgg = await prisma.order.groupBy({
     by: ["salonId"],
-    where: { status: "paid", createdAt: { gte: since30 } },
+    where: { status: "paid", ...periodWhere },
     _sum: { amountKzt: true },
     _count: { _all: true },
   });
@@ -116,8 +123,11 @@ export default async function AdminDashboard() {
   );
 
   const cards = [
-    { label: "Выручка за 30 дней", value: formatKzt(revenue30._sum.amountKzt ?? 0) },
-    { label: "Продаж за 30 дней", value: String(revenue30._count) },
+    {
+      label: `Выручка · ${period.label}`,
+      value: formatKzt(revenuePeriod._sum.amountKzt ?? 0),
+    },
+    { label: `Продаж · ${period.label}`, value: String(revenuePeriod._count) },
     { label: "Выручка всего", value: formatKzt(paidAgg._sum.amountKzt ?? 0) },
     { label: "Оплаченных заказов", value: String(paidAgg._count) },
     {
@@ -133,6 +143,7 @@ export default async function AdminDashboard() {
 
   return (
     <AdminChrome email={admin.email} role={admin.role} title="Дашборд">
+      <PeriodPicker basePath="/admin" period={period} />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {cards.map((card) => (
           <div
@@ -160,7 +171,12 @@ export default async function AdminDashboard() {
                 key={key}
                 className="flex justify-between border-b border-brand-purple-100/60 py-1.5 last:border-0"
               >
-                <span className="text-brand-purple-950/70">{label}</span>
+                <Link
+                  href={`/admin/certificates?status=${key}`}
+                  className="text-brand-purple-950/70 hover:underline"
+                >
+                  {label}
+                </Link>
                 <span className="font-semibold">{statusCounts.get(key) ?? 0}</span>
               </li>
             ))}
@@ -222,10 +238,14 @@ export default async function AdminDashboard() {
       <section className="mt-5 rounded-2xl border border-brand-purple-100 bg-white p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-bold text-brand-purple">
-            Продажи по филиалам · 30 дней
+            Продажи по филиалам · {period.label}
           </h2>
           <Link
-            href="/admin/sales"
+            href={`/admin/sales?${new URLSearchParams(
+              period.kind === "custom"
+                ? { from: period.fromInput, to: period.toInput }
+                : { month: period.key },
+            )}`}
             className="text-xs font-semibold text-brand-gold hover:underline"
           >
             Подробнее →
@@ -260,7 +280,7 @@ export default async function AdminDashboard() {
           </ul>
         ) : (
           <p className="text-sm text-brand-purple-950/50">
-            Нет продаж за 30 дней.
+            Нет продаж за период.
           </p>
         )}
       </section>
