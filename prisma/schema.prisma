@@ -86,9 +86,14 @@ enum AdminRole {
 
 model Salon {
   id                Int           @id @default(autoincrement())
+  /// Канонический (русский) город — ключ связи с Program.cities, админка, Altegio
   city              String
+  /// {ru, kk, en} — витринные названия города; пусто → city
+  cityNames         Json?         @map("city_names")
   name              String
   address           String
+  /// {ru, kk, en} — витринный адрес; пусто → address
+  addressNames      Json?         @map("address_names")
   phone             String
   altegioLocationId Int?          @map("altegio_location_id")
   /// Префикс серийного номера сертификата (WM, WT, WR…), уникален по салону

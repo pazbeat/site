@@ -1,8 +1,10 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getActiveSalons, getSetting } from "@/lib/data";
+import { pickL10n } from "@/lib/l10n";
 
 export async function SiteFooter() {
+  const locale = await getLocale();
   const t = await getTranslations("Footer");
   const tNav = await getTranslations("Nav");
   const tLegal = await getTranslations("Legal");
@@ -14,7 +16,8 @@ export async function SiteFooter() {
 
   const byCity = new Map<string, number>();
   for (const salon of salons) {
-    byCity.set(salon.city, (byCity.get(salon.city) ?? 0) + 1);
+    const city = pickL10n(salon.cityNames, locale) || salon.city;
+    byCity.set(city, (byCity.get(city) ?? 0) + 1);
   }
 
   return (

@@ -130,7 +130,8 @@ export function BuilderClient({
   } | null>(null);
 
   const selectedSalon = salons.find((s) => s.id === salonId) ?? null;
-  const cities = [...new Set(salons.map((s) => s.city))];
+  // Ключ города — русский (совпадает с ProgramDto.cities), подпись — локализованная
+  const cities = [...new Map(salons.map((s) => [s.cityKey, s.city])).entries()];
 
   // Филиал фильтрует доступные программы (PRD §5.1.3)
   const availablePrograms = useMemo(
@@ -139,7 +140,7 @@ export function BuilderClient({
         (p) =>
           !selectedSalon ||
           p.cities.length === 0 ||
-          p.cities.includes(selectedSalon.city),
+          p.cities.includes(selectedSalon.cityKey),
       ),
     [programs, selectedSalon],
   );
@@ -411,10 +412,10 @@ export function BuilderClient({
                   <select
                     id="b-city"
                     className={inputCls}
-                    value={selectedSalon?.city ?? ""}
+                    value={selectedSalon?.cityKey ?? ""}
                     onChange={(e) => {
                       const cityFirst = salons.find(
-                        (s) => s.city === e.target.value,
+                        (s) => s.cityKey === e.target.value,
                       );
                       setSalonId(cityFirst?.id ?? null);
                       setProgramId(null);
@@ -424,9 +425,9 @@ export function BuilderClient({
                     <option value="" disabled>
                       —
                     </option>
-                    {cities.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
+                    {cities.map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
                       </option>
                     ))}
                   </select>
@@ -446,7 +447,7 @@ export function BuilderClient({
                       —
                     </option>
                     {salons
-                      .filter((s) => s.city === selectedSalon?.city)
+                      .filter((s) => s.cityKey === selectedSalon?.cityKey)
                       .map((salon) => (
                         <option key={salon.id} value={salon.id}>
                           {salon.address}

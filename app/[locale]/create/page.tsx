@@ -62,7 +62,7 @@ export default async function CreatePage({
           </h1>
         </div>
         <BuilderClient
-          salons={salons.map(toSalonDto)}
+          salons={salons.map((s) => toSalonDto(s, locale))}
           programs={programs.map((p) => toProgramDto(p, locale))}
           nominals={nominals.map(toNominalDto)}
           designs={designs.map((d) => toDesignDto(d, locale))}
