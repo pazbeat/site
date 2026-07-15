@@ -3,7 +3,11 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { CertPreview } from "@/components/cert-preview";
 import { ProgramCard } from "@/components/program-card";
-import { getActiveNominals, getActivePrograms } from "@/lib/data";
+import {
+  getActiveNominals,
+  getActivePrograms,
+  getCustomAmountBounds,
+} from "@/lib/data";
 import { toProgramDto } from "@/lib/dto";
 import { formatKzt } from "@/lib/format";
 
@@ -14,10 +18,14 @@ export default async function HomePage({
   setRequestLocale(locale);
   const t = await getTranslations("Home");
   const tCommon = await getTranslations("Common");
-  const [programs, nominals] = await Promise.all([
+  const [programs, allNominals, bounds] = await Promise.all([
     getActivePrograms(),
     getActiveNominals(),
+    getCustomAmountBounds(),
   ]);
+  // Служебные мелкие номиналы (тестовый 100 ₸) на витрину не выносим —
+  // в конструкторе они остаются доступны
+  const nominals = allNominals.filter((n) => n.amountKzt >= bounds.min);
   const popular = programs
     .filter((p) => p.popular)
     .slice(0, 6)

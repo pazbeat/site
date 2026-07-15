@@ -6,6 +6,7 @@ import { CertPreview } from "./cert-preview";
 import { ConsentModal } from "./consent-modal";
 import { optionLabel } from "./program-card";
 import { formatKzt } from "@/lib/format";
+import { priceHref } from "@/lib/price-list";
 import type {
   DesignDto,
   NominalDto,
@@ -591,6 +592,15 @@ export function BuilderClient({
                   )}
                 </>
               )}
+
+              <a
+                href={priceHref(locale as "ru" | "kk" | "en")}
+                target="_blank"
+                rel="noopener"
+                className="mt-6 inline-block text-sm font-semibold text-brand-gold-700 underline decoration-brand-gold/40 underline-offset-4 transition-colors hover:text-brand-gold"
+              >
+                📄 {t("priceLink")}
+              </a>
             </>
           )}
 

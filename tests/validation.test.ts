@@ -121,12 +121,23 @@ describe("corporateSchema", () => {
 
   it("отклоняет нулевое количество и пустую компанию", () => {
     expect(
-      corporateSchema.safeParse({ company: "", contact: "a@b.kz", qty: 5 })
+      corporateSchema.safeParse({ company: "", contact: "a@b.kz", qty: 25 })
         .success,
     ).toBe(false);
     expect(
       corporateSchema.safeParse({ company: "X", contact: "a@b.kz", qty: 0 })
         .success,
     ).toBe(false);
+  });
+
+  it("корпоративный минимум — 10 сертификатов", () => {
+    expect(
+      corporateSchema.safeParse({ company: "X", contact: "a@b.kz", qty: 9 })
+        .success,
+    ).toBe(false);
+    expect(
+      corporateSchema.safeParse({ company: "X", contact: "a@b.kz", qty: 10 })
+        .success,
+    ).toBe(true);
   });
 });

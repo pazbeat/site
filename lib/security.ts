@@ -23,7 +23,8 @@ export function buildCsp(nonce: string, isDev: boolean): string {
     `base-uri 'self'`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,
-    `frame-src 'none'`,
+    // 'self' — встроенный просмотр собственного PDF-прайса на /prices
+    `frame-src 'self'`,
     ...(isDev ? [] : [`upgrade-insecure-requests`]),
   ];
   return directives.join("; ");

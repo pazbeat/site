@@ -13,7 +13,8 @@
     "home": "Home",
     "catalog": "Programs",
     "create": "Create certificate",
-    "check": "Verify"
+    "check": "Verify",
+    "prices": "Prices"
   },
   "Home": {
     "eyebrow": "Digital gift certificates",
@@ -51,13 +52,13 @@
     "faqQ1": "How fast is the certificate delivered?",
     "faqA1": "Instantly after payment — to the recipient's email or WhatsApp. Or on the date and time you choose.",
     "faqQ2": "How long is it valid?",
-    "faqA2": "Standard validity is 12 months from purchase. Please confirm exact terms with the salon administrator.",
+    "faqA2": "Validity is 3 months from the purchase date. The expiry date is printed on the certificate itself.",
     "faqQ3": "Can it be used in any city?",
-    "faqA3": "Yes — network certificates are accepted at all Imbir salons: Astana, Almaty, Karaganda, Pavlodar.",
+    "faqA3": "Yes — certificates are accepted at all Imbir salons listed on this website: Astana, Almaty, Karaganda, Pavlodar. The only exception is the Imbir Platinum salon — it operates separately and does not accept website certificates.",
     "faqQ4": "What if the program costs more than the value?",
     "faqA4": "The difference can be paid at the salon. If it costs less, the remainder stays on the certificate balance.",
     "faqQ5": "Corporate orders?",
-    "faqA5": "Yes — for 5+ certificates leave a request on the Corporate page and we will prepare an offer with branded cards."
+    "faqA5": "Yes — for 10+ certificates leave a request on the Corporate page and we will prepare an offer with branded cards."
   },
   "Catalog": {
     "eyebrow": "Catalog",
@@ -100,6 +101,7 @@
     "s1SelectProgram": "Choose a program",
     "s1SelectOption": "Option",
     "s1Custom": "Or enter a custom amount ({min}–{max})",
+    "priceLink": "View the full price list and all programs (PDF)",
     "s2Title": "Choose a design",
     "s2Hint": "How the e-card will look.",
     "s3Title": "Personalization",
@@ -133,11 +135,11 @@
     "sumDelivery": "Delivery",
     "sumTotal": "Total",
     "sumPromo": "Promo {code}",
-    "validity": "Valid for 12 months from purchase",
+    "validity": "Valid for 3 months from purchase at all our salons except Imbir Platinum",
     "certGift": "Gift certificate",
     "certFor": "To: {name}",
     "createdTitle": "Order created, awaiting payment",
-    "createdText": "Order number: {orderId}. Online payment (Kaspi Pay and cards) is coming in the next development stage — after payment the certificate will be generated and delivered automatically.",
+    "createdText": "Order number: {orderId}. We could not open the payment page — please try again in a minute or contact us with your order number.",
     "createdAgain": "Create another",
     "errRequired": "Please fill in the required fields",
     "errAmount": "Amount must be between {min} and {max}",
@@ -213,6 +215,15 @@
       "blocked": "Blocked"
     }
   },
+  "Prices": {
+    "eyebrow": "Price list",
+    "title": "Program prices",
+    "subtitle": "The current Imbir Thai Spa price list — every program, duration and price in one PDF.",
+    "open": "Open PDF",
+    "download": "Download price list",
+    "note": "Certificates are valid for 3 months from purchase at all salons listed on this website, except the Imbir Platinum salon.",
+    "cta": "Create a certificate"
+  },
   "Legal": {
     "offer": "Public offer",
     "privacy": "Privacy policy",
@@ -222,7 +233,8 @@
   "Corporate": {
     "eyebrow": "For companies",
     "title": "Corporate orders",
-    "subtitle": "Certificates for employees and partners — from 5 pieces, with branded cards. Leave a request and a manager will contact you.",
+    "subtitle": "Certificates for employees and partners — from 10 pieces, with branded cards. Leave a request and a manager will contact you.",
+    "qtyHint": "Corporate orders start at 10 certificates.",
     "company": "Company",
     "contact": "Contact (email or phone)",
     "qty": "Number of certificates",

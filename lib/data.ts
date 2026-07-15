@@ -85,7 +85,7 @@ export async function getCustomAmountBounds() {
     getSetting("custom_amount_max_kzt"),
   ]);
   return {
-    min: typeof min === "number" ? min : 5000,
+    min: typeof min === "number" ? min : 18_000,
     max: typeof max === "number" ? max : 500_000,
   };
 }

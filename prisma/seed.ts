@@ -23,68 +23,41 @@ type SeedProgram = {
   d: L10n;
   cities?: string[];
   opts: Opt[];
+  /// Фото с действующего сайта imbir.kz; заменяются загрузками из админки
+  photo?: string;
 };
 
-// Фото с действующего сайта imbir.kz (как в прототипе), ключ — индекс
-// в массиве PROGRAMS; заменятся загрузками из админки
 const IMG = "https://www.imbir.kz/wp-content/uploads/";
-const PHOTOS: Record<number, string> = {
-  0: "2015/02/m1-800x600.jpg",
-  1: "2018/08/m26-800x600.jpg",
-  2: "2018/01/m18-800x600.jpg",
-  3: "2018/01/m19@2x-800x600.jpg",
-  4: "2018/01/m6-800x600.jpg",
-  5: "2018/01/m7-800x600.jpg",
-  6: "2015/02/m5-800x1200.jpg",
-  7: "2018/04/m9-800x600.jpg",
-  8: "2018/01/m10-800x600.jpg",
-  9: "2018/01/m12-800x600.jpg",
-  11: "2018/01/m3-800x1200.jpg",
-  12: "2018/04/m8-800x600.jpg",
-  14: "2015/02/m4-800x600.jpg",
-  15: "2018/04/m22-800x600.jpg",
-  16: "2015/02/m23-800x1200.jpg",
-  24: "2018/01/m24-800x600.jpg",
-  25: "2018/04/m25-800x600.jpg",
-  26: "2018/04/m26-1-800x600.jpg",
-};
 
-const ASTANA_ALMATY = ["Астана", "Алматы"];
-
+// Программы строго по официальному прайсу Imbir Thai Spa Classic
+// (price/Price rus.pdf, июль 2026)
 const PROGRAMS: SeedProgram[] = [
-  { cat: "massage", pop: true, n: { ru: "Гармония тела", kk: "Дене үйлесімі", en: "Body Harmony" }, d: { ru: "Расслабляющий Oil массаж", kk: "Босаңсытатын Oil массажы", en: "Relaxing oil massage" }, opts: [{ m: 60, p: 22000 }, { m: 90, p: 29000 }, { m: 120, p: 38000 }] },
-  { cat: "massage", pop: true, n: { ru: "Тайское чудо", kk: "Тай кереметі", en: "Thai Miracle" }, d: { ru: "Тайский традиционный массаж", kk: "Дәстүрлі тай массажы", en: "Traditional Thai massage" }, opts: [{ m: 60, p: 19000 }, { m: 90, p: 27000 }, { m: 120, p: 35000 }] },
-  { cat: "massage", pop: true, n: { ru: "Suay", kk: "Suay", en: "Suay" }, d: { ru: "Oil массаж с горячими мешочками", kk: "Ыстық шөп қапшықтарымен Oil массажы", en: "Oil massage with hot herbal pouches" }, opts: [{ m: 90, p: 38000 }, { m: 120, p: 40000 }] },
-  { cat: "massage", n: { ru: "Sakda", kk: "Sakda", en: "Sakda" }, d: { ru: "Тайский массаж с горячими мешочками", kk: "Ыстық қапшықтармен тай массажы", en: "Thai massage with hot pouches" }, opts: [{ m: 90, p: 35000 }, { m: 120, p: 38000 }] },
-  { cat: "massage", n: { ru: "Нежность и спокойствие", kk: "Нәзіктік пен тыныштық", en: "Tenderness & Calm" }, d: { ru: "Расслабляющий Oil массаж и массаж стоп", kk: "Oil массажы және табан массажы", en: "Relaxing oil massage & foot massage" }, opts: [{ m: 90, p: 28000 }, { m: 120, p: 38000 }] },
-  { cat: "massage", pop: true, n: { ru: "Пробуждение", kk: "Ояну", en: "Awakening" }, d: { ru: "Тайский традиционный массаж и массаж стоп", kk: "Тай массажы және табан массажы", en: "Traditional Thai massage & foot massage" }, opts: [{ m: 90, p: 26000 }, { m: 120, p: 33000 }] },
-  { cat: "massage", n: { ru: "Энергия Таиланда", kk: "Таиланд энергиясы", en: "Energy of Thailand" }, d: { ru: "Тайский массаж с горячими камнями", kk: "Ыстық тастармен тай массажы", en: "Thai massage with hot stones" }, opts: [{ m: 90, p: 36000 }, { m: 120, p: 39000 }] },
-  { cat: "massage", n: { ru: "Грация", kk: "Сымбат", en: "Grace" }, d: { ru: "Тайский массаж спины с травяным бальзамом", kk: "Шөп бальзамымен арқа массажы", en: "Thai back massage with herbal balm" }, opts: [{ m: 60, p: 18000 }] },
-  { cat: "massage", n: { ru: "Foot релакс", kk: "Foot релакс", en: "Foot Relax" }, d: { ru: "Тайский массаж стоп", kk: "Тай табан массажы", en: "Thai foot massage" }, opts: [{ m: 90, p: 18000 }, { m: 120, p: 22000 }] },
-  { cat: "massage", n: { ru: "Ясные мысли", kk: "Ашық ойлар", en: "Clear Mind" }, d: { ru: "Массаж шейно-воротниковой зоны и массаж стоп", kk: "Мойын аймағы мен табан массажы", en: "Neck & shoulder massage plus foot massage" }, opts: [{ m: 60, p: 18000 }] },
+  { cat: "massage", pop: true, photo: "2015/02/m1-800x600.jpg", n: { ru: "Гармония тела", kk: "Дене үйлесімі", en: "Body Harmony" }, d: { ru: "Расслабляющий Oil массаж", kk: "Босаңсытатын Oil массажы", en: "Relaxing oil massage" }, opts: [{ m: 60, p: 22000 }, { m: 90, p: 29000 }, { m: 120, p: 38000 }] },
+  { cat: "massage", pop: true, photo: "2018/08/m26-800x600.jpg", n: { ru: "Тайское чудо", kk: "Тай кереметі", en: "Thai Miracle" }, d: { ru: "Тайский традиционный массаж", kk: "Дәстүрлі тай массажы", en: "Traditional Thai massage" }, opts: [{ m: 60, p: 19000 }, { m: 90, p: 27000 }, { m: 120, p: 35000 }] },
+  { cat: "massage", pop: true, photo: "2018/01/m18-800x600.jpg", n: { ru: "Suay", kk: "Suay", en: "Suay" }, d: { ru: "Oil массаж с горячими мешочками", kk: "Ыстық шөп қапшықтарымен Oil массажы", en: "Oil massage with hot herbal pouches" }, opts: [{ m: 90, p: 38000 }, { m: 120, p: 40000 }] },
+  { cat: "massage", photo: "2018/01/m19@2x-800x600.jpg", n: { ru: "Sakda", kk: "Sakda", en: "Sakda" }, d: { ru: "Тайский массаж с горячими мешочками", kk: "Ыстық қапшықтармен тай массажы", en: "Thai massage with hot pouches" }, opts: [{ m: 90, p: 35000 }, { m: 120, p: 38000 }] },
+  { cat: "massage", photo: "2015/02/m5-800x1200.jpg", n: { ru: "Энергия Таиланда", kk: "Таиланд энергиясы", en: "Energy of Thailand" }, d: { ru: "Стоун-терапия — массаж горячими камнями", kk: "Стоун-терапия — ыстық тастармен массаж", en: "Stone therapy — hot stone massage" }, opts: [{ m: 90, p: 36000 }, { m: 120, p: 39000 }] },
+  { cat: "massage", photo: "2018/04/m9-800x600.jpg", n: { ru: "Грация", kk: "Сымбат", en: "Grace" }, d: { ru: "Тайский массаж спины с травяным бальзамом", kk: "Шөп бальзамымен арқа массажы", en: "Thai back massage with herbal balm" }, opts: [{ m: 60, p: 18000 }] },
+  { cat: "massage", photo: "2018/01/m10-800x600.jpg", n: { ru: "Foot релакс", kk: "Foot релакс", en: "Foot Relax" }, d: { ru: "Тайский массаж стоп", kk: "Тай табан массажы", en: "Thai foot massage" }, opts: [{ m: 60, p: 18000 }, { m: 90, p: 22000 }] },
+  { cat: "massage", photo: "2018/01/m12-800x600.jpg", n: { ru: "Ясные мысли", kk: "Ашық ойлар", en: "Clear Mind" }, d: { ru: "Массаж шейно-воротниковой зоны и массаж стоп", kk: "Мойын аймағы мен табан массажы", en: "Neck & shoulder massage plus foot massage" }, opts: [{ m: 60, p: 18000 }] },
   { cat: "massage", n: { ru: "Массаж головы и шеи", kk: "Бас пен мойын массажы", en: "Head & Neck Massage" }, d: { ru: "Расслабляющий Oil массаж", kk: "Босаңсытатын Oil массажы", en: "Relaxing oil massage" }, opts: [{ m: 60, p: 18000 }] },
-  { cat: "massage", n: { ru: "Блаженство", kk: "Рахат", en: "Bliss" }, d: { ru: "Oil массаж в 4 руки — два мастера одновременно", kk: "4 қолмен Oil массажы — екі шебер бір мезгілде", en: "Four-hands oil massage by two therapists" }, opts: [{ m: 60, p: 50000 }, { m: 120, p: 70000 }] },
-  { cat: "massage", n: { ru: "Вулкан жизни", kk: "Өмір жанартауы", en: "Volcano of Life" }, d: { ru: "Тайский традиционный массаж и Oil массаж", kk: "Тай массажы және Oil массажы", en: "Traditional Thai massage & oil massage" }, opts: [{ m: 120, p: 38000 }] },
   { cat: "massage", n: { ru: "Чудесное ожидание", kk: "Ғажайып күту", en: "Wonderful Expectation" }, d: { ru: "Расслабляющий массаж для беременных", kk: "Жүкті әйелдерге арналған массаж", en: "Relaxing prenatal massage" }, opts: [{ m: 60, p: 24000 }, { m: 90, p: 30000 }] },
-  { cat: "massage", n: { ru: "Маленький Будда", kk: "Кішкентай Будда", en: "Little Buddha" }, d: { ru: "Оздоровительный массаж для детей 6–12 лет", kk: "6–12 жас балаларға арналған массаж", en: "Wellness massage for kids aged 6–12" }, opts: [{ m: 60, p: 16000 }] },
-  { cat: "spa", pop: true, n: { ru: "Страна улыбок", kk: "Күлкі елі", en: "Land of Smiles" }, d: { ru: "SPA-программа для подруг, 3 часа", kk: "Құрбыларға арналған SPA, 3 сағат", en: "Spa program for friends, 3 hours" }, opts: [{ pers: 2, p: 90000 }, { pers: 3, p: 132000 }] },
-  { cat: "spa", pop: true, n: { ru: "Ты и Я", kk: "Сен және Мен", en: "You & Me" }, d: { ru: "SPA-программа для пар, 2,5 часа", kk: "Жұптарға арналған SPA, 2,5 сағат", en: "Couples spa program, 2.5 hours" }, opts: [{ pers: 2, p: 70000 }] },
+  { cat: "massage", photo: "2015/02/m4-800x600.jpg", n: { ru: "Маленький Будда", kk: "Кішкентай Будда", en: "Little Buddha" }, d: { ru: "Оздоровительный массаж для детей 6–12 лет", kk: "6–12 жас балаларға арналған массаж", en: "Wellness massage for kids aged 6–12" }, opts: [{ m: 60, p: 16000 }] },
+  { cat: "spa", pop: true, photo: "2018/04/m22-800x600.jpg", n: { ru: "Страна улыбок", kk: "Күлкі елі", en: "Land of Smiles" }, d: { ru: "SPA-программа для подруг, 3 часа", kk: "Құрбыларға арналған SPA, 3 сағат", en: "Spa program for friends, 3 hours" }, opts: [{ pers: 2, p: 90000 }, { pers: 3, p: 132000 }] },
+  { cat: "spa", pop: true, photo: "2015/02/m23-800x1200.jpg", n: { ru: "Ты и Я", kk: "Сен және Мен", en: "You & Me" }, d: { ru: "SPA-программа для пар, 2,5 часа", kk: "Жұптарға арналған SPA, 2,5 сағат", en: "Couples spa program, 2.5 hours" }, opts: [{ pers: 2, p: 70000 }] },
   { cat: "spa", n: { ru: "Антистресс", kk: "Антистресс", en: "Anti-Stress" }, d: { ru: "SPA-программа на двоих, 3 часа", kk: "Екі адамға SPA, 3 сағат", en: "Spa program for two, 3 hours" }, opts: [{ pers: 2, p: 88000 }] },
   { cat: "spa", n: { ru: "Энергия Сиама", kk: "Сиам энергиясы", en: "Energy of Siam" }, d: { ru: "SPA-программа, 2 часа", kk: "SPA бағдарламасы, 2 сағат", en: "Spa program, 2 hours" }, opts: [{ m: 120, p: 35000 }] },
   { cat: "spa", n: { ru: "Перезагрузка", kk: "Қайта жүктелу", en: "Reboot" }, d: { ru: "SPA-программа, 3 часа", kk: "SPA бағдарламасы, 3 сағат", en: "Spa program, 3 hours" }, opts: [{ m: 180, p: 55000 }] },
-  { cat: "spa", cities: ASTANA_ALMATY, n: { ru: "Анти-усталость", kk: "Шаршауға қарсы", en: "Anti-Fatigue" }, d: { ru: "SPA-программа, 2,5 часа", kk: "SPA бағдарламасы, 2,5 сағат", en: "Spa program, 2.5 hours" }, opts: [{ m: 150, p: 65000 }] },
-  { cat: "spa", cities: ASTANA_ALMATY, n: { ru: "Энергия морской воды", kk: "Теңіз суының энергиясы", en: "Sea Water Energy" }, d: { ru: "SPA-программа, 2,5 часа", kk: "SPA бағдарламасы, 2,5 сағат", en: "Spa program, 2.5 hours" }, opts: [{ m: 150, p: 47000 }] },
-  { cat: "spa", cities: ASTANA_ALMATY, n: { ru: "Морское утончение", kk: "Теңіз нәзіктігі", en: "Marine Refinement" }, d: { ru: "SPA-программа, 2,5 часа", kk: "SPA бағдарламасы, 2,5 сағат", en: "Spa program, 2.5 hours" }, opts: [{ m: 150, p: 55000 }] },
   { cat: "spa", n: { ru: "Спа Релакс", kk: "Спа Релакс", en: "Spa Relax" }, d: { ru: "SPA-программа, 1 час", kk: "SPA бағдарламасы, 1 сағат", en: "Spa program, 1 hour" }, opts: [{ m: 60, p: 20000 }] },
-  { cat: "set", pop: true, n: { ru: "Sabai Sabai", kk: "Sabai Sabai", en: "Sabai Sabai" }, d: { ru: "Сет процедур, 2 часа", kk: "Ем-шаралар сеті, 2 сағат", en: "Treatment set, 2 hours" }, opts: [{ m: 120, p: 38000 }] },
-  { cat: "set", n: { ru: "Karuna", kk: "Karuna", en: "Karuna" }, d: { ru: "Сет процедур, 2 часа", kk: "Ем-шаралар сеті, 2 сағат", en: "Treatment set, 2 hours" }, opts: [{ m: 120, p: 36000 }] },
-  { cat: "set", n: { ru: "Sanuk", kk: "Sanuk", en: "Sanuk" }, d: { ru: "Сет процедур, 1,5 часа", kk: "Ем-шаралар сеті, 1,5 сағат", en: "Treatment set, 1.5 hours" }, opts: [{ m: 90, p: 28000 }] },
+  { cat: "set", pop: true, photo: "2018/01/m24-800x600.jpg", n: { ru: "Sabai Sabai", kk: "Sabai Sabai", en: "Sabai Sabai" }, d: { ru: "Сет процедур, 2 часа", kk: "Ем-шаралар сеті, 2 сағат", en: "Treatment set, 2 hours" }, opts: [{ m: 120, p: 38000 }, { pers: 2, p: 72000 }] },
+  { cat: "set", photo: "2018/04/m25-800x600.jpg", n: { ru: "Karuna", kk: "Karuna", en: "Karuna" }, d: { ru: "Сет процедур, 2 часа", kk: "Ем-шаралар сеті, 2 сағат", en: "Treatment set, 2 hours" }, opts: [{ m: 120, p: 36000 }, { pers: 2, p: 68000 }] },
+  { cat: "set", photo: "2018/04/m26-1-800x600.jpg", n: { ru: "Sanuk", kk: "Sanuk", en: "Sanuk" }, d: { ru: "Сет процедур, 1,5 часа", kk: "Ем-шаралар сеті, 1,5 сағат", en: "Treatment set, 1.5 hours" }, opts: [{ m: 90, p: 28000 }, { pers: 2, p: 52000 }] },
 ];
 
 const SALONS = SALON_SEED;
 
 const NOMINALS = [
-  { amountKzt: 15000, label: null as string | null },
+  { amountKzt: 18000, label: null as string | null },
   { amountKzt: 30000, label: null },
   { amountKzt: 50000, label: "Хит" },
   { amountKzt: 100000, label: null },
@@ -135,7 +108,7 @@ async function main() {
         category: p.cat,
         names: p.n,
         descriptions: p.d,
-        photoUrl: PHOTOS[i] ? IMG + PHOTOS[i] : null,
+        photoUrl: p.photo ? IMG + p.photo : null,
         popular: p.pop ?? false,
         cities: p.cities ?? [],
         sort: i,
@@ -181,8 +154,8 @@ async function main() {
 
   await prisma.setting.createMany({
     data: [
-      { key: "certificate_validity_months", value: 12 },
-      { key: "custom_amount_min_kzt", value: 5000 },
+      { key: "certificate_validity_months", value: 3 },
+      { key: "custom_amount_min_kzt", value: 18000 },
       { key: "custom_amount_max_kzt", value: 500000 },
       {
         key: "contacts",
@@ -191,7 +164,7 @@ async function main() {
     ],
   });
 
-  console.log("Сид завершён: 7 филиалов, 27 программ, 4 номинала, 4 дизайна, правовые плейсхолдеры.");
+  console.log(`Сид завершён: ${SALONS.length} филиалов, ${PROGRAMS.length} программ (по прайсу Classic), ${NOMINALS.length} номинала, ${DESIGNS.length} дизайна, правовые тексты.`);
 }
 
 main()

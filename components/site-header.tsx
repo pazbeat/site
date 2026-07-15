@@ -8,6 +8,7 @@ import { LocaleSwitcher } from "./locale-switcher";
 const LINKS = [
   { href: "/", key: "home" },
   { href: "/programs", key: "catalog" },
+  { href: "/prices", key: "prices" },
   { href: "/create", key: "create" },
   { href: "/check", key: "check" },
 ] as const;
