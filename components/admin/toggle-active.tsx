@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toastResult } from "./toast";
 
 /** Кнопка активации/деактивации записи (деактивация вместо удаления). */
 export function ToggleActiveButton({
@@ -24,8 +25,8 @@ export function ToggleActiveButton({
         const fd = new FormData();
         fd.set("id", String(id));
         startTransition(async () => {
-          await action(fd);
-          router.refresh();
+          const done = active ? "Скрыто." : "Показано.";
+          if (toastResult(await action(fd), done)) router.refresh();
         });
       }}
       className="rounded-lg border-[1.5px] border-brand-purple-100 px-3 py-1.5 text-xs font-bold hover:border-brand-gold disabled:opacity-50"

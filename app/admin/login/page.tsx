@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { loadActiveAdmin } from "@/lib/admin/guard";
 import { is2faDisabled } from "@/lib/admin/verify";
 import { LoginForm } from "@/components/admin/login-form";
 
 export default async function AdminLoginPage() {
   const session = await auth();
-  if (session?.user) redirect("/admin");
+  // Проверяем пользователя в БД, а не только наличие токена: у отключённого
+  // админа кука ещё жива, и без этого его крутило бы между /admin и логином
+  if (await loadActiveAdmin(session?.user?.id)) redirect("/admin");
   const show2fa = !is2faDisabled();
 
   return (

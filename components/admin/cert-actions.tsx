@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toastResult } from "./toast";
+import { ConfirmButton } from "./confirm-button";
 import {
   blockAction,
   extendAction,
@@ -34,17 +36,10 @@ export function CertActions({
 }>) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string>("");
 
   const run = (action: (fd: FormData) => Promise<ActionResult>, fd: FormData) => {
-    setMessage("");
     startTransition(async () => {
-      const result = await action(fd);
-      if (result?.error) setMessage(result.error);
-      else {
-        setMessage(result?.message ?? "Готово.");
-        router.refresh();
-      }
+      if (toastResult(await action(fd))) router.refresh();
     });
   };
 
@@ -155,37 +150,22 @@ export function CertActions({
               Сверить с Altegio
             </button>
           </form>
-          <form
-            action={(fd) => {
-              if (
-                confirm(
-                  "Оформить возврат? Сертификат перестанет действовать, а заказ уйдёт из выручки. Деньги покупателю нужно вернуть отдельно, на стороне банка.",
-                )
-              ) {
-                run(refundAction, fd);
-              }
+          <ConfirmButton
+            label="Оформить возврат"
+            title="Оформить возврат?"
+            body="Сертификат перестанет действовать, а заказ уйдёт из выручки. Деньги покупателю нужно вернуть отдельно, на стороне банка — здесь мы только фиксируем факт."
+            confirmLabel="Да, вернуть"
+            danger
+            disabled={pending || !canRefund}
+            className={`${btn} border-[1.5px] border-brand-red text-brand-red hover:bg-brand-red/5`}
+            onConfirm={() => {
+              const fd = new FormData();
+              fd.set("certificateId", certificateId);
+              run(refundAction, fd);
             }}
-          >
-            <input type="hidden" name="certificateId" value={certificateId} />
-            <button
-              type="submit"
-              disabled={pending || !canRefund}
-              className={`${btn} border-[1.5px] border-brand-red text-brand-red hover:bg-brand-red/5`}
-              title={
-                canRefund ? undefined : "Погашенный или уже возвращённый сертификат"
-              }
-            >
-              Оформить возврат
-            </button>
-          </form>
+          />
         </div>
       </div>
-
-      {message && (
-        <p className="sm:col-span-2 text-sm font-semibold text-brand-purple">
-          {message}
-        </p>
-      )}
     </div>
   );
 }
