@@ -14,9 +14,11 @@
     "catalog": "Programs",
     "create": "Create certificate",
     "check": "Verify",
-    "prices": "Prices"
+    "prices": "Prices",
+    "salons": "Salons"
   },
   "Home": {
+    "metaTitle": "Imbir Thai Spa gift certificates — Thai massage & SPA, online in 2 minutes",
     "eyebrow": "Digital gift certificates",
     "title": "Gift the art of <em>Thai</em> relaxation",
     "subtitle": "An Imbir Thai Spa certificate — online in 2 minutes. Pick a program or an amount, design a beautiful e-card and send it instantly or on a chosen date.",
@@ -214,6 +216,14 @@
       "refunded": "Refunded",
       "blocked": "Blocked"
     }
+  },
+  "Salons": {
+    "eyebrow": "The Imbir network",
+    "title": "Cities & salons",
+    "subtitle": "Certificates are valid at every salon listed here — the recipient chooses where to go. The only exception is the Imbir Platinum salon, which operates separately.",
+    "phone": "Phone",
+    "map": "Open in 2GIS",
+    "cta": "Create a certificate"
   },
   "Prices": {
     "eyebrow": "Price list",

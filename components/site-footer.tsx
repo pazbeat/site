@@ -37,8 +37,10 @@ export async function SiteFooter() {
             <ul className="space-y-2 text-sm">
               {[...byCity.entries()].map(([city, count]) => (
                 <li key={city}>
-                  {city}
-                  {count > 1 ? ` · ${t("salonsCount", { count })}` : ""}
+                  <Link href="/salons" className="hover:text-brand-gold-300">
+                    {city}
+                    {count > 1 ? ` · ${t("salonsCount", { count })}` : ""}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -56,6 +58,16 @@ export async function SiteFooter() {
               <li>
                 <Link href="/create" className="hover:text-brand-gold-300">
                   {tNav("create")}
+                </Link>
+              </li>
+              <li>
+                <Link href="/prices" className="hover:text-brand-gold-300">
+                  {tNav("prices")}
+                </Link>
+              </li>
+              <li>
+                <Link href="/salons" className="hover:text-brand-gold-300">
+                  {tNav("salons")}
                 </Link>
               </li>
               <li>

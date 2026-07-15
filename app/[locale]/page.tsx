@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
+import { localeAlternates } from "@/lib/seo";
 import { CertPreview } from "@/components/cert-preview";
 import { ProgramCard } from "@/components/program-card";
 import {
@@ -10,6 +13,18 @@ import {
 } from "@/lib/data";
 import { toProgramDto } from "@/lib/dto";
 import { formatKzt } from "@/lib/format";
+
+export async function generateMetadata({
+  params,
+}: Readonly<{ params: Promise<{ locale: Locale }> }>): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "Home" });
+  return {
+    title: { absolute: t("metaTitle") },
+    description: t("subtitle"),
+    alternates: localeAlternates(locale, ""),
+  };
+}
 
 export default async function HomePage({
   params,
@@ -40,8 +55,25 @@ export default async function HomePage({
     a: t(`faqA${n}` as "faqA1"),
   }));
 
+  // FAQPage-разметка — расширенный сниппет в выдаче Google/Yandex
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+
   return (
     <main className="flex-1">
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* HERO */}
       <section className="bg-brand-gradient text-white">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 sm:py-24 lg:grid-cols-[1.1fr_0.9fr]">

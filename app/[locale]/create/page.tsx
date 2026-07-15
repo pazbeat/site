@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
+import { localeAlternates } from "@/lib/seo";
 import { BuilderClient } from "@/components/builder-client";
 import { AB_COOKIE, filterByVariant, isAbVariant } from "@/lib/ab";
 import {
@@ -24,7 +25,7 @@ export async function generateMetadata({
 }: Readonly<{ params: Promise<{ locale: Locale }> }>): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "Builder" });
-  return { title: t("title") };
+  return { title: t("title"), alternates: localeAlternates(locale, "/create") };
 }
 
 export default async function CreatePage({

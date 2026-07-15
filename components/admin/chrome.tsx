@@ -31,6 +31,8 @@ const NAV: Array<{ href: string; label: string; roles: AdminRole[] }> = [
   { href: "/admin/experiments", label: "A/B-тест цен", roles: ["superadmin"] },
   { href: "/admin/legal", label: "Правовые тексты", roles: ["superadmin"] },
   { href: "/admin/users", label: "Пользователи", roles: ["superadmin"] },
+  { href: "/admin/settings", label: "Настройки", roles: ["superadmin"] },
+  { href: "/admin/backup", label: "Бэкапы", roles: ["superadmin"] },
   { href: "/admin/audit", label: "Аудит-лог", roles: ["superadmin"] },
 ];
 

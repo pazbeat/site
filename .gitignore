@@ -52,6 +52,9 @@ yarn-error.log*
 # исходники прайсов от заказчика (копии, которые раздаёт сайт, — в public/price)
 /price/
 
+# бэкапы БД из админки (/admin/backup)
+/backups/
+
 # dev whatsapp mock
 /.wa-outbox
 

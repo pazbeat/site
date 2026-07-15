@@ -136,5 +136,14 @@ export async function fulfillOrder(
     )
     .catch((error) => console.error("altegio sync failed (non-fatal)", error));
 
+  // Уведомление админу о продаже (WhatsApp/Telegram) — тоже best-effort.
+  void import("./notify")
+    .then(({ notifySale }) =>
+      notifySale(certificate.id, {
+        manual: externalPaymentId.startsWith("manual:"),
+      }),
+    )
+    .catch((error) => console.error("sale notify failed (non-fatal)", error));
+
   return { status: "fulfilled", certificateId: certificate.id };
 }

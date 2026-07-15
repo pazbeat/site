@@ -29,7 +29,9 @@ COPY --from=builder /app/lib/generated ./lib/generated
 # ---------- runner ----------
 FROM base AS runner
 ENV NODE_ENV=production
-RUN addgroup --system --gid 1001 nodejs \
+# postgresql16-client + tar — pg_dump/pg_restore для панели бэкапов (/admin/backup)
+RUN apk add --no-cache postgresql16-client tar \
+  && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
 COPY --from=proddeps /app/node_modules ./node_modules

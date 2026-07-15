@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
+import { localeAlternates } from "@/lib/seo";
 import { CorporateForm } from "@/components/corporate-form";
 
 export async function generateMetadata({
@@ -8,7 +9,11 @@ export async function generateMetadata({
 }: Readonly<{ params: Promise<{ locale: Locale }> }>): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "Corporate" });
-  return { title: t("title"), description: t("subtitle") };
+  return {
+    title: t("title"),
+    description: t("subtitle"),
+    alternates: localeAlternates(locale, "/corporate"),
+  };
 }
 
 export default async function CorporatePage({

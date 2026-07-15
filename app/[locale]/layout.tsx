@@ -6,6 +6,7 @@ import { setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { SITE_URL } from "@/lib/seo";
 import "../globals.css";
 
 // Контент управляется из админки — рендерим на каждый запрос,
@@ -26,12 +27,19 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Imbir Thai Spa — электронные подарочные сертификаты",
     template: "%s · Imbir Thai Spa",
   },
   description:
     "Подарочные сертификаты сети салонов тайского массажа и SPA «Имбирь» — онлайн за 2 минуты.",
+  openGraph: {
+    type: "website",
+    siteName: "Imbir Thai Spa",
+    images: [{ url: "/og.jpg", width: 1200, height: 630 }],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default async function LocaleLayout({
