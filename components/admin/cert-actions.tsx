@@ -6,6 +6,7 @@ import {
   blockAction,
   extendAction,
   redeemAction,
+  refundAction,
   resendAction,
 } from "@/app/admin/orders/actions";
 
@@ -47,6 +48,7 @@ export function CertActions({
   };
 
   const canRedeem = status === "active" || status === "partially_used";
+  const canRefund = status !== "refunded" && status !== "used";
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -139,6 +141,29 @@ export function CertActions({
               className={`${btn} border-[1.5px] border-brand-purple-100 hover:border-brand-gold`}
             >
               Отправить повторно
+            </button>
+          </form>
+          <form
+            action={(fd) => {
+              if (
+                confirm(
+                  "Оформить возврат? Сертификат перестанет действовать, а заказ уйдёт из выручки. Деньги покупателю нужно вернуть отдельно, на стороне банка.",
+                )
+              ) {
+                run(refundAction, fd);
+              }
+            }}
+          >
+            <input type="hidden" name="certificateId" value={certificateId} />
+            <button
+              type="submit"
+              disabled={pending || !canRefund}
+              className={`${btn} border-[1.5px] border-brand-red text-brand-red hover:bg-brand-red/5`}
+              title={
+                canRefund ? undefined : "Погашенный или уже возвращённый сертификат"
+              }
+            >
+              Оформить возврат
             </button>
           </form>
         </div>

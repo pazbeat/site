@@ -110,6 +110,52 @@ export async function blockAction(formData: FormData) {
   return { ok: true };
 }
 
+/**
+ * Возврат: сертификат гасится в ноль со статусом refunded, заказ уходит из
+ * оплаченных — значит и из выручки в отчётах. Деньги возвращает менеджер
+ * на стороне банка/Kaspi, здесь фиксируем факт.
+ */
+export async function refundAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const certificateId = String(formData.get("certificateId") ?? "");
+  const cert = await prisma.certificate.findUnique({
+    where: { id: certificateId },
+  });
+  if (!cert) return { error: "Сертификат не найден." };
+  if (cert.status === "refunded") return { error: "Возврат уже оформлен." };
+  if (cert.status === "used") {
+    return { error: "Сертификат уже погашен — возврат невозможен." };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.certificate.update({
+      where: { id: cert.id },
+      data: { status: "refunded", balanceKzt: 0 },
+    });
+    // Заказ может нести несколько сертификатов — снимаем с оплаты только
+    // когда возвращены все
+    const left = await tx.certificate.count({
+      where: { orderId: cert.orderId, status: { not: "refunded" } },
+    });
+    if (left === 0) {
+      await tx.order.update({
+        where: { id: cert.orderId },
+        data: { status: "refunded" },
+      });
+    }
+  });
+
+  await auditLog({
+    actor: admin.email,
+    action: "certificate.refund",
+    entity: "certificate",
+    entityId: cert.id,
+    diff: { balanceBefore: cert.balanceKzt, statusBefore: cert.status },
+  });
+  revalidatePath("/admin/orders");
+  return { ok: true };
+}
+
 export async function resendAction(formData: FormData) {
   const admin = await requireAdmin();
   const certificateId = String(formData.get("certificateId") ?? "");
