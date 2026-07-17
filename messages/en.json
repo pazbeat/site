@@ -18,7 +18,9 @@
     "prices": "Prices",
     "salons": "Salons",
     "giftCta": "Gift a certificate",
-    "waGreeting": "Hello, I am from the imbir.kz website"
+    "waGreeting": "Hello, I am from the imbir.kz website",
+    "about": "About us",
+    "certificates": "Certificates"
   },
   "Home": {
     "metaTitle": "Imbir Thai Spa gift certificates — Thai massage & SPA, online in 2 minutes",
@@ -78,7 +80,7 @@
     "slide6": "Relaxation area",
     "statCitiesShort": "cities",
     "statProgramsShort": "programs",
-    "aboutEyebrow": "About the salon",
+    "aboutEyebrow": "About us",
     "aboutStatement": "At Imbir salons, treatments are performed by <em>Thai therapists</em> holding diplomas from the best massage schools of Thailand — so every visit brings genuine pleasure and benefit.",
     "aboutNote": "At your service: treatment rooms for traditional Thai massage, a hammam, separate men's and women's areas, personal lockers, showers and a lounge — from classic massage to spa ceremonies for two and for groups.",
     "aboutStatMinutes": "minutes — the longest ritual",
@@ -106,7 +108,8 @@
     "salonsLead": "Open a salon's address in 2GIS or message its WhatsApp — we'll reply and help you book.",
     "ctaFinalEyebrow": "Imbir Thai Spa Classic",
     "ctaFinalTitle": "The warmth of Thailand — for yourself or <em>as a gift</em>",
-    "tickerFrom": "from"
+    "tickerFrom": "from",
+    "guestEyebrow": "Before your visit"
   },
   "Catalog": {
     "eyebrow": "Catalog",

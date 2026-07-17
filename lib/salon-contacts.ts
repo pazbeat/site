@@ -28,6 +28,12 @@ export function salonWhatsAppLink(
   return `https://wa.me/${phone}?text=${encodeURIComponent(greeting)}`;
 }
 
+/** Отображаемый номер WhatsApp салона: +7 702 538 62 22. */
+export function salonWhatsAppDisplay(codePrefix: string | null | undefined): string {
+  const d = (codePrefix && SALON_WHATSAPP[codePrefix]) || GENERAL_WA;
+  return `+7 ${d.slice(1, 4)} ${d.slice(4, 7)} ${d.slice(7, 9)} ${d.slice(9, 11)}`;
+}
+
 /** Открыть салон в 2ГИС поиском «город, адрес» (как на /salons). */
 export function gisLink(city: string, address: string): string {
   return `https://2gis.kz/search/${encodeURIComponent(`${city}, ${address}`)}`;

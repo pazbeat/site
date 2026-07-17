@@ -5,6 +5,7 @@ import { localeAlternates } from "@/lib/seo";
 import { CatalogClient } from "@/components/catalog-client";
 import { getActivePrograms } from "@/lib/data";
 import { toProgramDto } from "@/lib/dto";
+import { priceHref } from "@/lib/price-list";
 
 export async function generateMetadata({
   params,
@@ -24,9 +25,11 @@ export default async function ProgramsPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("Catalog");
+  const tPrices = await getTranslations("Prices");
   const programs = (await getActivePrograms()).map((p) =>
     toProgramDto(p, locale),
   );
+  const pdf = priceHref(locale);
 
   return (
     <main className="flex-1 py-14 sm:py-18">
@@ -39,6 +42,23 @@ export default async function ProgramsPage({
             {t("title")}
           </h1>
           <p className="mt-3 text-brand-purple-950/65">{t("subtitle")}</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <a
+              href={pdf}
+              target="_blank"
+              rel="noopener"
+              className="bg-gold-gradient rounded-full px-7 py-3.5 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
+            >
+              {tPrices("open")}
+            </a>
+            <a
+              href={pdf}
+              download
+              className="rounded-full border-[1.5px] border-brand-purple px-7 py-3.5 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple-50"
+            >
+              {tPrices("download")}
+            </a>
+          </div>
         </div>
         <CatalogClient programs={programs} />
       </div>
