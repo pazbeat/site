@@ -7,8 +7,11 @@ import {
 import { SALON_PREFIX_TO_ALTEGIO } from "../lib/altegio/mapping";
 import {
   resolveGoodId,
+  resolveProgramTitle,
   branchParams,
   BRANCH_PARAMS,
+  NOMINAL_GOODS,
+  PROGRAM_GOODS,
 } from "../lib/altegio/catalog";
 
 describe("altegio buildCertComment", () => {
@@ -111,12 +114,77 @@ describe("altegio catalog", () => {
     expect(resolveGoodId(225022, { nominalKzt: 12345 })).toBeNull();
   });
 
+  it("покрывает все номиналы сайта (18000/30000/50000/100000) в каждом филиале", () => {
+    for (const companyId of Object.keys(BRANCH_PARAMS)) {
+      for (const nominal of [18000, 30000, 50000, 100000]) {
+        expect(
+          resolveGoodId(Number(companyId), { nominalKzt: nominal }),
+          `company ${companyId} / номинал ${nominal}`,
+        ).not.toBeNull();
+      }
+    }
+  });
+
+  it("не содержит дублей good_id внутри филиала (ловит копипасту вроде WS 90000=100000)", () => {
+    for (const [companyId, nominals] of Object.entries(NOMINAL_GOODS)) {
+      const ids = Object.values(nominals);
+      expect(new Set(ids).size, `NOMINAL_GOODS ${companyId}`).toBe(ids.length);
+    }
+    for (const [companyId, programs] of Object.entries(PROGRAM_GOODS)) {
+      const ids = Object.values(programs);
+      expect(new Set(ids).size, `PROGRAM_GOODS ${companyId}`).toBe(ids.length);
+    }
+  });
+
   it("даёт складские параметры для всех 8 филиалов", () => {
     expect(Object.keys(BRANCH_PARAMS)).toHaveLength(8);
     const wm = branchParams(225022);
     expect(wm?.storageId).toBe(424028);
     expect(wm?.accountId).toBe(551001);
     expect(wm?.prefix).toBe("WM");
+  });
+});
+
+describe("altegio resolveProgramTitle", () => {
+  it("маппит нашу программу + цену на точное название товара Altegio", () => {
+    expect(resolveProgramTitle("Тайское чудо", 19000)).toBe(
+      "Тайское чудо 1 час Сайт новый 19000",
+    );
+    expect(resolveProgramTitle("Гармония тела", 38000)).toBe(
+      "Гармония тела 2 часа 38000 Сайт",
+    );
+    expect(resolveProgramTitle("Karuna", 68000)).toBe(
+      "Каруна на 2 серт или депозит 68000",
+    );
+  });
+
+  it("каждый замаппленный вариант резолвится в good_id на всех 8 филиалах (кроме известных дыр)", () => {
+    // «Чудесное ожидание 1.5 часа 30000» отсутствует только в Семее (1355056)
+    const known = [
+      ["Гармония тела", 22000], ["Гармония тела", 29000], ["Гармония тела", 38000],
+      ["Тайское чудо", 19000], ["Тайское чудо", 27000], ["Тайское чудо", 35000],
+      ["Страна улыбок", 90000], ["Страна улыбок", 132000],
+      ["Ты и Я", 70000], ["Энергия Сиама", 35000], ["Перезагрузка", 55000],
+      ["Спа Релакс", 20000], ["Sabai Sabai", 38000],
+      ["Karuna", 36000], ["Karuna", 68000],
+      ["Sanuk", 28000], ["Sanuk", 52000],
+      ["Антистресс", 88000], ["Энергия Таиланда", 36000], ["Грация", 18000],
+    ] as const;
+    for (const companyId of Object.keys(BRANCH_PARAMS)) {
+      for (const [name, price] of known) {
+        const title = resolveProgramTitle(name, price);
+        expect(title, `${name} ${price}`).not.toBeNull();
+        expect(
+          resolveGoodId(Number(companyId), { nominalKzt: price, programTitle: title }),
+          `company ${companyId} / ${name} ${price}`,
+        ).not.toBeNull();
+      }
+    }
+  });
+
+  it("возвращает null для варианта без товара в CRM (фолбэк на номинал)", () => {
+    expect(resolveProgramTitle("Suay", 38000)).toBeNull();
+    expect(resolveProgramTitle("Маленький Будда", 16000)).toBeNull();
   });
 });
 

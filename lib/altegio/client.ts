@@ -85,15 +85,24 @@ export type AltegioCertificateType = {
   is_multi: boolean;
 };
 
-/** Шаблоны сертификатов сети (chain-level). */
-export function listCertificateTypes(
+/**
+ * Шаблоны сертификатов сети (chain-level). Строго постранично: без параметров
+ * API отдаёт максимум 250, а живых типов в сети 585 (выверено 2026-07-17).
+ */
+export async function listCertificateTypes(
   cfg: AltegioConfig = requireConfig(),
 ): Promise<AltegioCertificateType[]> {
-  return altegioRequest<AltegioCertificateType[]>(
-    `chain/${cfg.chainId}/loyalty/certificate_types`,
-    {},
-    cfg,
-  );
+  const all: AltegioCertificateType[] = [];
+  for (let page = 1; page <= 50; page++) {
+    const batch = await altegioRequest<AltegioCertificateType[]>(
+      `chain/${cfg.chainId}/loyalty/certificate_types?page=${page}&count=100`,
+      {},
+      cfg,
+    );
+    all.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return all;
 }
 
 export type AltegioCertificate = {

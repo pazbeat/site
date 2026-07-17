@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "../db";
 import { decryptSecret } from "../crypto";
 import { isAltegioConfigured } from "./client";
+import { resolveProgramTitle } from "./catalog";
 import { issueCertificateOperation } from "./operations";
 
 /**
@@ -64,7 +65,11 @@ export async function syncCertificateToAltegio(
 
   const cert = await prisma.certificate.findUnique({
     where: { id: certificateId },
-    include: { salon: true, order: true },
+    include: {
+      salon: true,
+      order: true,
+      programOption: { include: { program: true } },
+    },
   });
   if (!cert) throw new Error(`altegio sync: certificate ${certificateId} not found`);
 
@@ -78,6 +83,22 @@ export async function syncCertificateToAltegio(
 
   const code = cert.codeEncrypted ? decryptSecret(cert.codeEncrypted) : null;
   if (!code) throw new Error("altegio sync: certificate code unavailable");
+
+  // Программный сертификат → точное название товара Altegio (иначе продажа
+  // ушла бы номинальным «Новый Электронный», которого под цену программы
+  // чаще всего нет). Номинальный сертификат — по сумме.
+  const programNameRu = cert.programOption
+    ? ((cert.programOption.program.names as { ru?: string }).ru ?? null)
+    : null;
+  const programTitle = programNameRu
+    ? resolveProgramTitle(programNameRu, cert.programOption!.priceKzt)
+    : null;
+  if (programNameRu && !programTitle) {
+    console.warn(
+      `[altegio] программа «${programNameRu}» (${cert.programOption!.priceKzt}₸) ` +
+        `не смапплена на товар Altegio — попробуем номинал по сумме`,
+    );
+  }
 
   const payload: AltegioCertPayload = {
     companyId,
@@ -105,7 +126,7 @@ export async function syncCertificateToAltegio(
       code,
       amountKzt: payload.balanceKzt,
       companyId,
-      programTitle: null,
+      programTitle,
       buyerName: cert.fromName,
       buyerEmail: cert.order.buyerEmail,
       buyerPhone:
