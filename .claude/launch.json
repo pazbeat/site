@@ -6,6 +6,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "mockup",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "-l",
+        "5050",
+        "C:\\Users\\asus\\AppData\\Local\\Temp\\claude\\C--Users-asus-Documents-sert\\690d1060-0b25-4387-a447-ac2f7f39e56f\\scratchpad"
+      ],
+      "port": 5050
     }
   ]
 }
