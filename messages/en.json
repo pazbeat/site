@@ -7,7 +7,8 @@
     "from": "from {price}",
     "hour": "h",
     "guests": "{count} guests",
-    "close": "Close"
+    "close": "Close",
+    "min": "min"
   },
   "Nav": {
     "home": "Home",
@@ -197,7 +198,8 @@
     "promoApply": "Apply",
     "promoRemove": "Remove",
     "promoApplied": "Discount {amount}",
-    "promoInvalid": "Promo code is not valid"
+    "promoInvalid": "Promo code is not valid",
+    "lead": "Five steps — and the certificate reaches the recipient by WhatsApp or email as a beautiful PDF with a QR code."
   },
   "Success": {
     "title": "Certificate paid!",
@@ -308,5 +310,9 @@
     "salonsCount": "{count} salons",
     "copyright": "© {year} Imbir Thai Spa",
     "regions": "Regions"
+  },
+  "NotFound": {
+    "title": "Looks like you took a wrong turn",
+    "text": "This page doesn't exist — but warm oils, a hammam and the hands of the best Thai therapists do. Come back and breathe out."
   }
 }
