@@ -6,14 +6,6 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
 
-// Разделы сайта в шапке (маршруты, а не якоря — работает с любой страницы)
-const NAV = [
-  { href: "/programs", key: "catalog" },
-  { href: "/prices", key: "prices" },
-  { href: "/salons", key: "salons" },
-  { href: "/check", key: "check" },
-] as const;
-
 const WA_PHONE = "77081118098";
 const WA_DISPLAY = "+7 708 111 8098";
 const LANG_LABELS: Record<string, string> = { ru: "RU", kk: "KK", en: "EN" };
@@ -34,7 +26,6 @@ export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
-  // Прозрачная поверх hero только на главной; на прочих — сразу плотная
   useEffect(() => {
     if (!isHome) return;
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -43,7 +34,6 @@ export function SiteHeader() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [isHome]);
 
-  // Меню закрываем при переходе на другую страницу
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
@@ -51,13 +41,24 @@ export function SiteHeader() {
   const solid = !isHome || scrolled || open;
   const waHref = `https://wa.me/${WA_PHONE}?text=${encodeURIComponent(t("waGreeting"))}`;
 
+  // Пункты меню: якоря ведут в разделы главной (работает и с других страниц —
+  // тот же путь /locale + hash = плавный скролл; иной путь = переход + скролл).
+  const home = `/${locale}`;
+  const NAV: { href: string; label: string; anchor: boolean }[] = [
+    { href: `${home}#about`, label: t("about"), anchor: true },
+    { href: `${home}/programs`, label: t("catalog"), anchor: false },
+    { href: `${home}#gift`, label: t("certificates"), anchor: true },
+    { href: `${home}#salons`, label: t("salons"), anchor: true },
+  ];
+
+  const linkCls =
+    "relative text-xs font-semibold tracking-[0.1em] whitespace-nowrap uppercase text-white/80 transition-colors hover:text-white after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-brand-gold-300 after:transition-transform hover:after:scale-x-100";
+
   return (
     <>
       <header
         className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
-          solid
-            ? "border-b border-brand-gold/20 bg-[#1a0d20]/95 backdrop-blur"
-            : "border-b border-transparent"
+          solid ? "border-b border-brand-gold/20 bg-[#1a0d20]/95 backdrop-blur" : "border-b border-transparent"
         }`}
       >
         <div className="mx-auto flex h-[68px] max-w-6xl items-center gap-4 px-5 sm:h-[78px] sm:gap-6">
@@ -72,25 +73,18 @@ export function SiteHeader() {
             />
           </Link>
 
-          <nav className="order-last ml-auto hidden items-center gap-6 lg:flex">
-            {NAV.map(({ href, key }) => {
-              const active = pathname === href;
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`relative text-xs font-semibold tracking-[0.1em] whitespace-nowrap uppercase transition-colors ${
-                    active
-                      ? "text-white"
-                      : "text-white/80 hover:text-white"
-                  } after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-brand-gold-300 after:transition-transform hover:after:scale-x-100 ${
-                    active ? "after:scale-x-100" : ""
-                  }`}
-                >
-                  {t(key)}
+          <nav className="ml-auto hidden items-center gap-6 lg:flex">
+            {NAV.map((item) =>
+              item.anchor ? (
+                <a key={item.href} href={item.href} className={linkCls}>
+                  {item.label}
+                </a>
+              ) : (
+                <Link key={item.href} href="/programs" className={linkCls}>
+                  {item.label}
                 </Link>
-              );
-            })}
+              ),
+            )}
           </nav>
 
           <Link
@@ -141,15 +135,25 @@ export function SiteHeader() {
         {open && (
           <div className="border-t border-white/10 bg-[#1a0d20]/95 px-5 pt-2 pb-5 lg:hidden">
             <nav className="flex flex-col">
-              {NAV.map(({ href, key }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="border-b border-white/10 py-3 text-sm font-semibold tracking-wide text-white/90"
-                >
-                  {t(key)}
-                </Link>
-              ))}
+              {NAV.map((item) =>
+                item.anchor ? (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="border-b border-white/10 py-3 text-sm font-semibold tracking-wide text-white/90"
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href="/programs"
+                    className="border-b border-white/10 py-3 text-sm font-semibold tracking-wide text-white/90"
+                  >
+                    {item.label}
+                  </Link>
+                ),
+              )}
             </nav>
             <div className="mt-4 flex flex-col gap-3">
               <Link
@@ -172,7 +176,6 @@ export function SiteHeader() {
         )}
       </header>
 
-      {/* Спейсер: на не-главных страницах контент не заезжает под фиксированную шапку */}
       {!isHome && <div className="h-[68px] sm:h-[78px]" aria-hidden />}
     </>
   );
