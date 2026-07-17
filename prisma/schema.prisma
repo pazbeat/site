@@ -103,6 +103,10 @@ model Salon {
   /// Счётчик выданных серийных номеров этого салона (атомарный инкремент)
   lastCertSerial    Int           @default(0) @map("last_cert_serial")
   active            Boolean       @default(true)
+  /// Доступен ли салон для выбора при покупке сертификата (конструктор).
+  /// false — салон показывается на витрине (футер, «Где нас найти», /salons),
+  /// но не участвует в оформлении (нет маппинга Altegio). Пример: Экибастуз, Жезказган.
+  orderable         Boolean       @default(true)
   sort              Int           @default(0)
   orders            Order[]
   certificates      Certificate[]

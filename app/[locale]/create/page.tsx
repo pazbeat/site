@@ -82,7 +82,9 @@ export default async function CreatePage({
 
       <div className="mx-auto max-w-6xl px-5 py-14 sm:py-16">
         <BuilderClient
-          salons={salons.map((s) => toSalonDto(s, locale))}
+          salons={salons
+            .filter((s) => s.orderable)
+            .map((s) => toSalonDto(s, locale))}
           programs={programs.map((p) => toProgramDto(p, locale))}
           nominals={visibleNominals.map(toNominalDto)}
           designs={designs.map((d) => toDesignDto(d, locale))}
