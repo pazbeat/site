@@ -70,3 +70,6 @@ desktop.ini
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# исходники видео салона (сотни МБ) — на сайт идут только сжатые версии
+/videos/
