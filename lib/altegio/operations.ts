@@ -136,19 +136,24 @@ export async function findOrCreateClient(
   return created.id;
 }
 
-/** Загружает полный объект товара-сертификата из Altegio (для фолбэка). */
+/**
+ * Загружает полный объект товара-сертификата из Altegio (для фолбэка).
+ * ВАЖНО: `count` у goods максимум 100, а невалидные значения (500/1000/…)
+ * молча откатываются к 25 — поэтому строго постраничная выборка.
+ */
 export async function fetchGood(
   companyId: number,
   goodId: number,
 ): Promise<Record<string, unknown>> {
-  const goods = await altegioRequest<Array<Record<string, unknown>>>(
-    `goods/${companyId}?count=1000`,
-  );
-  const good = goods.find((g) => (g.good_id ?? g.id) === goodId);
-  if (!good) {
-    throw new Error(`altegio: товар-сертификат ${goodId} не найден на ${companyId}`);
+  for (let page = 1; page <= 50; page++) {
+    const goods = await altegioRequest<Array<Record<string, unknown>>>(
+      `goods/${companyId}?page=${page}&count=100`,
+    );
+    const good = goods.find((g) => (g.good_id ?? g.id) === goodId);
+    if (good) return good;
+    if (goods.length < 100) break;
   }
-  return good;
+  throw new Error(`altegio: товар-сертификат ${goodId} не найден на ${companyId}`);
 }
 
 /**
@@ -371,7 +376,17 @@ async function resolveContext(params: IssueParams): Promise<IssueContext> {
     };
   }
 
-  // Фолбэк: реальный тест-товар на Мангилик под служебным тест-клиентом.
+  // Несмаппленный товар/филиал. В ПРОДЕ фолбэка нет: выпустить сертификат с
+  // чужим балансом (35000 из типа тест-товара) на чужом филиале хуже, чем
+  // пометить синк failed — админ увидит в списке сертификатов и заведёт
+  // вручную в CRM. Фолбэк на тест-товар — только в тест-режиме.
+  if (!test) {
+    throw new Error(
+      `altegio: нет товара-сертификата для company ${companyId ?? "—"} / ` +
+        `${params.amountKzt}₸${params.programTitle ? ` / «${params.programTitle}»` : ""} — ` +
+        `нужен маппинг в lib/altegio/catalog.ts или товар в CRM`,
+    );
+  }
   if (companyId) {
     console.warn(
       `[altegio] нет good для company ${companyId} / номинал ${params.amountKzt}` +
