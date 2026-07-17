@@ -18,6 +18,7 @@ const base: Salon = {
   codePrefix: "WK",
   lastCertSerial: 0,
   active: true,
+  orderable: true,
   sort: 0,
 };
 

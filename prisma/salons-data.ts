@@ -13,6 +13,9 @@ export type SalonSeed = {
   address: string;
   addressNames: L10n;
   codePrefix: string;
+  /// false — салон только на витрине, не выбирается при покупке (нет
+  /// маппинга Altegio). По умолчанию (не задано) — доступен.
+  orderable?: boolean;
 };
 
 export const SALON_SEED: SalonSeed[] = [
@@ -100,5 +103,46 @@ export const SALON_SEED: SalonSeed[] = [
     },
     codePrefix: "WP",
   },
-  // Семей (WS) — филиал будет добавлен после получения адреса
+  {
+    city: "Семей",
+    cityNames: { ru: "Семей", kk: "Семей", en: "Semey" },
+    name: "Имбирь в Семее",
+    address: "ул. Рымбека Ильяшева, 45А",
+    addressNames: {
+      ru: "ул. Рымбека Ильяшева, 45А",
+      kk: "Рымбек Иляшев көш., 45А",
+      en: "45A Rymbek Ilyashev St",
+    },
+    codePrefix: "WS",
+    // Семей доступен в конструкторе (маппинг Altegio по «Сайт»-серии готов)
+    orderable: true,
+  },
+  {
+    city: "Экибастуз",
+    cityNames: { ru: "Экибастуз", kk: "Екібастұз", en: "Ekibastuz" },
+    name: "Имбирь в Экибастузе",
+    address: "ул. Энергетиков, 15/9",
+    addressNames: {
+      ru: "ул. Энергетиков, 15/9",
+      kk: "Энергетиктер көш., 15/9",
+      en: "15/9 Energetikov St",
+    },
+    codePrefix: "WE",
+    // Только витрина — маппинга Altegio нет
+    orderable: false,
+  },
+  {
+    city: "Жезказган",
+    cityNames: { ru: "Жезказган", kk: "Жезқазған", en: "Zhezkazgan" },
+    name: "Имбирь в Жезказгане",
+    address: "ул. Сейфуллина, 15",
+    addressNames: {
+      ru: "ул. Сейфуллина, 15",
+      kk: "Сейфуллин көш., 15",
+      en: "15 Seifullin St",
+    },
+    codePrefix: "WJ",
+    // Только витрина — маппинга Altegio нет
+    orderable: false,
+  },
 ];
