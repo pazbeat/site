@@ -5,7 +5,8 @@
  * Каждый язык → отдельная неизменяемая LegalVersion; RU — актуальная
  * (currentVersion). Отдача по локали — lib/data.ts getLegalVersionForLocale.
  *
- * Запуск: npx tsx scripts/import-legal.ts
+ * Запуск: npx tsx scripts/import-legal.ts [type…] — без аргументов импортирует
+ * все документы; с аргументами (offer/privacy/rules/consent_modal) — только их.
  * Для RU требуется локальная папка rules/ (в .gitignore) с .docx.
  * Санитизация зеркалит lib/admin/sanitize.ts (server-only, в tsx не грузится).
  */
@@ -20,10 +21,15 @@ import { PrismaClient } from "../lib/generated/prisma/client";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const DOCS: Array<{ docx: string; type: "offer" | "privacy" | "rules" }> = [
+const DOCS: Array<{
+  /** null → все языки (включая RU) из prisma/legal/{type}.{lang}.html */
+  docx: string | null;
+  type: "offer" | "privacy" | "rules" | "consent_modal";
+}> = [
   { docx: "oferta.docx", type: "offer" },
   { docx: "privacy_policy.docx", type: "privacy" },
   { docx: "rules.docx", type: "rules" },
+  { docx: null, type: "consent_modal" },
 ];
 const LANGS = ["ru", "kk", "en"] as const;
 
@@ -59,13 +65,13 @@ async function exists(p: string) {
   return access(p).then(() => true).catch(() => false);
 }
 
-/** RU-контент из docx, KK/EN — из html-файла перевода. */
+/** RU-контент из docx (если задан), иначе — из html-файла в prisma/legal. */
 async function loadHtml(
   type: string,
   lang: string,
-  docx: string,
+  docx: string | null,
 ): Promise<string | null> {
-  if (lang === "ru") {
+  if (lang === "ru" && docx) {
     const src = path.join(process.cwd(), "rules", docx);
     if (!(await exists(src))) return null;
     const { value } = await mammoth.convertToHtml({ buffer: await readFile(src) });
@@ -79,7 +85,10 @@ async function loadHtml(
 async function main() {
   await mkdir(outDir, { recursive: true });
 
-  for (const { docx, type } of DOCS) {
+  const only = process.argv.slice(2);
+  const docs = only.length ? DOCS.filter((d) => only.includes(d.type)) : DOCS;
+
+  for (const { docx, type } of docs) {
     const document = await prisma.legalDocument.upsert({
       where: { type },
       create: { type },
