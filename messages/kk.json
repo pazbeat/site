@@ -306,6 +306,7 @@
     "contacts": "Байланыс",
     "corporate": "Корпоративтік клиенттерге",
     "salonsCount": "{count} салон",
-    "copyright": "© {year} Imbir Thai Spa"
+    "copyright": "© {year} Imbir Thai Spa",
+    "regions": "Аймақтар"
   }
 }
