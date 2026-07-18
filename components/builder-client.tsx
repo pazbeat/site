@@ -680,24 +680,26 @@ export function BuilderClient({
               <div className="mb-4 grid gap-3.5 sm:grid-cols-2">
                 <div>
                   <label className={labelCls} htmlFor="b-to">
-                    {t("s3To")}
+                    {t("s3To")} <span className="text-brand-red">*</span>
                   </label>
                   <input
                     id="b-to"
                     className={inputCls}
                     maxLength={80}
+                    required
                     value={toName}
                     onChange={(e) => setToName(e.target.value)}
                   />
                 </div>
                 <div>
                   <label className={labelCls} htmlFor="b-from">
-                    {t("s3From")}
+                    {t("s3From")} <span className="text-brand-red">*</span>
                   </label>
                   <input
                     id="b-from"
                     className={inputCls}
                     maxLength={80}
+                    required
                     value={fromName}
                     onChange={(e) => setFromName(e.target.value)}
                   />
@@ -747,13 +749,15 @@ export function BuilderClient({
               </div>
               <div className="mb-4">
                 <label className={labelCls} htmlFor="b-contact">
-                  {method === "email" ? t("s4ContactEmail") : t("s4ContactWa")}
+                  {method === "email" ? t("s4ContactEmail") : t("s4ContactWa")}{" "}
+                  <span className="text-brand-red">*</span>
                 </label>
                 <input
                   id="b-contact"
                   type={method === "email" ? "email" : "tel"}
                   placeholder={method === "email" ? "name@mail.kz" : "+7 7__ ___ __ __"}
                   className={inputCls}
+                  required
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
                 />
@@ -790,12 +794,13 @@ export function BuilderClient({
               )}
               <div>
                 <label className={labelCls} htmlFor="b-buyer">
-                  {t("s4BuyerEmail")}
+                  {t("s4BuyerEmail")} <span className="text-brand-red">*</span>
                 </label>
                 <input
                   id="b-buyer"
                   type="email"
                   className={inputCls}
+                  required
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
                 />
