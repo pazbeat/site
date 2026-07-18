@@ -72,8 +72,10 @@ async function createBoss(): Promise<PgBoss> {
   });
 
   // Развозка отложенных доставок: наступившие scheduledAt → в очередь.
+  // Раз в минуту (а не в 5) — чтобы задержка после назначенного времени
+  // была не более ~минуты.
   await boss.createQueue(DELIVER_SCHEDULED);
-  await boss.schedule(DELIVER_SCHEDULED, "*/5 * * * *", undefined, {
+  await boss.schedule(DELIVER_SCHEDULED, "* * * * *", undefined, {
     tz: "Asia/Almaty",
   });
   await boss.work(DELIVER_SCHEDULED, async () => {
