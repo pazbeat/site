@@ -11,7 +11,6 @@ import {
   getActiveNominals,
   getActivePrograms,
   getActiveSalons,
-  getCurrentLegalVersionIds,
   getCustomAmountBounds,
   getLegalVersionForLocale,
 } from "@/lib/data";
@@ -43,14 +42,13 @@ export default async function CreatePage({
   const t = await getTranslations("Builder");
   const tNav = await getTranslations("Nav");
 
-  const [salons, programs, nominals, designs, bounds, versionIds, consentDoc] =
+  const [salons, programs, nominals, designs, bounds, consentDoc] =
     await Promise.all([
       getActiveSalons(),
       getActivePrograms(),
       getActiveNominals(),
       getActiveDesigns(),
       getCustomAmountBounds(),
-      getCurrentLegalVersionIds(),
       // Текст consent-модалки из админки (PRD §5.2), на языке посетителя;
       // санитизирован при сохранении. Пусто → встроенный текст из переводов.
       getLegalVersionForLocale("consent_modal", locale),
@@ -90,7 +88,6 @@ export default async function CreatePage({
           designs={designs.map((d) => toDesignDto(d, locale))}
           bounds={bounds}
           consentHtml={consentDoc?.contentHtmlSanitized ?? ""}
-          consentVersionsKey={JSON.stringify(versionIds)}
           initialOptionId={initialOptionId}
           initialNominalId={initialNominalId}
           initialType={query.type === "nominal" ? "nominal" : undefined}
