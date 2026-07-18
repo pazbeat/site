@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CertPreview } from "./cert-preview";
 import { ConsentModal } from "./consent-modal";
@@ -21,8 +21,6 @@ type Props = Readonly<{
   designs: DesignDto[];
   bounds: { min: number; max: number };
   consentHtml: string;
-  /** Метка версий правовых документов — согласие в сессии действует для них */
-  consentVersionsKey: string;
   /** Предвыбор из query: ?option= / ?nominal= / ?type=nominal */
   initialOptionId?: number;
   initialNominalId?: number;
@@ -30,8 +28,44 @@ type Props = Readonly<{
 }>;
 
 type Step = 0 | 1 | 2 | 3 | 4;
-const CONSENT_KEY = "imbir-consent";
-const emptySubscribe = () => () => {};
+const DRAFT_KEY = "imbir-builder-draft";
+
+/** Снимок конструктора для сохранения черновика в localStorage. */
+type Draft = {
+  step: Step;
+  salonId: number | null;
+  type: "program" | "nominal";
+  programId: number | null;
+  optionId: number | null;
+  nominalId: number | null;
+  customAmount: string;
+  designIdx: number;
+  toName: string;
+  fromName: string;
+  message: string;
+  method: "email" | "whatsapp";
+  contact: string;
+  when: "now" | "scheduled";
+  scheduledAt: string;
+  buyerEmail: string;
+  provider: "kaspi" | "freedom";
+};
+
+/** Есть ли в черновике осмысленный прогресс (иначе продолжать нечего). */
+function isResumable(d: Draft): boolean {
+  return (
+    d.step > 0 ||
+    d.salonId != null ||
+    d.programId != null ||
+    d.optionId != null ||
+    d.customAmount.trim().length > 0 ||
+    d.toName.trim().length > 0 ||
+    d.fromName.trim().length > 0 ||
+    d.message.trim().length > 0 ||
+    d.contact.trim().length > 0 ||
+    d.buyerEmail.trim().length > 0
+  );
+}
 
 /** Превью дизайна для сетки выбора (public/designs/thumbs, 360px). */
 function designThumb(url: string): string {
@@ -57,7 +91,6 @@ export function BuilderClient({
   designs,
   bounds,
   consentHtml,
-  consentVersionsKey,
   initialOptionId,
   initialNominalId,
   initialType,
@@ -66,30 +99,13 @@ export function BuilderClient({
   const tCommon = useTranslations("Common");
   const locale = useLocale();
 
-  // --- согласие (PRD §5.2): модалка до конструктора ---
-  const storedConsent = useSyncExternalStore(
-    emptySubscribe,
-    () => {
-      try {
-        return sessionStorage.getItem(CONSENT_KEY) === consentVersionsKey;
-      } catch {
-        return false;
-      }
-    },
-    () => false, // SSR: считаем, что согласия нет
-  );
+  // --- согласие (PRD §5.2): модалка показывается КАЖДЫЙ раз при входе в
+  // конструктор — согласие НЕ персистится, живёт только на текущий монтаж ---
   const [acceptedNow, setAcceptedNow] = useState(false);
-  const consented = storedConsent || acceptedNow;
+  const consented = acceptedNow;
   // Повторное согласие на шаге оплаты (PRD §5.2 — до оплаты)
   const [payConsentOpen, setPayConsentOpen] = useState(false);
-  const acceptConsent = () => {
-    try {
-      sessionStorage.setItem(CONSENT_KEY, consentVersionsKey);
-    } catch {
-      // приватный режим — согласие живёт в state
-    }
-    setAcceptedNow(true);
-  };
+  const acceptConsent = () => setAcceptedNow(true);
 
   // --- предвыбор из query ---
   const initialProgram = initialOptionId
@@ -136,6 +152,118 @@ export function BuilderClient({
     /** Сумма, к которой применена скидка — чтобы сбросить превью при её смене */
     appliedTo: number;
   } | null>(null);
+
+  // --- черновик заказа: сохраняем прогресс, предлагаем продолжить/начать заново.
+  // Если клиент вышел на полпути и вернулся — не теряем выбор и тексты. ---
+  const [pendingDraft, setPendingDraft] = useState<Draft | null>(null);
+  const [resumeResolved, setResumeResolved] = useState(false);
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // приватный режим — черновика и не было
+    }
+  };
+
+  const applyDraft = (d: Draft) => {
+    setStep(d.step);
+    setSalonId(d.salonId);
+    setType(d.type);
+    setProgramId(d.programId);
+    setOptionId(d.optionId);
+    setNominalId(d.nominalId);
+    setCustomAmount(d.customAmount);
+    setDesignIdx(Math.min(Math.max(d.designIdx, 0), designs.length - 1));
+    setToName(d.toName);
+    setFromName(d.fromName);
+    setMessage(d.message);
+    setMethod(d.method);
+    setContact(d.contact);
+    setWhen(d.when);
+    setScheduledAt(d.scheduledAt);
+    setBuyerEmail(d.buyerEmail);
+    setProvider(d.provider);
+  };
+
+  const resumeContinue = () => {
+    if (pendingDraft) applyDraft(pendingDraft);
+    setPendingDraft(null);
+    setResumeResolved(true);
+  };
+  const resumeNew = () => {
+    clearDraft();
+    setPendingDraft(null);
+    setResumeResolved(true);
+  };
+
+  // При входе читаем черновик: есть прогресс → спросим (после согласия),
+  // иначе сразу разрешаем сохранение нового.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw) as Draft;
+        if (isResumable(d)) {
+          setPendingDraft(d);
+          return;
+        }
+      }
+    } catch {
+      // битый/недоступный storage — игнорируем
+    }
+    setResumeResolved(true);
+  }, []);
+
+  // Сохраняем черновик на каждое изменение — но только после того, как решён
+  // вопрос «продолжить/заново» и пока заказ не создан (иначе затрём при входе).
+  useEffect(() => {
+    if (!resumeResolved || createdOrderId) return;
+    const draft: Draft = {
+      step,
+      salonId,
+      type,
+      programId,
+      optionId,
+      nominalId,
+      customAmount,
+      designIdx,
+      toName,
+      fromName,
+      message,
+      method,
+      contact,
+      when,
+      scheduledAt,
+      buyerEmail,
+      provider,
+    };
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      // приватный режим — просто не сохраняем
+    }
+  }, [
+    resumeResolved,
+    createdOrderId,
+    step,
+    salonId,
+    type,
+    programId,
+    optionId,
+    nominalId,
+    customAmount,
+    designIdx,
+    toName,
+    fromName,
+    message,
+    method,
+    contact,
+    when,
+    scheduledAt,
+    buyerEmail,
+    provider,
+  ]);
 
   // Показ конструктора для A/B цен — один раз за вкладку, иначе перезагрузки
   // раздували бы знаменатель конверсии
@@ -315,6 +443,8 @@ export function BuilderClient({
         orderId: string;
         paymentUrl: string | null;
       };
+      // Заказ создан — черновик больше не нужен
+      clearDraft();
       if (data.paymentUrl) {
         window.location.assign(data.paymentUrl);
         return;
@@ -376,6 +506,41 @@ export function BuilderClient({
     <>
       {!consented && (
         <ConsentModal html={consentHtml} onAccept={acceptConsent} />
+      )}
+
+      {/* Есть незавершённый черновик — предложить продолжить или начать заново
+          (после согласия, чтобы модалки не накладывались) */}
+      {consented && pendingDraft && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-brand-purple-950/70 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl sm:p-8">
+            <h2 className="mb-3 font-display text-2xl font-semibold text-brand-purple">
+              {t("resumeTitle")}
+            </h2>
+            <p className="mb-6 text-sm text-brand-purple-950/70">
+              {t("resumeText")}
+            </p>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={resumeNew}
+                className="rounded-full border-[1.5px] border-brand-purple-100 px-6 py-3 text-sm font-bold text-brand-purple-800 transition-colors hover:border-brand-red hover:text-brand-red"
+              >
+                {t("resumeNew")}
+              </button>
+              <button
+                type="button"
+                onClick={resumeContinue}
+                className="rounded-full bg-brand-purple px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-purple-600"
+              >
+                {t("resumeContinue")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Повторное согласие перед оплатой */}
