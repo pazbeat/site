@@ -1,0 +1,4 @@
+# Shell-скрипты всегда с LF: иначе на Windows чекаутятся с CRLF и шебанг
+# `#!/bin/sh\r` ломает запуск в Linux-контейнере.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
