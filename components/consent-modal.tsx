@@ -29,10 +29,28 @@ export function ConsentModal({
   const [scrolledToEnd, setScrolledToEnd] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Если контент помещается без прокрутки — сразу разрешаем чекбокс
+  // Если контент помещается без прокрутки — сразу разрешаем чекбокс.
+  // Проверяем и при ресайзе/повороте экрана: на мобиле высота вьюпорта
+  // меняется (адресная строка), и то, что не влезало, может влезть.
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el && el.scrollHeight <= el.clientHeight + 4) setScrolledToEnd(true);
+    const check = () => {
+      const el = scrollRef.current;
+      if (el && el.scrollHeight <= el.clientHeight + 4) setScrolledToEnd(true);
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Блокируем прокрутку фона, пока открыта модалка: на iOS Safari тач-скролл
+  // вложенного блока внутри fixed-оверлея иначе «утекает» на страницу позади,
+  // и текст согласия не прокручивается (чекбокс не разблокировать).
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, []);
 
   const handleScroll = () => {
@@ -51,7 +69,7 @@ export function ConsentModal({
       aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center bg-brand-purple-950/70 p-4 backdrop-blur-sm"
     >
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl sm:p-8">
+      <div className="flex max-h-[90dvh] w-full max-w-lg flex-col rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl sm:p-8">
         <h2 className="mb-3 font-display text-2xl font-semibold text-brand-purple">
           {t("title")}
         </h2>
@@ -59,7 +77,8 @@ export function ConsentModal({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="max-h-64 overflow-y-auto rounded-xl border border-brand-purple-100 bg-brand-purple-50/30 p-4 text-sm text-brand-purple-950"
+          style={{ WebkitOverflowScrolling: "touch" }}
+          className="min-h-0 max-h-64 flex-1 touch-pan-y overflow-y-auto overscroll-contain rounded-xl border border-brand-purple-100 bg-brand-purple-50/30 p-4 text-sm text-brand-purple-950"
         >
           {html ? (
             <div
