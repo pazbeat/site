@@ -32,9 +32,14 @@ export interface MessagingProvider {
  */
 export function normalizeWhatsAppChatId(phone: string): string {
   let digits = phone.replace(/\D/g, "");
-  // 8XXXXXXXXXX (KZ/RU внутренний) → 7XXXXXXXXXX
+  // 8XXXXXXXXXX (KZ/RU внутренний формат) → 7XXXXXXXXXX
   if (digits.length === 11 && digits.startsWith("8")) {
     digits = `7${digits.slice(1)}`;
+  }
+  // 10 цифр — национальный номер без кода страны (напр. 7712448800):
+  // добавляем код Казахстана «7» → 77712448800
+  else if (digits.length === 10) {
+    digits = `7${digits}`;
   }
   return `${digits}@c.us`;
 }
