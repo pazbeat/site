@@ -66,12 +66,13 @@ export async function SiteFooter() {
           {regionCities.length > 0 && (
             <div className="foot-col">
               <b>{t("regions")}</b>
-              {regionCities.map((c) => (
-                <a key={c.name} href={`${home}#salons`}>
-                  {c.name}
-                  {c.salons.length > 1 ? ` · ${t("salonsCount", { count: c.salons.length })}` : ""}
-                </a>
-              ))}
+              {regionCities.flatMap((c) =>
+                c.salons.map((s) => (
+                  <a key={s.id} href={`${home}#salons`}>
+                    {c.name}, {pickL10n(s.addressNames, locale) || s.address}
+                  </a>
+                )),
+              )}
             </div>
           )}
 
