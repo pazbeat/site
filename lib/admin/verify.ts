@@ -18,6 +18,9 @@ export type AdminIdentity = {
  * рабочим — при снятии флага всё возвращается без изменений.
  */
 export function is2faDisabled(): boolean {
+  // Явный флаг демо-сервера: отключает 2FA даже в production.
+  // ТОЛЬКО для временного превью — на боевом НЕ ставить.
+  if (process.env.PREVIEW_NO_2FA === "1") return true;
   return (
     process.env.ADMIN_2FA_DISABLED === "1" &&
     process.env.NODE_ENV !== "production"
