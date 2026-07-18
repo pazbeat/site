@@ -546,6 +546,39 @@ h3,
   background: var(--gold-hi);
 }
 
+/* Бегущая строка программ (тёмная, как в макете) */
+.rd .ticker {
+  overflow: hidden;
+  border-top: 1px solid var(--line-d);
+  border-bottom: 1px solid var(--line-d);
+  background: var(--plum-990);
+  padding: 17px 0;
+}
+.rd .ticker .ticker-track {
+  display: flex;
+  gap: 0;
+  width: max-content;
+  animation: ticker 40s linear infinite;
+}
+.rd .ticker:hover .ticker-track {
+  animation-play-state: paused;
+}
+.rd .ticker span {
+  flex-shrink: 0;
+  padding: 0 26px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-hi);
+  white-space: nowrap;
+}
+.rd .ticker b {
+  color: var(--paper-dim);
+  font-weight: 500;
+  padding-left: 10px;
+}
+
 /* ─── Секции ─── */
 .rd .section {
   padding: 130px 0;

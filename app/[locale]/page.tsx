@@ -51,7 +51,8 @@ export default async function HomePage({
 
   const cityCount = new Set(salons.map((s) => s.cityKey)).size;
   const salonCount = salons.length;
-  const programCount = programs.length;
+  // Программ в сети больше, чем заведено на витрине → маркетинговое «20+»
+  const programsStat = programs.length >= 20 ? "20+" : `${programs.length}+`;
 
   const em = (chunks: React.ReactNode) => <em>{chunks}</em>;
 
@@ -143,19 +144,19 @@ export default async function HomePage({
             {t("statCitiesShort")}
           </div>
           <div>
-            <b>{programCount}</b>
+            <b>{programsStat}</b>
             {t("statProgramsShort")}
           </div>
         </div>
       </HeroShowcase>
 
-      {/* ТИКЕР ЦЕН */}
-      <div className="ticker-mask overflow-hidden border-y border-brand-purple-100 bg-brand-purple-50 py-4">
-        <div className="ticker-track flex w-max gap-10">
+      {/* ТИКЕР ЦЕН (тёмный, как в макете) */}
+      <div className="ticker">
+        <div className="ticker-track">
           {[...ticker, ...ticker].map((item, i) => (
-            <span key={i} className="flex shrink-0 items-center gap-3 text-sm whitespace-nowrap">
-              <span className="font-display text-lg text-brand-purple">{item.name}</span>
-              <b className="font-semibold text-brand-gold-700">
+            <span key={i}>
+              {item.name}{" "}
+              <b>
                 {t("tickerFrom")} {item.price}
               </b>
             </span>
@@ -180,7 +181,7 @@ export default async function HomePage({
                 <span>{t("statCitiesShort")}</span>
               </div>
               <div className="stat">
-                <b>{programCount}</b>
+                <b>{programsStat}</b>
                 <span>{t("statProgramsShort")}</span>
               </div>
               <div className="stat">
