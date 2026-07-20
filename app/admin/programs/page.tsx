@@ -49,8 +49,10 @@ export default async function AdminProgramsPage() {
                   >
                     {pickL10n(p.names, "ru")}
                   </Link>
-                  {p.popular && (
-                    <span className="ml-2 text-xs text-brand-gold-700">★</span>
+                  {p.highlight && (
+                    <span className="ml-2 text-xs text-brand-gold-700">
+                      {p.highlight === "hit" ? "🔥 Хит" : p.highlight === "trend" ? "⭐ Тренд" : "🍂 Сезон"}
+                    </span>
                   )}
                 </td>
                 <td className="px-4 py-3">{p.category}</td>

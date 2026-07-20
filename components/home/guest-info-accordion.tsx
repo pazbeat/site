@@ -29,7 +29,7 @@ export function GuestInfoAccordion({ sections }: { sections: GuestSection[] }) {
               style={{
                 display: "grid",
                 gridTemplateRows: isOpen ? "1fr" : "0fr",
-                transition: "grid-template-rows 0.3s ease",
+                transition: "grid-template-rows 0.35s cubic-bezier(0.77, 0, 0.175, 1)",
               }}
             >
               <div style={{ overflow: "hidden" }}>

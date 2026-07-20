@@ -12,6 +12,12 @@ const CATEGORY_KEY = {
   set: "filterSet",
 } as const;
 
+export const HIGHLIGHT_KEY = {
+  hit: "badgeHit",
+  trend: "badgeTrend",
+  season: "badgeSeason",
+} as const;
+
 export function optionLabel(
   option: ProgramOptionDto,
   guests: (count: number) => string,
@@ -50,6 +56,11 @@ export function ProgramCard({ program }: Readonly<{ program: ProgramDto }>) {
         <span className="relative rounded-full bg-white/95 px-3 py-1 text-[11px] font-bold tracking-wide text-brand-purple uppercase">
           {t(CATEGORY_KEY[program.category])}
         </span>
+        {program.highlight && (
+          <span className="bg-gold-gradient absolute top-3.5 right-3.5 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-white uppercase shadow-md">
+            {t(HIGHLIGHT_KEY[program.highlight])}
+          </span>
+        )}
         <span className="bg-gold-gradient absolute right-3.5 bottom-3.5 rounded-full px-3.5 py-1.5 text-xs font-bold text-white shadow-md">
           {tCommon("from", { price: formatKzt(minPrice) })}
         </span>

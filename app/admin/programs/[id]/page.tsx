@@ -32,7 +32,7 @@ export default async function EditProgramPage({
           descRu: pickL10n(program.descriptions, "ru"),
           descKk: pickL10n(program.descriptions, "kk"),
           descEn: pickL10n(program.descriptions, "en"),
-          popular: program.popular,
+          highlight: program.highlight,
           active: program.active,
           photoUrl: program.photoUrl,
           cities: program.cities.join(", "),

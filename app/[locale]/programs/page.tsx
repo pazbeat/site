@@ -3,6 +3,7 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 import { CatalogClient } from "@/components/catalog-client";
+import { MassageQuiz } from "@/components/massage-quiz";
 import { getActivePrograms } from "@/lib/data";
 import { toProgramDto } from "@/lib/dto";
 import { priceHref } from "@/lib/price-list";
@@ -60,6 +61,7 @@ export default async function ProgramsPage({
             </a>
           </div>
         </div>
+        <MassageQuiz programs={programs} />
         <CatalogClient programs={programs} />
       </div>
     </main>

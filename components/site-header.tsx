@@ -89,7 +89,7 @@ export function SiteHeader() {
 
           <Link
             href="/create"
-            className="bg-gold-gradient ml-auto hidden rounded-full px-5 py-2.5 text-[11px] font-bold whitespace-nowrap text-white shadow-md transition-transform hover:-translate-y-0.5 sm:inline-flex lg:ml-0"
+            className="bg-gold-gradient ml-auto hidden rounded-full px-5 py-2.5 text-[11px] font-bold whitespace-nowrap text-white shadow-md transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:inline-flex lg:ml-0"
           >
             {t("giftCta")}
           </Link>
@@ -133,7 +133,7 @@ export function SiteHeader() {
         </div>
 
         {open && (
-          <div className="border-t border-white/10 bg-[#1a0d20]/95 px-5 pt-2 pb-5 lg:hidden">
+          <div className="menu-enter border-t border-white/10 bg-[#1a0d20]/95 px-5 pt-2 pb-5 lg:hidden">
             <nav className="flex flex-col">
               {NAV.map((item) =>
                 item.anchor ? (

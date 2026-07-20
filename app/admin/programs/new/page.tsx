@@ -15,7 +15,7 @@ export default async function NewProgramPage() {
           descRu: "",
           descKk: "",
           descEn: "",
-          popular: false,
+          highlight: null,
           active: true,
           photoUrl: null,
           cities: "",

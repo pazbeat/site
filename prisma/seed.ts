@@ -107,7 +107,7 @@ async function main() {
         names: p.n,
         descriptions: p.d,
         photoUrl: p.photo ?? null,
-        popular: p.pop ?? false,
+        highlight: p.pop ? "hit" : null,
         cities: p.cities ?? [],
         sort: i,
         options: {
