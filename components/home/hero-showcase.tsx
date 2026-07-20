@@ -145,7 +145,8 @@ export function HeroShowcase({
           ))}
         </div>
 
-        <div className="show-cap">
+        {/* key={current}: перемонтаж при смене слайда даёт микро-fade подписи */}
+        <div className="show-cap cap-fade" key={current}>
           <span className="show-cap-label">{slides[current]?.label}</span>
           <span className="show-cap-num">
             {String(current + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}

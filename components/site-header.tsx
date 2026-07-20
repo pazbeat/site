@@ -58,7 +58,9 @@ export function SiteHeader() {
     <>
       <header
         className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
-          solid ? "border-b border-brand-gold/20 bg-[#1a0d20]/95 backdrop-blur" : "border-b border-transparent"
+          solid
+            ? "border-b border-brand-gold/20 bg-[#1a0d20]/95 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-[#1a0d20]/75"
+            : "border-b border-transparent"
         }`}
       >
         <div className="mx-auto flex h-[68px] max-w-6xl items-center gap-4 px-5 sm:h-[78px] sm:gap-6">
