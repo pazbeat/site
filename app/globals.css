@@ -126,24 +126,21 @@ h3,
   }
 }
 
-/* Плавное появление секций при прокрутке (IntersectionObserver ставит .in) */
-.reveal {
+/* Плавное появление секций при прокрутке. Fail-safe (аудит №2 §9):
+   по умолчанию секции ВИДИМЫ; прячет их только JS (класс .will-reveal),
+   когда наблюдатель уже создан и элемент ниже вьюпорта. Если JS не
+   выполнился или IO не сработал — страница просто видима без анимации.
+   Само движение лёгкое: 14px и полсекунды, триггер — до входа в кадр. */
+.will-reveal {
   opacity: 0;
-  transform: translateY(22px);
+  transform: translateY(14px);
   transition:
-    opacity 0.7s var(--ease-out),
-    transform 0.7s var(--ease-out);
+    opacity 0.5s var(--ease-out),
+    transform 0.5s var(--ease-out);
 }
-.reveal.in {
+.will-reveal.in {
   opacity: 1;
   transform: none;
-}
-/* Без JS (или при отключённых скриптах) секции показываем сразу */
-@media (scripting: none) {
-  .reveal {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 /* Скрыть скроллбар у горизонтальных лент (программы, атмосфера) */
@@ -277,13 +274,14 @@ h3,
     transform: translateY(-8px);
   }
 }
+/* Смена шага конструктора: чистый кроссфейд, БЕЗ смещения — путь «Назад»
+   не должен въезжать с той же стороны, что и «Вперёд» (аудит №2 §7) */
 .step-enter {
-  animation: step-fade 0.18s var(--ease-out);
+  animation: step-fade 0.15s var(--ease-out);
 }
 @keyframes step-fade {
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
 }
 
@@ -338,6 +336,8 @@ h3,
 .rd h2 {
   font-size: clamp(36px, 4.6vw, 58px);
   line-height: 1.08;
+  /* Крупный дисплейный текст — слегка отрицательный трекинг (аудит №2 §15) */
+  letter-spacing: -0.01em;
   color: var(--plum-800);
   margin-top: 18px;
 }
@@ -369,9 +369,11 @@ h3,
   border: 1px solid transparent;
   transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), background-position 0.4s, border-color 0.25s, color 0.25s;
 }
-/* Пресс-фидбек (аудит plans/003): кнопка отвечает на само нажатие */
+/* Пресс-фидбек (аудит №2 §1): вжатие МГНОВЕННОЕ (100ms на pointer-down),
+   отпускание — плавное по базовому транзишену. Асимметрия по Apple. */
 .rd .btn:active {
   transform: scale(0.97);
+  transition-duration: 0.1s;
 }
 .rd .btn-gold {
   color: var(--plum-990);
@@ -440,6 +442,8 @@ h3,
 .rd .hero h1 {
   font-size: clamp(52px, 5.6vw, 88px);
   line-height: 1.03;
+  /* До 88px — самый крупный текст сайта, трекинг заметно отрицательный */
+  letter-spacing: -0.015em;
   color: #fff;
   margin: 28px 0 24px;
 }
@@ -535,6 +539,15 @@ h3,
   border-color: var(--gold-hi);
   color: var(--gold-hi);
 }
+/* Микро-fade подписи при смене слайда (перемонтаж по key) */
+.rd .cap-fade {
+  animation: cap-fade 0.25s var(--ease-out);
+}
+@keyframes cap-fade {
+  from {
+    opacity: 0;
+  }
+}
 .rd .show-cap {
   position: absolute;
   z-index: 3;
@@ -567,17 +580,21 @@ h3,
   display: flex;
   gap: 10px;
 }
+/* Визуально — линия 3px, но хит-зона 34×23px (пальцем попасть реально):
+   padding + background-clip: content-box (аудит №2 §10) */
 .rd .show-dots button {
   width: 34px;
-  height: 3px;
+  height: 23px;
   border: 0;
-  padding: 0;
+  padding: 10px 0;
   background: rgba(255, 255, 255, 0.3);
+  background-clip: content-box;
   cursor: pointer;
   transition: background 0.3s;
 }
 .rd .show-dots button.on {
   background: var(--gold-hi);
+  background-clip: content-box;
 }
 
 /* Бегущая строка программ (тёмная, как в макете) */
@@ -753,6 +770,7 @@ h3,
 }
 .rd .strip-nav button:active {
   transform: scale(0.94);
+  transition-duration: 0.1s;
 }
 @media (hover: hover) and (pointer: fine) {
   .rd .strip-nav button:hover {
@@ -948,18 +966,14 @@ h3,
   align-items: start;
   padding: 32px 8px;
   border-bottom: 1px solid var(--line-l);
-  transition: background 0.25s;
+  transition: background 0.25s, padding-left 0.25s var(--ease-out);
 }
-/* Сдвиг содержимого на hover — transform вместо padding (без рефлоу грида) */
-.rd .salon-row > * {
-  transition: transform 0.25s var(--ease-out);
-}
+/* Индент строки на hover — как в утверждённом макете (padding-left);
+   рефлоу редкого десктоп-ховера — осознанная цена за точность макета */
 @media (hover: hover) and (pointer: fine) {
   .rd .salon-row:hover {
     background: var(--plum-50);
-  }
-  .rd .salon-row:hover > * {
-    transform: translateX(12px);
+    padding-left: 20px;
   }
 }
 .rd .salon-city {
