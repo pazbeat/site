@@ -24,10 +24,13 @@ export type ProgramOptionDto = {
   priceKzt: number;
 };
 
+export type ProgramHighlightDto = "hit" | "trend" | "season";
+
 export type ProgramDto = {
   id: number;
   category: "massage" | "spa" | "set";
-  popular: boolean;
+  /** Метка-подборка («Хит»/«В тренде»/«Сезонное»), null — без метки */
+  highlight: ProgramHighlightDto | null;
   name: string;
   description: string;
   photoUrl: string | null;

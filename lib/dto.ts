@@ -22,7 +22,7 @@ export function toProgramDto(
   return {
     id: program.id,
     category: program.category,
-    popular: program.popular,
+    highlight: program.highlight,
     name: pickL10n(program.names, locale),
     description: pickL10n(program.descriptions, locale),
     photoUrl: program.photoUrl,

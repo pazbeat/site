@@ -21,7 +21,7 @@ export type ProgramEditorData = {
   descRu: string;
   descKk: string;
   descEn: string;
-  popular: boolean;
+  highlight: "hit" | "trend" | "season" | null;
   active: boolean;
   photoUrl: string | null;
   cities: string;
@@ -174,17 +174,24 @@ export function ProgramEditor({
         />
       </div>
 
-      <div className="flex gap-6">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="popular"
-            defaultChecked={initial.popular}
-            className="h-4 w-4 accent-brand-purple"
-          />
-          Популярное
-        </label>
-        <label className="flex items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-end gap-6">
+        <div>
+          <label className={labelCls} htmlFor="p-highlight">
+            Подборка (бейдж на витрине)
+          </label>
+          <select
+            id="p-highlight"
+            name="highlight"
+            defaultValue={initial.highlight ?? ""}
+            className={inputCls}
+          >
+            <option value="">— без метки —</option>
+            <option value="hit">🔥 Хит</option>
+            <option value="trend">⭐ В тренде</option>
+            <option value="season">🍂 Сезонное</option>
+          </select>
+        </div>
+        <label className="flex items-center gap-2 pb-2 text-sm">
           <input
             type="checkbox"
             name="active"

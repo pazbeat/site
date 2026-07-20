@@ -514,9 +514,9 @@ export function BuilderClient({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-brand-purple-950/70 p-4 backdrop-blur-sm"
+          className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-brand-purple-950/70 p-4 backdrop-blur-sm"
         >
-          <div className="w-full max-w-md rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl sm:p-8">
+          <div className="modal-panel w-full max-w-md rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl sm:p-8">
             <h2 className="mb-3 font-display text-2xl font-semibold text-brand-purple">
               {t("resumeTitle")}
             </h2>
@@ -574,7 +574,9 @@ export function BuilderClient({
       </div>
 
       <div className="grid items-start gap-9 lg:grid-cols-[1fr_400px]">
-        <div className="rounded-2xl border border-brand-purple-100 bg-white p-6 shadow-sm sm:p-8">
+        {/* key={step}: перемонтаж контейнера при смене шага даёт короткий
+            вход .step-enter вместо мгновенной подмены контента */}
+        <div key={step} className="step-enter rounded-2xl border border-brand-purple-100 bg-white p-6 shadow-sm sm:p-8">
           {/* ШАГ 1: тип + город/филиал */}
           {step === 0 && (
             <>
@@ -1088,7 +1090,7 @@ export function BuilderClient({
                 type="button"
                 disabled={submitting}
                 onClick={() => setPayConsentOpen(true)}
-                className="bg-gold-gradient rounded-full px-7 py-3 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+                className="bg-gold-gradient rounded-full px-7 py-3 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-50"
               >
                 {t("s5Pay", { price: formatKzt(total) })}
               </button>

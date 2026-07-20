@@ -17,6 +17,14 @@ enum ProgramCategory {
   set
 }
 
+/// Подборка-витрина программы (запрос заказчика «как у Apple»):
+/// hit — «Хит», trend — «В тренде», season — «Сезонное». null — без метки.
+enum ProgramHighlight {
+  hit
+  trend
+  season
+}
+
 enum CertificateType {
   nominal
   program
@@ -123,7 +131,8 @@ model Program {
   /// {ru, kk, en}
   descriptions Json
   photoUrl     String?         @map("photo_url")
-  popular      Boolean         @default(false)
+  /// Метка-подборка (Хит/В тренде/Сезонное); заменила бывший флаг popular
+  highlight    ProgramHighlight?
   active       Boolean         @default(true)
   /// Города доступности; пустой массив = вся сеть
   cities       String[]        @default([])

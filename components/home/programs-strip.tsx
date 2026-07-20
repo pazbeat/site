@@ -11,6 +11,8 @@ export type StripProgram = {
   dur: string;
   price: string;
   photoUrl: string | null;
+  /** Локализованная метка подборки («Хит»/«В тренде»/«Сезонное») */
+  badge: string | null;
 };
 
 /**
@@ -58,6 +60,7 @@ export function ProgramsStrip({
               // eslint-disable-next-line @next/next/no-img-element -- фото программ могут быть внешними
               <img src={p.photoUrl} alt={p.name} loading="lazy" />
             )}
+            {p.badge && <span className="pcard-badge">{p.badge}</span>}
             <span className="pcard-dur">{p.dur}</span>
             <div className="pcard-cap">
               <h3>{p.name}</h3>

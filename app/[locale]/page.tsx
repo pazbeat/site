@@ -7,9 +7,11 @@ import { HeroShowcase, type HeroSlide } from "@/components/home/hero-showcase";
 import { AtmosphereStrip, type AtmoClip } from "@/components/home/atmosphere-strip";
 import { ProgramsStrip, type StripProgram } from "@/components/home/programs-strip";
 import { GuestInfoAccordion } from "@/components/home/guest-info-accordion";
+import { RevealInit } from "@/components/home/reveal-init";
 import { getActivePrograms, getActiveSalons } from "@/lib/data";
 import { toProgramDto, toSalonDto } from "@/lib/dto";
 import { getGuestInfo } from "@/lib/guest-info";
+import { getTips } from "@/lib/tips";
 import { salonWhatsAppLink, salonWhatsAppDisplay, gisLink } from "@/lib/salon-contacts";
 import { formatKzt } from "@/lib/format";
 
@@ -43,10 +45,12 @@ export default async function HomePage({
   const tCommon = await getTranslations("Common");
   const [programsRaw, salonsRaw] = await Promise.all([getActivePrograms(), getActiveSalons()]);
   const guest = getGuestInfo(locale);
+  const tips = getTips(locale);
 
   const programs = programsRaw.map((p) => toProgramDto(p, locale));
-  const popular = programs.filter((p) => p.popular);
-  const stripSource = (popular.length ? popular : programs).slice(0, 8);
+  // Лента «Популярные» = помеченные подборками (хиты вперёд); фолбэк — все
+  const highlighted = programs.filter((p) => p.highlight);
+  const stripSource = (highlighted.length ? highlighted : programs).slice(0, 8);
   const salons = salonsRaw.map((s) => ({ ...toSalonDto(s, locale), codePrefix: s.codePrefix }));
 
   const cityCount = new Set(salons.map((s) => s.cityKey)).size;
@@ -90,6 +94,7 @@ export default async function HomePage({
     ["atmo-towel", t("atmoCap10")],
   ].map(([file, caption]) => ({ src: `/videos/${file}.mp4`, poster: `/videos/posters/${file}.webp`, caption }));
 
+  const badgeKey = { hit: "badgeHit", trend: "badgeTrend", season: "badgeSeason" } as const;
   const stripPrograms: StripProgram[] = stripSource.map((p) => {
     const minPrice = p.options.length ? Math.min(...p.options.map((o) => o.priceKzt)) : 0;
     return {
@@ -100,6 +105,7 @@ export default async function HomePage({
       dur: durHint(p.options),
       price: t("tickerFrom") + " " + formatKzt(minPrice),
       photoUrl: p.photoUrl,
+      badge: p.highlight ? t(badgeKey[p.highlight]) : null,
     };
   });
 
@@ -121,6 +127,8 @@ export default async function HomePage({
 
   return (
     <main className="rd flex-1">
+      {/* Плавное появление .reveal-секций при прокрутке (как в макете) */}
+      <RevealInit />
       {/* HERO */}
       <HeroShowcase slides={slides} soundOnLabel={t("soundOn")} soundOffLabel={t("soundOff")}>
         <p className="eyebrow">{t("heroEyebrow")}</p>
@@ -166,7 +174,7 @@ export default async function HomePage({
 
       {/* О НАС */}
       <section className="section" id="about">
-        <div className="wrap about-grid">
+        <div className="wrap about-grid reveal">
           <div className="about-text">
             <p className="eyebrow">{t("aboutEyebrow")}</p>
             <p className="statement">{t.rich("aboutStatement", { em })}</p>
@@ -191,12 +199,13 @@ export default async function HomePage({
             </div>
           </div>
           <figure className="collage">
+            {/* Живые кадры из съёмки салонов (кадры видео → WebP) */}
             {/* eslint-disable @next/next/no-img-element */}
             <div className="collage-main">
-              <img src="/programs/blazhenstvo.webp" alt="" />
+              <img src="/photos/about-towel.webp" alt="" />
             </div>
             <div className="collage-small">
-              <img src="/programs/probuzhdenie.webp" alt="" />
+              <img src="/photos/about-lounge.webp" alt="" />
             </div>
             {/* eslint-enable @next/next/no-img-element */}
           </figure>
@@ -205,14 +214,14 @@ export default async function HomePage({
 
       {/* АТМОСФЕРА */}
       <section className="section atmo" id="atmo">
-        <div className="wrap">
+        <div className="wrap reveal">
           <AtmosphereStrip eyebrow={t("atmoEyebrow")} title={t.rich("atmoTitle", { em })} clips={atmoClips} />
         </div>
       </section>
 
       {/* ПРОГРАММЫ */}
       <section className="section tint" id="programs">
-        <div className="wrap">
+        <div className="wrap reveal">
           <ProgramsStrip
             eyebrow={t("popEyebrow")}
             title={t("popTitle")}
@@ -224,7 +233,7 @@ export default async function HomePage({
 
       {/* СЕРТИФИКАТЫ */}
       <section className="section dark" id="gift">
-        <div className="wrap gift-grid">
+        <div className="wrap gift-grid reveal">
           <div>
             <p className="eyebrow">{t("giftEyebrow")}</p>
             <h2>{t.rich("giftTitle", { em })}</h2>
@@ -243,14 +252,14 @@ export default async function HomePage({
           </div>
           <figure className="gift-photo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/programs/ty-i-ya.webp" alt="" />
+            <img src="/photos/gift-petals.webp" alt="" />
           </figure>
         </div>
       </section>
 
       {/* ГДЕ НАС НАЙТИ */}
       <section className="section" id="salons">
-        <div className="wrap">
+        <div className="wrap reveal">
           <div className="section-head">
             <div>
               <p className="eyebrow">{t("salonsEyebrow")}</p>
@@ -303,13 +312,39 @@ export default async function HomePage({
 
       {/* ПЕРЕД ВИЗИТОМ */}
       <section className="section" id="guests">
-        <div className="wrap guest-grid">
+        <div className="wrap guest-grid reveal">
           <div className="guest-side">
             <p className="eyebrow">{t("guestEyebrow")}</p>
             <h2>{guest.heading}</h2>
             <p className="note">{guest.sub}</p>
           </div>
           <GuestInfoAccordion sections={guest.sections} />
+        </div>
+      </section>
+
+      {/* СОВЕТЫ */}
+      <section className="section tint" id="tips">
+        <div className="wrap reveal">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">{t("tipsEyebrow")}</p>
+              <h2>{tips.heading}</h2>
+            </div>
+          </div>
+          <p style={{ maxWidth: "52ch", color: "var(--ink-soft)", marginTop: "-26px" }}>
+            {tips.sub}
+          </p>
+          <div className="tips-grid">
+            {tips.tips.map((tip, i) => (
+              <div className="tip" key={tip.title}>
+                <span className="tip-num" aria-hidden>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h3>{tip.title}</h3>
+                <p>{tip.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
