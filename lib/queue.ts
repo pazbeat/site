@@ -13,6 +13,7 @@ const ALTEGIO_REDEMPTIONS = "altegio-redemptions";
 const DELIVER_CERT = "deliver-certificate";
 const DELIVER_SCHEDULED = "deliver-scheduled";
 const EXPIRY_REMINDERS = "expiry-reminders";
+const RECOVER_ABANDONED = "recover-abandoned";
 const POLL_KASPI = "poll-kaspi";
 const ORDER_TTL_MS = 30 * 60_000;
 
@@ -112,6 +113,17 @@ async function createBoss(): Promise<PgBoss> {
   await boss.work(EXPIRY_REMINDERS, async () => {
     const { sendExpiryReminders } = await import("./reminders");
     await sendExpiryReminders();
+  });
+
+  // Дожим брошенных заказов — каждые 15 минут (заказы протухают через 30 мин,
+  // так что письмо уходит вскоре после отказа от оплаты, но в окне 24 ч).
+  await boss.createQueue(RECOVER_ABANDONED);
+  await boss.schedule(RECOVER_ABANDONED, "*/15 * * * *", undefined, {
+    tz: "Asia/Almaty",
+  });
+  await boss.work(RECOVER_ABANDONED, async () => {
+    const { sendAbandonedRecovery } = await import("./recovery");
+    await sendAbandonedRecovery();
   });
 
   return boss;

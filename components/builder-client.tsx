@@ -8,6 +8,7 @@ import { optionLabel } from "./program-card";
 import { formatKzt } from "@/lib/format";
 import { priceHref } from "@/lib/price-list";
 import type {
+  BuilderResume,
   DesignDto,
   NominalDto,
   ProgramDto,
@@ -25,6 +26,8 @@ type Props = Readonly<{
   initialOptionId?: number;
   initialNominalId?: number;
   initialType?: "program" | "nominal";
+  /** Предзаполнение из брошенного заказа (дожим ?resume=token) */
+  resume?: BuilderResume | null;
 }>;
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -94,6 +97,7 @@ export function BuilderClient({
   initialOptionId,
   initialNominalId,
   initialType,
+  resume,
 }: Props) {
   const t = useTranslations("Builder");
   const tCommon = useTranslations("Common");
@@ -112,30 +116,36 @@ export function BuilderClient({
     ? programs.find((p) => p.options.some((o) => o.id === initialOptionId))
     : undefined;
 
-  const [step, setStep] = useState<Step>(0);
-  const [salonId, setSalonId] = useState<number | null>(null);
+  // Дожим (resume) имеет приоритет над query-предвыбором; заполненный заказ
+  // открываем сразу на шаге оплаты — покупателю остаётся один клик.
+  const [step, setStep] = useState<Step>(resume ? 4 : 0);
+  const [salonId, setSalonId] = useState<number | null>(resume?.salonId ?? null);
   const [type, setType] = useState<"program" | "nominal">(
-    initialType ?? (initialNominalId ? "nominal" : "program"),
+    resume?.type ?? initialType ?? (initialNominalId ? "nominal" : "program"),
   );
   const [programId, setProgramId] = useState<number | null>(
-    initialProgram?.id ?? null,
+    resume?.programId ?? initialProgram?.id ?? null,
   );
   const [optionId, setOptionId] = useState<number | null>(
-    initialOptionId ?? null,
+    resume?.optionId ?? initialOptionId ?? null,
   );
   const [nominalId, setNominalId] = useState<number | null>(
-    initialNominalId ?? nominals[0]?.id ?? null,
+    resume?.nominalId ?? initialNominalId ?? nominals[0]?.id ?? null,
   );
-  const [customAmount, setCustomAmount] = useState("");
-  const [designIdx, setDesignIdx] = useState(0);
-  const [toName, setToName] = useState("");
-  const [fromName, setFromName] = useState("");
-  const [message, setMessage] = useState("");
-  const [method, setMethod] = useState<"email" | "whatsapp">("email");
-  const [contact, setContact] = useState("");
+  const [customAmount, setCustomAmount] = useState(resume?.customAmount ?? "");
+  const [designIdx, setDesignIdx] = useState(
+    resume ? Math.min(Math.max(resume.designIdx, 0), designs.length - 1) : 0,
+  );
+  const [toName, setToName] = useState(resume?.toName ?? "");
+  const [fromName, setFromName] = useState(resume?.fromName ?? "");
+  const [message, setMessage] = useState(resume?.message ?? "");
+  const [method, setMethod] = useState<"email" | "whatsapp">(
+    resume?.method ?? "email",
+  );
+  const [contact, setContact] = useState(resume?.contact ?? "");
   const [when, setWhen] = useState<"now" | "scheduled">("now");
   const [scheduledAt, setScheduledAt] = useState("");
-  const [buyerEmail, setBuyerEmail] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState(resume?.buyerEmail ?? "");
   const [provider, setProvider] = useState<"kaspi" | "freedom">("kaspi");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -198,8 +208,14 @@ export function BuilderClient({
   };
 
   // При входе читаем черновик: есть прогресс → спросим (после согласия),
-  // иначе сразу разрешаем сохранение нового.
+  // иначе сразу разрешаем сохранение нового. Дожим (resume) авторитетнее
+  // черновика: заказ уже восстановлен из письма — старый черновик стираем.
   useEffect(() => {
+    if (resume) {
+      clearDraft();
+      setResumeResolved(true);
+      return;
+    }
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {

@@ -12,6 +12,7 @@ import { getActivePrograms, getActiveSalons } from "@/lib/data";
 import { toProgramDto, toSalonDto } from "@/lib/dto";
 import { getGuestInfo } from "@/lib/guest-info";
 import { getTips } from "@/lib/tips";
+import { activeOccasion } from "@/lib/occasions";
 import { salonWhatsAppLink, salonWhatsAppDisplay, gisLink } from "@/lib/salon-contacts";
 import { formatKzt } from "@/lib/format";
 
@@ -43,9 +44,11 @@ export default async function HomePage({
   const t = await getTranslations("Home");
   const tNav = await getTranslations("Nav");
   const tCommon = await getTranslations("Common");
+  const tOcc = await getTranslations("Occasion");
   const [programsRaw, salonsRaw] = await Promise.all([getActivePrograms(), getActiveSalons()]);
   const guest = getGuestInfo(locale);
   const tips = getTips(locale);
+  const occasion = activeOccasion();
 
   const programs = programsRaw.map((p) => toProgramDto(p, locale));
   // Лента «Популярные» = помеченные подборками (хиты вперёд); фолбэк — все
@@ -171,6 +174,28 @@ export default async function HomePage({
           ))}
         </div>
       </div>
+
+      {/* СЕЗОННЫЙ БАННЕР — только когда идёт окно повода */}
+      {occasion && (
+        <Link
+          href={`/gift/${occasion.slug}`}
+          className="bg-gold-gradient block transition-[filter] hover:brightness-105"
+        >
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-5 py-3 text-center text-sm font-semibold text-brand-purple-950">
+            <span aria-hidden className="text-lg">
+              {occasion.emoji}
+            </span>
+            <span>
+              {tOcc("bannerNew", {
+                occasion: (occasion.short ?? occasion.names)[locale],
+              })}
+            </span>
+            <span className="font-bold underline underline-offset-2">
+              {tOcc("bannerCta")} →
+            </span>
+          </div>
+        </Link>
+      )}
 
       {/* О НАС */}
       <section className="section" id="about">

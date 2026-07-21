@@ -285,6 +285,38 @@ h3,
   }
 }
 
+/* Открытие подарка (страница сертификата): «упаковка» приглашает нажатием,
+   раскрытие — мягкое проявление сертификата снизу вверх. */
+.gift-cta {
+  animation: gift-breathe 2.4s ease-in-out infinite;
+}
+.gift-box:hover .gift-cta {
+  transform: scale(1.03);
+}
+.gift-box:active {
+  transform: scale(0.99);
+}
+@keyframes gift-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 10px 26px rgba(182, 146, 68, 0.35);
+  }
+  50% {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 40px rgba(182, 146, 68, 0.5);
+  }
+}
+.gift-revealed {
+  animation: gift-reveal 0.55s cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes gift-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.965);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
