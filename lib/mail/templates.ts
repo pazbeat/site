@@ -21,6 +21,11 @@ const STRINGS = {
     reminderTitle: "Не забудьте про подарок 🌿",
     reminderBody: (days: number) =>
       `Ваш подарочный сертификат Imbir Thai Spa действует ещё ${days} дн. Успейте записаться и порадовать себя тайским расслаблением — код сертификата в ранее отправленном PDF.`,
+    recoverySubject: "Вы почти оформили подарок 🌿",
+    recoveryTitle: "Продолжите оформление",
+    recoveryBody: (to: string) =>
+      `Вы начали оформлять подарочный сертификат Imbir Thai Spa для «${to}», но не завершили оплату. Мы сохранили ваш выбор — продолжите с того же места одним нажатием.`,
+    recoveryCta: "Продолжить оформление",
     validUntil: "Действует до",
     footer:
       "Imbir Thai Spa · сеть салонов тайского массажа и SPA · +7 708 111 8098 · spa@imbir.kz",
@@ -39,6 +44,11 @@ const STRINGS = {
     reminderTitle: "Сыйлықты ұмытпаңыз 🌿",
     reminderBody: (days: number) =>
       `Сіздің Imbir Thai Spa сыйлық сертификатыңыз тағы ${days} күн жарамды. Жазылып, тай демалысымен ләззат алуға үлгеріңіз — сертификат коды бұрын жіберілген PDF-те.`,
+    recoverySubject: "Сіз сыйлықты ресімдеп бітірмедіңіз 🌿",
+    recoveryTitle: "Ресімдеуді жалғастырыңыз",
+    recoveryBody: (to: string) =>
+      `Сіз «${to}» үшін Imbir Thai Spa сыйлық сертификатын ресімдей бастадыңыз, бірақ төлемді аяқтамадыңыз. Таңдауыңызды сақтадық — бір басумен тоқтаған жеріңізден жалғастырыңыз.`,
+    recoveryCta: "Ресімдеуді жалғастыру",
     validUntil: "Жарамдылық мерзімі",
     footer:
       "Imbir Thai Spa · тай массажы мен SPA салондарының желісі · +7 708 111 8098 · spa@imbir.kz",
@@ -57,6 +67,11 @@ const STRINGS = {
     reminderTitle: "Don't forget your gift 🌿",
     reminderBody: (days: number) =>
       `Your Imbir Thai Spa gift certificate is valid for ${days} more days. Book your visit and treat yourself to Thai relaxation — the certificate code is in the PDF sent earlier.`,
+    recoverySubject: "You almost finished your gift 🌿",
+    recoveryTitle: "Finish your order",
+    recoveryBody: (to: string) =>
+      `You started creating an Imbir Thai Spa gift certificate for “${to}” but didn't complete the payment. We saved your choices — pick up right where you left off in one tap.`,
+    recoveryCta: "Continue my order",
     validUntil: "Valid until",
     footer:
       "Imbir Thai Spa · Thai massage & SPA salons · +7 708 111 8098 · spa@imbir.kz",
@@ -135,6 +150,23 @@ export function reminderEmail(data: {
       `${s.reminderBody(data.daysLeft)}<br/><br/><b>${s.validUntil}: ${data.validUntil}</b>`,
       s.footer,
     ),
+  };
+}
+
+/**
+ * Письмо-дожим брошенного заказа (Фаза 2): покупатель не завершил оплату.
+ * Ведёт на конструктор с предзаполнением из сохранённого заказа.
+ */
+export function recoveryEmail(data: {
+  locale: string;
+  toName: string;
+  resumeUrl: string;
+}): { subject: string; html: string } {
+  const s = pick(data.locale);
+  const button = `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 4px"><tr><td style="border-radius:999px;background:#4D295D"><a href="${data.resumeUrl}" style="display:inline-block;padding:13px 30px;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:999px">${s.recoveryCta} →</a></td></tr></table>`;
+  return {
+    subject: s.recoverySubject,
+    html: layout(s.recoveryTitle, `${s.recoveryBody(data.toName)}${button}`, s.footer),
   };
 }
 

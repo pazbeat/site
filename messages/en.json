@@ -115,6 +115,15 @@
     "badgeSeason": "Seasonal",
     "guestEyebrow": "Before your visit"
   },
+  "Occasion": {
+    "allPrograms": "All programmes",
+    "pickTitle": "What to gift",
+    "pickSub": "We picked programmes that suit this occasion",
+    "orAmount": "Not sure what to choose?",
+    "orAmountLink": "gift a certificate for an amount",
+    "bannerCta": "Choose a gift",
+    "bannerNew": "{occasion} is coming — gift some care"
+  },
   "Quiz": {
     "teaser": "Not sure what to choose?",
     "teaserSub": "Answer 3 questions — we'll pick a programme in 30 seconds",
@@ -242,6 +251,13 @@
     "promoApplied": "Discount {amount}",
     "promoInvalid": "Promo code is not valid",
     "lead": "Five steps — and the certificate reaches the recipient by WhatsApp or email as a beautiful PDF with a QR code."
+  },
+  "Gift": {
+    "eyebrow": "A gift for you",
+    "forName": "For {name}",
+    "fromName": "from {name}",
+    "open": "Open your gift",
+    "openHint": "Tap to reveal the certificate"
   },
   "Success": {
     "title": "Certificate paid!",

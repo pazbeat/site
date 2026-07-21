@@ -39,6 +39,23 @@ export type ProgramDto = {
   options: ProgramOptionDto[];
 };
 
+/** Предзаполнение конструктора из брошенного заказа (дожим по email-ссылке). */
+export type BuilderResume = {
+  salonId: number;
+  type: "program" | "nominal";
+  programId: number | null;
+  optionId: number | null;
+  nominalId: number | null;
+  customAmount: string;
+  designIdx: number;
+  toName: string;
+  fromName: string;
+  message: string;
+  method: "email" | "whatsapp";
+  contact: string;
+  buyerEmail: string;
+};
+
 export type SalonDto = {
   id: number;
   /** Русский ключ города: значение селекта и связь с ProgramDto.cities */
