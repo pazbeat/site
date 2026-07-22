@@ -46,16 +46,11 @@ export function GiftReveal({
     } catch {
       // не критично
     }
-    const reduced = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    if (reduced) {
-      setPhase("open");
-      return;
-    }
+    // Хореография играет всегда (по требованию заказчика) — CSS с !important
+    // переживает системное «уменьшить движение».
     setPhase("opening");
-    // Длительность хореографии крышки/искр до появления сертификата
-    window.setTimeout(() => setPhase("open"), 640);
+    // Длительность сцены (вздрагивание → крышка → искры) до сертификата
+    window.setTimeout(() => setPhase("open"), 900);
   };
 
   // До гидрации (SSR/no-JS) — сразу сертификат, чтобы контент был доступен.
@@ -73,13 +68,19 @@ export function GiftReveal({
         <span className="gift-eyebrow">{t("eyebrow")}</span>
 
         <div className="gift3d" aria-hidden>
+          <span className="gift-halo" />
           <span className="gift-glow" />
+          <span className="gift-ring" />
           <span className="spark s1" />
           <span className="spark s2" />
           <span className="spark s3" />
           <span className="spark s4" />
           <span className="spark s5" />
           <span className="spark s6" />
+          <span className="spark s7" />
+          <span className="spark s8" />
+          <span className="spark s9" />
+          <span className="spark s10" />
 
           <div className="gift3d-body">
             <span className="gift-rib-v" />
