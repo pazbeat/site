@@ -6,11 +6,12 @@ import { useTranslations } from "next-intl";
 
 /**
  * «Открытие подарка» на странице сертификата. Получатель видит закрытую
- * фирменную «упаковку» с именами → по нажатию она сменяется сертификатом с
- * мягкой анимацией раскрытия. Уважает prefers-reduced-motion (показывает сразу)
- * и не переигрывает при перезагрузке (флаг в sessionStorage по токену).
+ * фирменную коробку с лентами и именами → по нажатию крышка слетает, из
+ * коробки бьёт золотое свечение с искрами, и снизу поднимается сертификат.
  *
- * Контент (сертификат) — children, рендерится сервером и раскрывается здесь.
+ * Уважает prefers-reduced-motion (раскрывает мгновенно, без хореографии),
+ * не переигрывает при перезагрузке (флаг в sessionStorage по токену).
+ * Контент (сертификат) — children, рендерится сервером.
  */
 export function GiftReveal({
   toName,
@@ -24,83 +25,91 @@ export function GiftReveal({
   children: ReactNode;
 }>) {
   const t = useTranslations("Gift");
-  const [opened, setOpened] = useState(false);
+  const [phase, setPhase] = useState<"closed" | "opening" | "open">("closed");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const key = `imbir-gift-opened:${revealKey}`;
-    let already = false;
     try {
-      already = sessionStorage.getItem(key) === "1";
+      if (sessionStorage.getItem(`imbir-gift-opened:${revealKey}`) === "1") {
+        setPhase("open");
+      }
     } catch {
       // приватный режим — просто покажем упаковку
     }
-    // Упаковку показываем всем; при уже открытом подарке (тот же токен в этой
-    // вкладке) — сразу сертификат. Режим «уменьшить анимацию» НЕ пропускает
-    // упаковку — просто раскрытие будет мгновенным (анимацию глушит CSS).
-    if (already) setOpened(true);
   }, [revealKey]);
 
   const open = () => {
-    setOpened(true);
+    if (phase !== "closed") return;
     try {
       sessionStorage.setItem(`imbir-gift-opened:${revealKey}`, "1");
     } catch {
       // не критично
     }
+    const reduced = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (reduced) {
+      setPhase("open");
+      return;
+    }
+    setPhase("opening");
+    // Длительность хореографии крышки/искр до появления сертификата
+    window.setTimeout(() => setPhase("open"), 640);
   };
 
-  // До гидрации и в открытом состоянии — показываем сертификат (краулеру и
-  // при отключённом JS подарок сразу виден).
-  if (!mounted || opened) {
-    return <div className={mounted ? "gift-revealed" : undefined}>{children}</div>;
-  }
+  // До гидрации (SSR/no-JS) — сразу сертификат, чтобы контент был доступен.
+  if (!mounted) return <div>{children}</div>;
+  if (phase === "open") return <div className="gift-cert-in">{children}</div>;
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="gift-stage">
       <button
         type="button"
         onClick={open}
         aria-label={t("open")}
-        className="gift-box group relative block w-full overflow-hidden rounded-3xl bg-gradient-to-br from-brand-purple to-brand-purple-950 px-8 py-14 text-center text-white shadow-2xl"
+        className={`gift-open-btn${phase === "opening" ? " is-opening" : ""}`}
       >
-        {/* Золотые ленты крест-накрест */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-1/2 w-9 -translate-x-1/2 bg-gradient-to-b from-brand-gold-300/70 via-brand-gold/50 to-brand-gold-300/70"
-        />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-1/2 h-9 -translate-y-1/2 bg-gradient-to-r from-brand-gold-300/70 via-brand-gold/50 to-brand-gold-300/70"
-        />
+        <span className="gift-eyebrow">{t("eyebrow")}</span>
 
-        <div className="relative">
-          <span className="bg-gold-gradient mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full shadow-lg">
-            <Image
-              src="/brand/icon-gold.png"
-              alt=""
-              width={64}
-              height={64}
-              className="h-9 w-9 object-contain brightness-0 invert"
-            />
-          </span>
-          <p className="text-[11px] font-semibold tracking-[0.28em] text-brand-gold-300 uppercase">
-            {t("eyebrow")}
-          </p>
-          <h2 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">
-            {t("forName", { name: toName })}
-          </h2>
-          {fromName && (
-            <p className="mt-1.5 font-display text-lg text-white/80 italic">
-              {t("fromName", { name: fromName })}
-            </p>
-          )}
-          <span className="bg-gold-gradient gift-cta mt-8 inline-block rounded-full px-8 py-3.5 text-sm font-bold text-brand-purple-950 shadow-md">
-            {t("open")}
-          </span>
-          <p className="mt-3 text-xs text-white/55">{t("openHint")}</p>
+        <div className="gift3d" aria-hidden>
+          <span className="gift-glow" />
+          <span className="spark s1" />
+          <span className="spark s2" />
+          <span className="spark s3" />
+          <span className="spark s4" />
+          <span className="spark s5" />
+          <span className="spark s6" />
+
+          <div className="gift3d-body">
+            <span className="gift-rib-v" />
+            <span className="gift-rib-h" />
+            <span className="gift-seal">
+              <Image
+                src="/brand/icon-gold.png"
+                alt=""
+                width={40}
+                height={40}
+                className="h-6 w-6 object-contain brightness-0 invert"
+              />
+            </span>
+            <span className="gift-shine" />
+          </div>
+
+          <div className="gift3d-lid">
+            <span className="gift-lid-rib" />
+          </div>
         </div>
+
+        <div className="gift-names">
+          <span className="gift-for">{t("forName", { name: toName })}</span>
+          {fromName && (
+            <span className="gift-from">{t("fromName", { name: fromName })}</span>
+          )}
+        </div>
+
+        <span className="gift-cta-pill">{t("open")}</span>
+        <span className="gift-hint">{t("openHint")}</span>
       </button>
     </div>
   );
