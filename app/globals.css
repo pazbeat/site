@@ -285,35 +285,347 @@ h3,
   }
 }
 
-/* Открытие подарка (страница сертификата): «упаковка» приглашает нажатием,
-   раскрытие — мягкое проявление сертификата снизу вверх. */
-.gift-cta {
-  animation: gift-breathe 2.4s ease-in-out infinite;
+/* ─────────── Открытие подарка (страница сертификата) ───────────
+   Закрытая фирменная коробка с лентами → крышка слетает, вспышка
+   золота с искрами, сертификат поднимается изнутри. */
+.gift-stage {
+  perspective: 1000px;
 }
-.gift-box:hover .gift-cta {
-  transform: scale(1.03);
+.gift-open-btn {
+  display: block;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 6px 0 4px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: center;
+  color: inherit;
 }
-.gift-box:active {
-  transform: scale(0.99);
+.gift-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+  margin-bottom: 26px;
 }
-@keyframes gift-breathe {
+.gift3d {
+  position: relative;
+  width: 250px;
+  height: 214px;
+  margin: 0 auto;
+}
+.gift-open-btn:not(.is-opening) .gift3d {
+  animation: gift-float 3.2s ease-in-out infinite;
+}
+@keyframes gift-float {
   0%,
   100% {
-    transform: translateY(0);
-    box-shadow: 0 10px 26px rgba(182, 146, 68, 0.35);
+    transform: translateY(0) rotate(-0.6deg);
   }
   50% {
-    transform: translateY(-3px);
-    box-shadow: 0 18px 40px rgba(182, 146, 68, 0.5);
+    transform: translateY(-9px) rotate(0.6deg);
   }
 }
-.gift-revealed {
-  animation: gift-reveal 0.55s cubic-bezier(0.23, 1, 0.32, 1);
+
+/* Корпус коробки */
+.gift3d-body {
+  position: absolute;
+  left: 26px;
+  right: 26px;
+  bottom: 0;
+  height: 150px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #5e3572 0%, #3a2147 62%, #2a1836 100%);
+  box-shadow:
+    0 30px 55px rgba(26, 13, 32, 0.5),
+    inset 0 2px 0 rgba(255, 255, 255, 0.07);
 }
-@keyframes gift-reveal {
+/* Крышка */
+.gift3d-lid {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 40px;
+  height: 52px;
+  z-index: 4;
+  border-radius: 10px;
+  transform-origin: 50% 100%;
+  background: linear-gradient(180deg, #7a4796 0%, #4d295d 100%);
+  box-shadow:
+    0 12px 26px rgba(26, 13, 32, 0.45),
+    inset 0 2px 0 rgba(255, 255, 255, 0.1);
+}
+/* Ленты */
+.gift-rib-v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 34px;
+  transform: translateX(-50%);
+  z-index: 2;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-hi) 45%, var(--gold) 100%);
+}
+.gift-rib-h {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 48px;
+  height: 30px;
+  z-index: 2;
+  background: linear-gradient(180deg, var(--gold) 0%, var(--gold-hi) 45%, var(--gold) 100%);
+}
+.gift-lid-rib {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 34px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-hi) 45%, var(--gold) 100%);
+}
+/* Печать-медальон в центре */
+.gift-seal {
+  position: absolute;
+  left: 50%;
+  top: 63px;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, var(--gold-hi), var(--gold) 72%);
+  box-shadow:
+    0 6px 16px rgba(26, 13, 32, 0.45),
+    inset 0 1px 2px rgba(255, 255, 255, 0.5);
+}
+/* Блик, бегущий по коробке */
+.gift-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow: hidden;
+  pointer-events: none;
+}
+.gift-shine::after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  left: -70%;
+  width: 45%;
+  height: 140%;
+  transform: skewX(-18deg);
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+}
+.gift-open-btn:not(.is-opening) .gift-shine::after {
+  animation: gift-sweep 3.6s ease-in-out infinite;
+}
+@keyframes gift-sweep {
+  0% {
+    left: -70%;
+  }
+  55%,
+  100% {
+    left: 150%;
+  }
+}
+/* Свечение из коробки при открытии */
+.gift-glow {
+  position: absolute;
+  left: 50%;
+  top: 74px;
+  width: 150px;
+  height: 150px;
+  transform: translate(-50%, -50%) scale(0);
+  z-index: 1;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(circle, rgba(217, 188, 121, 0.95), rgba(217, 188, 121, 0) 68%);
+}
+/* Искры */
+.spark {
+  position: absolute;
+  left: 50%;
+  top: 78px;
+  width: 9px;
+  height: 9px;
+  z-index: 6;
+  border-radius: 50%;
+  opacity: 0;
+  background: var(--gold-hi);
+  box-shadow: 0 0 8px rgba(217, 188, 121, 0.9);
+}
+
+/* ── Хореография открытия ── */
+.is-opening .gift3d-lid {
+  animation: gift-lid-off 0.62s cubic-bezier(0.36, 0, 0.4, 1) forwards;
+}
+@keyframes gift-lid-off {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  22% {
+    transform: translateY(-14px) rotate(-4deg);
+  }
+  100% {
+    transform: translateY(-150px) rotate(-16deg);
+    opacity: 0;
+  }
+}
+.is-opening .gift3d-body {
+  animation: gift-body-out 0.62s ease forwards;
+}
+@keyframes gift-body-out {
+  0%,
+  45% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+}
+.is-opening .gift-glow {
+  animation: gift-glow-burst 0.66s ease-out;
+}
+@keyframes gift-glow-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.9);
+  }
+}
+.is-opening .spark {
+  animation: gift-spark 0.6s ease-out forwards;
+}
+@keyframes gift-spark {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.4);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--sx), var(--sy)) scale(1);
+  }
+}
+.is-opening .spark.s1 {
+  --sx: -90px;
+  --sy: -70px;
+}
+.is-opening .spark.s2 {
+  --sx: 70px;
+  --sy: -90px;
+}
+.is-opening .spark.s3 {
+  --sx: -55px;
+  --sy: -110px;
+}
+.is-opening .spark.s4 {
+  --sx: 95px;
+  --sy: -50px;
+}
+.is-opening .spark.s5 {
+  --sx: 10px;
+  --sy: -120px;
+}
+.is-opening .spark.s6 {
+  --sx: -110px;
+  --sy: -30px;
+}
+.is-opening .gift-names,
+.is-opening .gift-cta-pill,
+.is-opening .gift-hint {
+  animation: gift-fade-out 0.3s ease forwards;
+}
+@keyframes gift-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Имена + приглашение */
+.gift-names {
+  margin-top: 22px;
+}
+.gift-for {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--plum-800);
+}
+.gift-from {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--gold-dim);
+}
+.gift-cta-pill {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 14px 34px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(115deg, var(--gold) 0%, var(--gold-hi) 55%, var(--gold) 100%);
+  box-shadow: 0 12px 28px rgba(182, 146, 68, 0.4);
+  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+.gift-open-btn:not(.is-opening) .gift-cta-pill {
+  animation: gift-pulse 2.4s ease-in-out infinite;
+}
+@keyframes gift-pulse {
+  0%,
+  100% {
+    box-shadow: 0 12px 28px rgba(182, 146, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 16px 38px rgba(182, 146, 68, 0.6);
+  }
+}
+.gift-open-btn:hover .gift-cta-pill {
+  transform: translateY(-2px);
+}
+.gift-open-btn:active .gift-cta-pill {
+  transform: scale(0.97);
+}
+.gift-hint {
+  display: block;
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+/* Появление сертификата из коробки */
+.gift-cert-in {
+  animation: gift-cert-rise 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes gift-cert-rise {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.965);
+    transform: translateY(46px) scale(0.92);
   }
 }
 
