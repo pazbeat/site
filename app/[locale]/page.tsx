@@ -76,7 +76,9 @@ export default async function HomePage({
   };
 
   const slides: HeroSlide[] = [
-    { src: "/videos/welcome.mp4", poster: "/videos/posters/welcome.webp", label: t("slide1"), sound: true },
+    // Приветствие тайки озвучено на каждом языке — картинка одна и та же,
+    // отличается только звуковая дорожка, поэтому постер общий.
+    { src: `/videos/welcome-${locale}.mp4`, poster: "/videos/posters/welcome.webp", label: t("slide1"), sound: true },
     { src: "/videos/garden.mp4", poster: "/videos/posters/garden.webp", label: t("slide2") },
     { src: "/videos/reception.mp4", poster: "/videos/posters/reception.webp", label: t("slide3") },
     { src: "/videos/petals.mp4", poster: "/videos/posters/petals.webp", label: t("slide4") },
