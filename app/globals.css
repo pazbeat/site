@@ -330,6 +330,60 @@ h3,
     transform: translateY(-9px) rotate(0.6deg);
   }
 }
+/* «Вздрагивание» перед открытием (предвкушение). Играет всегда (!important
+   переживает системное «уменьшить движение» — по требованию заказчика). */
+.is-opening .gift3d {
+  animation: gift-shake 0.34s ease-in-out !important;
+}
+@keyframes gift-shake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  15% {
+    transform: translateX(-6px) rotate(-2.5deg);
+  }
+  35% {
+    transform: translateX(6px) rotate(2.5deg);
+  }
+  55% {
+    transform: translateX(-5px) rotate(-2deg);
+  }
+  75% {
+    transform: translateX(5px) rotate(2deg);
+  }
+  90% {
+    transform: translateX(-2px) rotate(-1deg);
+  }
+}
+
+/* Мягкий золотой ореол за коробкой (фон сцены) */
+.gift-halo {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 300px;
+  height: 300px;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(182, 146, 68, 0.24), rgba(182, 146, 68, 0) 65%);
+}
+.gift-open-btn:not(.is-opening) .gift-halo {
+  animation: gift-halo 3.6s ease-in-out infinite;
+}
+@keyframes gift-halo {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
 
 /* Корпус коробки */
 .gift3d-body {
@@ -450,53 +504,67 @@ h3,
   opacity: 0;
   background: radial-gradient(circle, rgba(217, 188, 121, 0.95), rgba(217, 188, 121, 0) 68%);
 }
+/* Кольцо-вспышка, разлетающееся из коробки */
+.gift-ring {
+  position: absolute;
+  left: 50%;
+  top: 72px;
+  width: 64px;
+  height: 64px;
+  transform: translate(-50%, -50%) scale(0);
+  z-index: 1;
+  border-radius: 50%;
+  border: 2px solid var(--gold-hi);
+  opacity: 0;
+  pointer-events: none;
+}
 /* Искры */
 .spark {
   position: absolute;
   left: 50%;
-  top: 78px;
+  top: 76px;
   width: 9px;
   height: 9px;
   z-index: 6;
   border-radius: 50%;
   opacity: 0;
   background: var(--gold-hi);
-  box-shadow: 0 0 8px rgba(217, 188, 121, 0.9);
+  box-shadow: 0 0 9px rgba(217, 188, 121, 0.95);
 }
 
-/* ── Хореография открытия ── */
+/* ── Хореография открытия (после «вздрагивания», задержки ~0.3s).
+   Все с !important — играют даже при системном «уменьшить движение». ── */
 .is-opening .gift3d-lid {
-  animation: gift-lid-off 0.62s cubic-bezier(0.36, 0, 0.4, 1) forwards;
+  animation: gift-lid-off 0.55s cubic-bezier(0.36, 0, 0.4, 1) 0.3s forwards !important;
 }
 @keyframes gift-lid-off {
   0% {
     transform: translateY(0) rotate(0deg);
     opacity: 1;
   }
-  22% {
-    transform: translateY(-14px) rotate(-4deg);
+  20% {
+    transform: translateY(-16px) rotate(-5deg);
   }
   100% {
-    transform: translateY(-150px) rotate(-16deg);
+    transform: translateY(-165px) rotate(-18deg);
     opacity: 0;
   }
 }
 .is-opening .gift3d-body {
-  animation: gift-body-out 0.62s ease forwards;
+  animation: gift-body-out 0.5s ease 0.4s forwards !important;
 }
 @keyframes gift-body-out {
-  0%,
-  45% {
+  0% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(14px) scale(0.94);
+    transform: translateY(16px) scale(0.93);
   }
 }
 .is-opening .gift-glow {
-  animation: gift-glow-burst 0.66s ease-out;
+  animation: gift-glow-burst 0.62s ease-out 0.32s !important;
 }
 @keyframes gift-glow-burst {
   0% {
@@ -508,16 +576,33 @@ h3,
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(1.9);
+    transform: translate(-50%, -50%) scale(2.1);
+  }
+}
+.is-opening .gift-ring {
+  animation: gift-ring 0.6s ease-out 0.34s !important;
+}
+@keyframes gift-ring {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.8);
+    border-width: 0.5px;
   }
 }
 .is-opening .spark {
-  animation: gift-spark 0.6s ease-out forwards;
+  animation: gift-spark 0.66s ease-out 0.34s forwards !important;
 }
 @keyframes gift-spark {
   0% {
     opacity: 0;
-    transform: translate(-50%, 0) scale(0.4);
+    transform: translate(-50%, 0) scale(0.35);
   }
   30% {
     opacity: 1;
@@ -527,34 +612,20 @@ h3,
     transform: translate(var(--sx), var(--sy)) scale(1);
   }
 }
-.is-opening .spark.s1 {
-  --sx: -90px;
-  --sy: -70px;
-}
-.is-opening .spark.s2 {
-  --sx: 70px;
-  --sy: -90px;
-}
-.is-opening .spark.s3 {
-  --sx: -55px;
-  --sy: -110px;
-}
-.is-opening .spark.s4 {
-  --sx: 95px;
-  --sy: -50px;
-}
-.is-opening .spark.s5 {
-  --sx: 10px;
-  --sy: -120px;
-}
-.is-opening .spark.s6 {
-  --sx: -110px;
-  --sy: -30px;
-}
+.is-opening .spark.s1 { --sx: -95px; --sy: -72px; }
+.is-opening .spark.s2 { --sx: 74px; --sy: -94px; }
+.is-opening .spark.s3 { --sx: -55px; --sy: -120px; }
+.is-opening .spark.s4 { --sx: 100px; --sy: -52px; }
+.is-opening .spark.s5 { --sx: 12px; --sy: -128px; }
+.is-opening .spark.s6 { --sx: -118px; --sy: -34px; }
+.is-opening .spark.s7 { --sx: 120px; --sy: -6px; }
+.is-opening .spark.s8 { --sx: -40px; --sy: -100px; }
+.is-opening .spark.s9 { --sx: 48px; --sy: -112px; }
+.is-opening .spark.s10 { --sx: -78px; --sy: -96px; }
 .is-opening .gift-names,
 .is-opening .gift-cta-pill,
 .is-opening .gift-hint {
-  animation: gift-fade-out 0.3s ease forwards;
+  animation: gift-fade-out 0.28s ease forwards !important;
 }
 @keyframes gift-fade-out {
   to {
@@ -618,14 +689,19 @@ h3,
   color: var(--ink-soft);
 }
 
-/* Появление сертификата из коробки */
+/* Появление сертификата из коробки — с лёгким пружинным доводом.
+   !important: играет всегда, даже при системном «уменьшить движение». */
 .gift-cert-in {
-  animation: gift-cert-rise 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  animation: gift-cert-rise 0.75s cubic-bezier(0.34, 1.32, 0.5, 1) !important;
 }
 @keyframes gift-cert-rise {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(46px) scale(0.92);
+    transform: translateY(56px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
