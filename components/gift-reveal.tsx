@@ -34,12 +34,12 @@ export function GiftReveal({
     try {
       already = sessionStorage.getItem(key) === "1";
     } catch {
-      // приватный режим — просто покажем анимацию
+      // приватный режим — просто покажем упаковку
     }
-    const reduced = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    if (already || reduced) setOpened(true);
+    // Упаковку показываем всем; при уже открытом подарке (тот же токен в этой
+    // вкладке) — сразу сертификат. Режим «уменьшить анимацию» НЕ пропускает
+    // упаковку — просто раскрытие будет мгновенным (анимацию глушит CSS).
+    if (already) setOpened(true);
   }, [revealKey]);
 
   const open = () => {
