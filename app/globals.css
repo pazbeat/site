@@ -82,6 +82,10 @@ h3,
   /* Тёмные ступени добрали цветности: прежние уходили в серо-чёрный,
      из-за чего фиолетовый на больших заливках почти не читался. */
   --plum-990: #1c0726;
+  /* Тот же цвет в виде RGB-триплета — для полупрозрачных теней и подложек.
+     Раньше они были вбиты литералом rgba(26,13,32,…) мимо переменной, из-за
+     чего после смены палитры стыковались со старым серо-чёрным. */
+  --plum-990-rgb: 28 7 38;
   --plum-950: #2b0b3d;
   --plum-800: #4d295d;
   --plum-700: #6e2f92;
@@ -406,7 +410,7 @@ h3,
   overflow: hidden;
   background: linear-gradient(180deg, #5e3572 0%, #3a2147 62%, #2a1836 100%);
   box-shadow:
-    0 30px 55px rgba(26, 13, 32, 0.5),
+    0 30px 55px rgb(var(--plum-990-rgb) / 0.5),
     inset 0 2px 0 rgba(255, 255, 255, 0.07);
 }
 /* Крышка */
@@ -421,7 +425,7 @@ h3,
   transform-origin: 50% 100%;
   background: linear-gradient(180deg, #7a4796 0%, #4d295d 100%);
   box-shadow:
-    0 12px 26px rgba(26, 13, 32, 0.45),
+    0 12px 26px rgb(var(--plum-990-rgb) / 0.45),
     inset 0 2px 0 rgba(255, 255, 255, 0.1);
 }
 /* Ленты */
@@ -468,7 +472,7 @@ h3,
   border-radius: 50%;
   background: radial-gradient(circle at 35% 28%, var(--gold-hi), var(--gold) 72%);
   box-shadow:
-    0 6px 16px rgba(26, 13, 32, 0.45),
+    0 6px 16px rgb(var(--plum-990-rgb) / 0.45),
     inset 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 /* Блик, бегущий по коробке */
@@ -939,8 +943,8 @@ h3,
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, var(--plum-990) 0%, rgba(26, 13, 32, 0.25) 22%, rgba(26, 13, 32, 0) 45%),
-    linear-gradient(0deg, rgba(26, 13, 32, 0.55) 0%, rgba(26, 13, 32, 0) 32%);
+  background: linear-gradient(90deg, var(--plum-990) 0%, rgb(var(--plum-990-rgb) / 0.25) 22%, rgb(var(--plum-990-rgb) / 0) 45%),
+    linear-gradient(0deg, rgb(var(--plum-990-rgb) / 0.55) 0%, rgb(var(--plum-990-rgb) / 0) 32%);
   pointer-events: none;
   z-index: 1;
 }
@@ -955,7 +959,7 @@ h3,
   padding: 10px 18px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(26, 13, 32, 0.55);
+  background: rgb(var(--plum-990-rgb) / 0.55);
   backdrop-filter: blur(8px);
   color: #fff;
   font-family: var(--font-sans);
@@ -1239,7 +1243,7 @@ h3,
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 42%, rgba(26, 13, 32, 0.75) 100%);
+  background: linear-gradient(180deg, transparent 42%, rgb(var(--plum-990-rgb) / 0.75) 100%);
 }
 .rd .pcard-dur {
   position: absolute;
@@ -1250,7 +1254,7 @@ h3,
   font-weight: 600;
   letter-spacing: 0.16em;
   color: #fff;
-  background: rgba(26, 13, 32, 0.45);
+  background: rgb(var(--plum-990-rgb) / 0.45);
   backdrop-filter: blur(6px);
   border: 1px solid rgba(255, 255, 255, 0.28);
   padding: 6px 12px;
@@ -1270,7 +1274,7 @@ h3,
   background: linear-gradient(115deg, var(--gold) 0%, var(--gold-hi) 60%);
   padding: 6px 12px;
   border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(26, 13, 32, 0.35);
+  box-shadow: 0 4px 14px rgb(var(--plum-990-rgb) / 0.35);
 }
 .rd .pcard-cap {
   position: absolute;
@@ -1544,7 +1548,7 @@ h3,
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 62%, rgba(26, 13, 32, 0.72) 100%);
+  background: linear-gradient(180deg, transparent 62%, rgb(var(--plum-990-rgb) / 0.72) 100%);
   pointer-events: none;
 }
 .rd .acard figcaption {

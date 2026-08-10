@@ -59,7 +59,7 @@ export function SiteHeader() {
       <header
         className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
           solid
-            ? "border-b border-brand-gold/20 bg-[#1a0d20]/95 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-[#1a0d20]/75"
+            ? "border-b border-brand-gold/20 bg-[#1c0726]/95 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-[#1c0726]/75"
             : "border-b border-transparent"
         }`}
       >
@@ -104,7 +104,7 @@ export function SiteHeader() {
                 locale={loc}
                 className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold tracking-wider transition-colors ${
                   loc === locale
-                    ? "bg-gold-gradient border-transparent text-[#1a0d20]"
+                    ? "bg-gold-gradient border-transparent text-[#1c0726]"
                     : "border-white/30 text-white/80 hover:border-brand-gold-300 hover:text-white"
                 }`}
               >
@@ -135,7 +135,7 @@ export function SiteHeader() {
         </div>
 
         {open && (
-          <div className="menu-enter border-t border-white/10 bg-[#1a0d20]/95 px-5 pt-2 pb-5 lg:hidden">
+          <div className="menu-enter border-t border-white/10 bg-[#1c0726]/95 px-5 pt-2 pb-5 lg:hidden">
             <nav className="flex flex-col">
               {NAV.map((item) =>
                 item.anchor ? (

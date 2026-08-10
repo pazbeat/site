@@ -61,7 +61,7 @@ export const OCCASIONS: Occasion[] = [
     slug: "new-year",
     emoji: "❄️",
     window: { from: { m: 12, d: 1 }, to: { m: 1, d: 10 } },
-    accentFrom: "#1a0d20",
+    accentFrom: "#1c0726",
     accentTo: "#4D295D",
     names: {
       ru: "Подарок на Новый год",
