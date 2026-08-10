@@ -226,13 +226,15 @@ export default async function HomePage({
             </div>
           </div>
           <figure className="collage">
-            {/* Живые кадры из съёмки салонов (кадры видео → WebP) */}
+            {/* Возвращены прежние кадры процедур (были до «живых фото» a095e89).
+                Лежат отдельными файлами, а не /programs/…: те переехали на новую
+                серию картинок, и подменять их здесь означало бы тянуть каталог. */}
             {/* eslint-disable @next/next/no-img-element */}
             <div className="collage-main">
-              <img src="/photos/about-towel.webp" alt="" />
+              <img src="/photos/about-hands.webp" alt="" />
             </div>
             <div className="collage-small">
-              <img src="/photos/about-lounge.webp" alt="" />
+              <img src="/photos/about-feet.webp" alt="" />
             </div>
             {/* eslint-enable @next/next/no-img-element */}
           </figure>
@@ -279,7 +281,7 @@ export default async function HomePage({
           </div>
           <figure className="gift-photo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/photos/gift-petals.webp" alt="" />
+            <img src="/photos/gift-couple.webp" alt="" />
           </figure>
         </div>
       </section>
