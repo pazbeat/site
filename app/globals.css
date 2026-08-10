@@ -15,17 +15,21 @@
   /* Акцентный: только ошибки, предупреждения, бейджи скидок */
   --color-brand-red: #cf0000;
 
-  /* Производные оттенки фиолетового (затемнение/осветление #4D295D) */
-  --color-brand-purple-950: #2c1736;
-  --color-brand-purple-800: #3d2049;
-  --color-brand-purple-600: #64367a;
-  --color-brand-purple-100: #ece4f0;
-  --color-brand-purple-50: #f7f3f9;
+  /* Производные оттенки фиолетового (затемнение/осветление #4D295D).
+     Насыщенность подняли: прежние значения уходили в серость и
+     светлые ступени были почти неотличимы от белого. */
+  --color-brand-purple-950: #25082f;
+  --color-brand-purple-800: #3f1256;
+  --color-brand-purple-600: #7b32a8;
+  --color-brand-purple-100: #ead9f5;
+  --color-brand-purple-50: #faf4fd;
 
   /* Производные оттенки золота (затемнение/осветление #B69244) */
-  --color-brand-gold-700: #8f7335;
-  --color-brand-gold-300: #d3bc85;
-  --color-brand-gold-100: #f1e9d6;
+  --color-brand-gold-700: #8a6412;
+  --color-brand-gold-300: #e6c76b;
+  --color-brand-gold-100: #fbf0d4;
+  /* Верхний блик для градиента — без него золото читалось плоским */
+  --color-brand-gold-highlight: #e0bb63;
 
   /* Типографика: Cormorant Garamond — заголовки, Montserrat — текст
      (замена Coco Gothic до подтверждения веб-лицензии, PRD §3.2) */
@@ -59,10 +63,14 @@ h3,
 
 /* Градиент золота для кнопок/акцентов */
 .bg-gold-gradient {
+  /* Три точки: блик → фирменное золото → тень. Прежняя пара
+     #B69244 → #B59243 отличалась на единицу по каналу, поэтому
+     градиента фактически не было и золото читалось заливкой. */
   background-image: linear-gradient(
     120deg,
-    var(--color-brand-gold) 0%,
-    var(--color-brand-gold-2) 100%
+    var(--color-brand-gold-highlight) 0%,
+    var(--color-brand-gold) 52%,
+    var(--gold-dim) 100%
   );
 }
 
@@ -71,14 +79,16 @@ h3,
  * Глубокий фиолетовый почти-чёрный для hero и внутренних шапок-полос.
  */
 :root {
-  --plum-990: #1a0d20;
-  --plum-950: #271331;
+  /* Тёмные ступени добрали цветности: прежние уходили в серо-чёрный,
+     из-за чего фиолетовый на больших заливках почти не читался. */
+  --plum-990: #1c0726;
+  --plum-950: #2b0b3d;
   --plum-800: #4d295d;
-  --plum-700: #5e3572;
-  --plum-50: #f7f3f9;
+  --plum-700: #6e2f92;
+  --plum-50: #faf4fd;
   --gold: #b69244;
-  --gold-hi: #d9bc79;
-  --gold-dim: #8a6f34;
+  --gold-hi: #ecc978;
+  --gold-dim: #7d5c15;
   --ink: #2b1734;
   --ink-soft: rgba(43, 23, 52, 0.68);
   --paper: rgba(255, 255, 255, 0.82);
