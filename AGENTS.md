@@ -6,6 +6,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Imbir Thai Spa — сайт подарочных сертификатов
 
+**Начинать с [docs/STATUS.md](docs/STATUS.md)** — что готово, что в работе, чем
+заблокировано и какие решения открыты. История переписки не переносится между
+машинами, поэтому состояние работ живёт там, а не в чате.
+Справочник по стендам, доступам и запуску с чистой машины —
+[docs/REFERENCE.md](docs/REFERENCE.md).
+
 Полное ТЗ: [docs/prd.md](docs/prd.md). Прототип UI: [docs/prototype.html](docs/prototype.html) (референс структуры/функциональности, но палитра там устаревшая — красить строго по брендбуку). Брендбук: docs/brandbook.pdf.pdf.
 
 ## Стек (зафиксировано в PRD §2)
