@@ -315,6 +315,7 @@ model Certificate {
   altegioBalanceKzt Int?              @map("altegio_balance_kzt")
   createdAt         DateTime          @default(now()) @map("created_at")
   redemptions       Redemption[]
+  walletPasses      WalletPass[]
 
   @@index([status, validUntil])
   @@index([altegioSyncStatus, altegioCompanyId])
@@ -414,4 +415,59 @@ model Setting {
   value Json
 
   @@map("settings")
+}
+
+/// Платформа кошелька. Apple обновляет карту push-уведомлением через
+/// собственный веб-сервис, Google — прямым PATCH объекта, поэтому храним
+/// по одному пропуску на платформу.
+enum WalletPlatform {
+  apple
+  google
+}
+
+/// Выпущенный пропуск в кошельке (Apple Wallet / Google Wallet).
+/// Живёт отдельно от сертификата: у одного сертификата может быть по
+/// пропуску на каждую платформу, а карту нужно уметь обновлять и после
+/// погашения — баланс уменьшается, использованный помечается voided.
+model WalletPass {
+  id            String         @id @default(cuid())
+  certificateId String         @map("certificate_id")
+  certificate   Certificate    @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  platform      WalletPlatform
+  /// Серийный номер карты — то, чем Apple адресует пропуск в веб-сервисе.
+  /// Намеренно НЕ код сертификата: serial уезжает на устройство и светится
+  /// в запросах, а код IMB-… секретный и хранится только хэшем.
+  serialNumber  String         @unique @map("serial_number")
+  /// Токен из заголовка `Authorization: ApplePass <token>`. Шифруем AES-GCM
+  /// (lib/crypto), а не хэшируем: обновлённый пропуск обязан содержать тот же
+  /// токен, иначе устройство отвалится и потребует повторного добавления.
+  authTokenEnc  String         @map("auth_token_enc")
+  /// Идентификатор объекта в Google Wallet (issuerId.suffix)
+  googleObjectId String?       @map("google_object_id")
+  /// Баланс, который сейчас реально показан на карте. Позволяет не дёргать
+  /// push, когда сверка с Altegio ничего не изменила.
+  shownBalanceKzt Int?         @map("shown_balance_kzt")
+  lastPushedAt  DateTime?      @map("last_pushed_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  devices       WalletDevice[]
+
+  @@unique([certificateId, platform])
+  @@map("wallet_passes")
+}
+
+/// Устройство, зарегистрированное на обновления пропуска (только Apple).
+/// Одна карта может лежать на нескольких устройствах одного Apple ID.
+model WalletDevice {
+  id              String     @id @default(cuid())
+  passId          String     @map("pass_id")
+  pass            WalletPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  deviceLibraryId String     @map("device_library_id")
+  /// APNs-токен устройства: по нему шлём «сходи за обновлением»
+  pushToken       String     @map("push_token")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  @@unique([passId, deviceLibraryId])
+  @@index([deviceLibraryId])
+  @@map("wallet_devices")
 }

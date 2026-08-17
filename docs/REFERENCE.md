@@ -84,6 +84,41 @@
 railway run --service Postgres node -e "const {execSync}=require('child_process'); execSync('npx tsx scripts/apply-program-photos.ts',{stdio:'inherit',env:{...process.env,DATABASE_URL:process.env.DATABASE_PUBLIC_URL}})"
 ```
 
+## Как продолжить работу с другого компьютера
+
+В репозитории лежит всё, что нужно, чтобы поднять проект с нуля. Кроме двух
+вещей, которые в гит намеренно не попадают: **секретов** и **содержимого базы**.
+
+```bash
+git clone https://github.com/pazbeat/site.git
+cd site
+git checkout redesign        # вся текущая работа здесь, main отстаёт
+npm ci
+cp .env.example .env         # заполнить значениями (см. ниже, откуда брать)
+docker run -d --name imbir-pg -p 5432:5432 \
+  -e POSTGRES_USER=imbir -e POSTGRES_PASSWORD=imbir -e POSTGRES_DB=imbir \
+  postgres:16-alpine
+npx prisma migrate deploy
+npx prisma db seed           # справочники: программы, номиналы, филиалы
+npx tsx scripts/create-admin.ts <email> <пароль> superadmin
+npm run dev
+```
+
+**Откуда брать значения для `.env`:**
+
+- боевые — из переменных стенда: `railway variables` (нужен `railway login`);
+- либо из менеджера паролей владельца;
+- для локальной разработки многое можно не заполнять: без ключей Resend и
+  ChatApp письма и сообщения пишутся в `.mail-outbox/` и `.wa-outbox/`,
+  а `PAYMENT_MOCK=1` включает демо-оплату.
+
+**Чего не будет после чистой установки:** заказов, выпущенных сертификатов,
+правовых текстов, правок справочников через админку. Сид создаёт только
+базовый набор (20 программ), тогда как в рабочих базах программ больше —
+часть добавлялась скриптами `scripts/apply-*.ts` и через админку. Если нужна
+копия боевых данных — снимать дамп через панель бэкапов в админке или
+`scripts/backup-db.sh`.
+
 ## Полезные ссылки
 
 - ТЗ: [prd.md](prd.md)
