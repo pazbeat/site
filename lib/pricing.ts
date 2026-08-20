@@ -32,8 +32,12 @@ export async function resolveOrderAmount(
   salonId: number,
   item: PricingItem,
 ): Promise<PricingResult> {
+  // orderable обязателен наравне с active: филиалы вроде Экибастуза и
+  // Жезказгана показываются на витрине, но НЕ заведены в Altegio — заказ
+  // на них создавал бы сертификат, который негде погасить. Конструктор их
+  // и так не предлагает, но проверка интерфейса обходится запросом напрямую.
   const salon = await prisma.salon.findFirst({
-    where: { id: salonId, active: true },
+    where: { id: salonId, active: true, orderable: true },
   });
   if (!salon) return { ok: false, error: "salon_not_found" };
 

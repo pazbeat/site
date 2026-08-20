@@ -13,7 +13,6 @@
 import "dotenv/config";
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import path from "node:path";
-import mammoth from "mammoth";
 import sanitizeHtml from "sanitize-html";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../lib/generated/prisma/client";
@@ -73,9 +72,17 @@ async function loadHtml(
 ): Promise<string | null> {
   if (lang === "ru" && docx) {
     const src = path.join(process.cwd(), "rules", docx);
-    if (!(await exists(src))) return null;
-    const { value } = await mammoth.convertToHtml({ buffer: await readFile(src) });
-    return value.replace(/http:\/\/(www\.)?imbir\.kz/gi, "https://$1imbir.kz");
+    // Папки rules/ нет ни в гите, ни в боевом образе — там .docx от
+    // заказчика. Раньше в этом случае возвращали null, и русские тексты
+    // не импортировались ВООБЩЕ, хотя готовый html лежит рядом. Теперь
+    // при отсутствии docx просто уходим на файл prisma/legal/*.ru.html.
+    if (await exists(src)) {
+      // mammoth — devDependency, в боевом образе его нет. Грузим только
+      // когда docx реально есть, иначе скрипт падал на импорте модуля.
+      const { default: mammoth } = await import("mammoth");
+      const { value } = await mammoth.convertToHtml({ buffer: await readFile(src) });
+      return value.replace(/http:\/\/(www\.)?imbir\.kz/gi, "https://$1imbir.kz");
+    }
   }
   const file = path.join(outDir, `${type}.${lang}.html`);
   if (!(await exists(file))) return null;
