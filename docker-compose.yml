@@ -27,6 +27,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Весь .env.production целиком: флаги режимов (PAYMENT_MOCK, WHATSAPP_MOCK,
+    # PREVIEW_NO_2FA) и секреты интеграций, которые ниже поимённо не перечислены.
+    # Без этого контейнер стартовал с боевой оплатой вместо демо.
+    env_file:
+      - .env.production
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-imbir}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-imbir}
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
