@@ -49,7 +49,14 @@ export function resetRateLimits(): void {
 }
 
 export function clientIp(request: Request): string {
+  // X-Real-IP приоритетнее: обратный прокси ставит его из $remote_addr,
+  // перезаписывая присланное клиентом. X-Forwarded-For же прокси обычно
+  // ДОПИСЫВАЕТ к клиентскому значению, поэтому первый элемент списка
+  // подконтролен клиенту — на этом ограничение частоты обходилось
+  // подстановкой нового адреса в каждом запросе (проверено живьём).
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
+  return "unknown";
 }
