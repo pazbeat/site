@@ -55,6 +55,9 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/package.json ./package.json
+# Скрипты обслуживания: создание администратора, разовые правки справочников.
+# Без них в готовом контейнере невозможно завести вход в админку.
+COPY --from=builder /app/scripts ./scripts
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 # Нормализуем переносы строк: репозиторий чекаутится на Windows с CRLF,
 # из-за чего шебанг `#!/bin/sh\r` ломает запуск («No such file or directory»)
