@@ -109,7 +109,14 @@ async function main() {
         continue;
       }
       const clean = sanitizeLegalHtml(raw);
-      await writeFile(path.join(outDir, `${type}.${lang}.html`), clean, "utf8");
+      // Обратная запись html — удобство локальной разработки (держать файлы
+      // в гите в уже санитизированном виде). В контейнере каталог доступен
+      // только на чтение, и падать из-за этого нельзя: главное — импорт в БД.
+      try {
+        await writeFile(path.join(outDir, `${type}.${lang}.html`), clean, "utf8");
+      } catch {
+        // читаем дальше, версия всё равно будет создана
+      }
 
       const version = await prisma.legalVersion.create({
         data: { documentId: document.id, contentHtmlSanitized: clean, lang },
