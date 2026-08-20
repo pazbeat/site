@@ -1,11 +1,11 @@
-import { requireSuperadmin } from "@/lib/admin/guard";
+import { requireCatalogEditor } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { SalonsAdmin, type AdminSalon } from "@/components/admin/salons-admin";
 import { prisma } from "@/lib/db";
 import { pickL10n } from "@/lib/l10n";
 
 export default async function AdminSalonsPage() {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const salons = await prisma.salon.findMany({ orderBy: { sort: "asc" } });
   const [orderCounts, certCounts] = await Promise.all([
     prisma.order.groupBy({ by: ["salonId"], _count: { _all: true } }),

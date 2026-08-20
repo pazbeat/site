@@ -12,7 +12,6 @@ import {
   buyerEmail,
   managerEmail,
   recipientEmail,
-  whatsappRecipientText,
 } from "./mail/templates";
 import { renderCertificatePdf } from "./pdf/certificate";
 import type { DesignBgStyle } from "./types";
@@ -182,48 +181,24 @@ export async function deliverCertificate(certificateId: string): Promise<void> {
   const attachment = { filename, content: pdf };
   const mailer = getMailer();
 
-  // Доставка получателю: email — PDF письмом; whatsapp — текст со ссылкой
-  // на сертификат + PDF-файлом (best-effort) через ChatApp.
-  if (certificate.deliveryMethod === "email") {
-    const mail = recipientEmail(mailData);
-    await mailer.send({
-      to: certificate.deliveryContact,
-      subject: mail.subject,
-      html: mail.html,
-      attachments: [attachment],
-    });
-  } else if (certificate.deliveryMethod === "whatsapp") {
-    const { getMessenger } = await import("./messaging");
-    const messenger = getMessenger();
-    const link = `${siteUrl()}/${locale}/success?token=${certificate.order.successToken}`;
-    console.log(
-      `[delivery] WhatsApp → ${certificate.deliveryContact} (provider=${messenger.id})`,
-    );
-    await messenger.sendText(
-      certificate.deliveryContact,
-      whatsappRecipientText({
-        locale,
-        fromName: certificate.fromName,
-        validUntil: mailData.validUntil,
-        link,
-      }),
-    );
-    console.log(`[delivery] WhatsApp text OK → ${certificate.deliveryContact}`);
-    // PDF-файл: ChatApp качает вложение по публичному URL. На localhost URL
-    // недоступен извне → упадёт; поэтому best-effort (текст со ссылкой выше
-    // уже доставлен). На публичном хостинге доставит PDF.
-    try {
-      const pdfUrl = `${siteUrl()}/api/certificates/pdf?token=${certificate.order.successToken}`;
-      await messenger.sendFile(certificate.deliveryContact, {
-        filename,
-        content: pdf,
-        mimeType: "application/pdf",
-        url: pdfUrl,
-      });
-    } catch (error) {
-      console.error("whatsapp file send failed (non-fatal)", error);
-    }
-  }
+  // Доставка получателю — только письмом с PDF. Отправка в WhatsApp
+  // убрана: ChatApp у заказчика отключён, канал не оплачивается.
+  // В БД остаётся старое значение deliveryMethod=whatsapp у ранее
+  // выпущенных сертификатов, поэтому шлём письмом в любом случае —
+  // молча ничего не отправить было бы хуже.
+  const mail = recipientEmail(mailData);
+  // У сертификатов, выпущенных до отключения WhatsApp, в контакте лежит
+  // телефон — письмо туда не уйдёт. Для них адресат — почта покупателя.
+  const recipient =
+    certificate.deliveryMethod === "email"
+      ? certificate.deliveryContact
+      : certificate.order.buyerEmail;
+  await mailer.send({
+    to: recipient,
+    subject: mail.subject,
+    html: mail.html,
+    attachments: [attachment],
+  });
 
   // Копия покупателю (PRD §5.3)
   const buyer = buyerEmail(mailData);

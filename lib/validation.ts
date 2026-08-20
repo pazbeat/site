@@ -31,7 +31,9 @@ export const orderSchema = z
     /// Поздравление ≤ 120 символов (PRD §5.1)
     message: z.string().trim().max(120).optional().default(""),
     delivery: z.object({
-      method: z.enum(["email", "whatsapp"]),
+      // Только почта: доставка сертификата в WhatsApp отключена —
+      // ChatApp у заказчика убрали, канал больше не оплачивается.
+      method: z.enum(["email"]),
       contact: z.string().trim().min(1).max(120),
       /// ISO-строка; интерпретируется в Asia/Almaty
       scheduledAt: z.iso.datetime({ offset: true }).optional(),

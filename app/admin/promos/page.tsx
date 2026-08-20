@@ -1,4 +1,4 @@
-import { requireSuperadmin } from "@/lib/admin/guard";
+import { requireCatalogEditor } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { ToggleActiveButton } from "@/components/admin/toggle-active";
 import { PromoForm, type PromoFormValues } from "@/components/admin/promo-form";
@@ -19,7 +19,7 @@ function limitsSummary(limits: PromoLimits): string {
 }
 
 export default async function AdminPromosPage() {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
 
   const [promos, usage] = await Promise.all([
     prisma.promo.findMany({ orderBy: { id: "desc" } }),

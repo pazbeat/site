@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireSuperadmin, auditLog } from "@/lib/admin/guard";
+import { requireCatalogEditor, auditLog } from "@/lib/admin/guard";
 import { deleteUpload, saveImageUpload } from "@/lib/admin/upload";
 
 const optionSchema = z.object({
@@ -53,7 +53,7 @@ function parseForm(formData: FormData) {
 }
 
 export async function saveProgramAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const parsed = parseForm(formData);
   if (!parsed.success) return { error: "Проверьте поля программы." };
   const d = parsed.data;
@@ -176,7 +176,7 @@ export async function saveProgramAction(formData: FormData) {
 
 /** Деактивация/активация. Удаление запрещено, если есть проданные сертификаты (PRD §6.2). */
 export async function toggleProgramActiveAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const program = await prisma.program.findUnique({ where: { id } });
   if (!program) return { error: "Программа не найдена." };

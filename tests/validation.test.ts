@@ -65,17 +65,13 @@ describe("orderSchema", () => {
     ).toBe(false);
   });
 
-  it("для WhatsApp-доставки контакт должен быть телефоном", () => {
+  it("доставка в WhatsApp больше не принимается", () => {
+    // Канал отключён вместе с ChatApp: заказ с method=whatsapp должен
+    // отвергаться, иначе покупатель выбрал бы способ, который не работает.
     expect(
       orderSchema.safeParse({
         ...baseOrder,
         delivery: { method: "whatsapp", contact: "+7 708 111 80 98" },
-      }).success,
-    ).toBe(true);
-    expect(
-      orderSchema.safeParse({
-        ...baseOrder,
-        delivery: { method: "whatsapp", contact: "aigerim@mail.kz" },
       }).success,
     ).toBe(false);
   });

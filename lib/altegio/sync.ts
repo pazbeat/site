@@ -130,7 +130,8 @@ export async function syncCertificateToAltegio(
       buyerName: cert.fromName,
       buyerEmail: cert.order.buyerEmail,
       buyerPhone:
-        cert.deliveryMethod === "whatsapp" ? cert.deliveryContact : undefined,
+        // Доставка теперь только на почту, телефон берём у покупателя
+        cert.order.buyerPhone ?? undefined,
       orderId: cert.orderId,
       comment: payload.comment,
     });

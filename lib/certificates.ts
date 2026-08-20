@@ -32,7 +32,7 @@ type OrderItem = {
   fromName: string;
   message?: string;
   delivery: {
-    method: "email" | "whatsapp";
+    method: "email";
     contact: string;
     scheduledAt?: string;
   };
@@ -136,7 +136,7 @@ export async function fulfillOrder(
     )
     .catch((error) => console.error("altegio sync failed (non-fatal)", error));
 
-  // Уведомление админу о продаже (WhatsApp/Telegram) — тоже best-effort.
+  // Уведомление админу о продаже (Telegram) — тоже best-effort.
   void import("./notify")
     .then(({ notifySale }) =>
       notifySale(certificate.id, {

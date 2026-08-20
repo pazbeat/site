@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireSuperadmin } from "@/lib/admin/guard";
+import { requireCatalogEditor } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { ToggleActiveButton } from "@/components/admin/toggle-active";
 import { InlineCreateForm } from "@/components/admin/inline-create";
@@ -14,7 +14,7 @@ import { formatKzt } from "@/lib/format";
 import { isAbVariant } from "@/lib/ab";
 
 export default async function AdminNominalsPage() {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const nominals = await prisma.nominal.findMany({ orderBy: { sort: "asc" } });
   const experimentOn = nominals.some((n) => isAbVariant(n.variant));
 

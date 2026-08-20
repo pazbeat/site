@@ -170,11 +170,6 @@ export function recoveryEmail(data: {
   };
 }
 
-/**
- * Текст WhatsApp-сообщения получателю (Фаза 2). Код в текст не пишем —
- * он в PDF и на защищённой странице по ссылке. Ссылка ведёт на страницу
- * сертификата (просмотр + скачивание PDF).
- */
 export function whatsappRecipientText(data: {
   locale: string;
   fromName: string;

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireSuperadmin, auditLog } from "@/lib/admin/guard";
+import { requireCatalogEditor, auditLog } from "@/lib/admin/guard";
 import { deleteUpload, saveImageUpload } from "@/lib/admin/upload";
 import { PANEL_BG, PANEL_TEXT } from "@/prisma/designs-data";
 
@@ -15,7 +15,7 @@ const names = z.object({
 
 /** Загрузка новой открытки-дизайна: файл → WebP со случайным именем. */
 export async function uploadDesignAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
 
   const parsedNames = names.safeParse({
     nameRu: formData.get("nameRu"),
@@ -55,7 +55,7 @@ export async function uploadDesignAction(formData: FormData) {
 
 /** Переименование дизайна (RU/KK/EN). */
 export async function renameDesignAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const parsed = names.safeParse({
     nameRu: formData.get("nameRu"),
@@ -82,7 +82,7 @@ export async function renameDesignAction(formData: FormData) {
 }
 
 export async function toggleDesignActiveAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const design = await prisma.design.findUnique({ where: { id } });
   if (!design) return { error: "Дизайн не найден." };
@@ -102,7 +102,7 @@ export async function toggleDesignActiveAction(formData: FormData) {
 
 /** Удаление дизайна — только если на него не ссылаются сертификаты. */
 export async function deleteDesignAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const design = await prisma.design.findUnique({ where: { id } });
   if (!design) return { error: "Дизайн не найден." };
@@ -128,7 +128,7 @@ export async function deleteDesignAction(formData: FormData) {
 
 /** Перемещение в порядке отображения (обмен sort с соседом). */
 export async function moveDesignAction(formData: FormData) {
-  await requireSuperadmin();
+  await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const dir = formData.get("dir") === "up" ? "up" : "down";
   const current = await prisma.design.findUnique({ where: { id } });

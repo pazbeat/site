@@ -177,8 +177,13 @@ async function buildResume(
     toName: item.toName ?? "",
     fromName: item.fromName ?? "",
     message: item.message ?? "",
-    method: item.delivery?.method === "whatsapp" ? "whatsapp" : "email",
-    contact: item.delivery?.contact ?? "",
+    // Только почта. У брошенных заказов, созданных до отключения
+    // WhatsApp, здесь мог быть телефон — контакт покупатель
+    // перевведёт, иначе восстановление корзины упало бы.
+    method: "email" as const,
+    contact: (item.delivery?.contact ?? "").includes("@")
+      ? (item.delivery?.contact ?? "")
+      : "",
     buyerEmail: order.buyerEmail,
   };
 }

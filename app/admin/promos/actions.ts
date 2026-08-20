@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireSuperadmin, auditLog } from "@/lib/admin/guard";
+import { requireCatalogEditor, auditLog } from "@/lib/admin/guard";
 import { normalizePromoCode, type PromoLimits } from "@/lib/promo";
 
 const schema = z
@@ -54,7 +54,7 @@ function buildLimits(input: {
 }
 
 export async function savePromoAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const parsed = schema.safeParse({
     id: formData.get("id") || undefined,
     code: formData.get("code"),
@@ -115,7 +115,7 @@ export async function savePromoAction(formData: FormData) {
 }
 
 export async function togglePromoActiveAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const promo = await prisma.promo.findUnique({ where: { id } });
   if (!promo) return { error: "Промокод не найден." };

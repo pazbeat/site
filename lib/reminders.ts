@@ -39,7 +39,7 @@ export function daysLeft(validUntil: Date, now: Date): number {
 /**
  * Отправляет напоминания по всем сертификатам, которым пора. Возвращает
  * число отправленных писем. Напоминаем держателю: при email-доставке —
- * на контакт получателя, иначе (WhatsApp) — покупателю на email.
+ * на контакт получателя; у старых записей с телефоном — покупателю.
  */
 export async function sendExpiryReminders(
   now: Date = new Date(),

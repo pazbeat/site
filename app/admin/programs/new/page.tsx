@@ -1,9 +1,9 @@
-import { requireSuperadmin } from "@/lib/admin/guard";
+import { requireCatalogEditor } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { ProgramEditor } from "@/components/admin/program-editor";
 
 export default async function NewProgramPage() {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   return (
     <AdminChrome email={admin.email} role={admin.role} title="Новая программа">
       <ProgramEditor

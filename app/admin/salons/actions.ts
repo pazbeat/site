@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireSuperadmin, auditLog } from "@/lib/admin/guard";
+import { requireCatalogEditor, auditLog } from "@/lib/admin/guard";
 
 /**
  * Русский город — не просто подпись, а ключ: по нему Program.cities решает,
@@ -69,7 +69,7 @@ async function prefixTaken(prefix: string | null, exceptId?: number) {
 }
 
 export async function createSalonAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const parsed = parseSalon(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Проверьте поля." };
@@ -94,7 +94,7 @@ export async function createSalonAction(formData: FormData) {
 }
 
 export async function updateSalonAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const parsed = parseSalon(formData);
   if (!Number.isFinite(id) || !parsed.success) {
@@ -117,7 +117,7 @@ export async function updateSalonAction(formData: FormData) {
 }
 
 export async function toggleSalonActiveAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const salon = await prisma.salon.findUnique({ where: { id } });
   if (!salon) return { error: "Салон не найден." };
@@ -135,7 +135,7 @@ export async function toggleSalonActiveAction(formData: FormData) {
 
 /** Удаление — только если на салон не завязаны заказы и сертификаты. */
 export async function deleteSalonAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const salon = await prisma.salon.findUnique({ where: { id } });
   if (!salon) return { error: "Салон не найден." };
@@ -164,7 +164,7 @@ export async function deleteSalonAction(formData: FormData) {
 
 /** Порядок в конструкторе — обмен sort с соседом. */
 export async function moveSalonAction(formData: FormData) {
-  await requireSuperadmin();
+  await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const dir = formData.get("dir") === "up" ? "up" : "down";
   const current = await prisma.salon.findUnique({ where: { id } });
@@ -198,7 +198,7 @@ const citySchema = z.object({
  * и исчезнут из конструктора).
  */
 export async function renameCityAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const parsed = citySchema.safeParse({
     oldCity: formData.get("oldCity"),
     city: formData.get("city"),

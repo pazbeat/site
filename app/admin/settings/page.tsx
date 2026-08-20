@@ -11,7 +11,6 @@ export default async function AdminSettingsPage() {
     <AdminChrome email={admin.email} role={admin.role} title="Настройки">
       <NotifySettings
         enabled={cfg.enabled ?? false}
-        whatsapp={cfg.whatsapp ?? ""}
         telegramChatId={cfg.telegramChatId ?? ""}
         telegramTokenSet={Boolean(process.env.TELEGRAM_BOT_TOKEN)}
       />

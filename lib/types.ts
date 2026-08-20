@@ -51,7 +51,10 @@ export type BuilderResume = {
   toName: string;
   fromName: string;
   message: string;
-  method: "email" | "whatsapp";
+  /** Доставка только на почту: WhatsApp отключён (ChatApp у заказчика убран).
+   *  В черновиках, сохранённых до отключения, могло лежать 'whatsapp' —
+   *  конструктор приводит такое значение к email при восстановлении. */
+  method: "email";
   contact: string;
   buyerEmail: string;
 };

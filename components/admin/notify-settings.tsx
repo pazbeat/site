@@ -14,12 +14,10 @@ const labelCls = "mb-1 block text-xs font-bold text-brand-purple-950/70";
 
 export function NotifySettings({
   enabled,
-  whatsapp,
   telegramChatId,
   telegramTokenSet,
 }: Readonly<{
   enabled: boolean;
-  whatsapp: string;
   telegramChatId: string;
   telegramTokenSet: boolean;
 }>) {
@@ -54,17 +52,7 @@ export function NotifySettings({
       </label>
 
       <div className="mb-4">
-        <label className={labelCls} htmlFor="ns-wa">
-          Номер WhatsApp (через ChatApp)
-        </label>
-        <input
-          id="ns-wa"
-          name="whatsapp"
-          defaultValue={whatsapp}
-          placeholder="+7 7XX XXX XX XX"
-          className={inputCls}
-        />
-      </div>
+              </div>
 
       <div className="mb-2">
         <label className={labelCls} htmlFor="ns-tg">

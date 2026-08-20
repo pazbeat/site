@@ -6,6 +6,10 @@
       "headers": {
         "x-api-key": "${API_KEY_21ST}"
       }
+    },
+    "kling": {
+      "type": "http",
+      "url": "https://kling.ai/mcp"
     }
   }
 }

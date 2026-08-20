@@ -10,15 +10,9 @@ import {
   sendToChannels,
 } from "@/lib/notify";
 
-const phone = z
-  .string()
-  .trim()
-  .regex(/^\+?[78][\d\s()-]{9,14}$/, "invalid phone")
-  .or(z.literal(""));
 
 const settingsSchema = z.object({
   enabled: z.boolean(),
-  whatsapp: phone,
   /// Числовой ID чата/группы Telegram (бот должен состоять в чате)
   telegramChatId: z
     .string()
@@ -31,26 +25,19 @@ export async function saveNotifySettingsAction(formData: FormData) {
   const admin = await requireSuperadmin();
   const parsed = settingsSchema.safeParse({
     enabled: formData.get("enabled") === "on",
-    whatsapp: formData.get("whatsapp") ?? "",
     telegramChatId: formData.get("telegramChatId") ?? "",
   });
   if (!parsed.success) {
     return {
-      error:
-        "Проверьте поля: WhatsApp — казахстанский номер (+7…), Telegram — числовой ID чата.",
+      error: "Проверьте поле: Telegram — числовой ID чата.",
     };
   }
-  if (
-    parsed.data.enabled &&
-    !parsed.data.whatsapp &&
-    !parsed.data.telegramChatId
-  ) {
-    return { error: "Укажите хотя бы один канал — WhatsApp или Telegram." };
+  if (parsed.data.enabled && !parsed.data.telegramChatId) {
+    return { error: "Укажите ID чата Telegram — других каналов нет." };
   }
 
   const value = {
     enabled: parsed.data.enabled,
-    whatsapp: parsed.data.whatsapp || undefined,
     telegramChatId: parsed.data.telegramChatId || undefined,
   };
   await prisma.setting.upsert({
@@ -73,8 +60,8 @@ export async function saveNotifySettingsAction(formData: FormData) {
 export async function testNotifyAction() {
   const admin = await requireSuperadmin();
   const cfg = await getSaleNotifySettings();
-  if (!cfg.whatsapp && !cfg.telegramChatId) {
-    return { error: "Сначала сохраните хотя бы один канал." };
+  if (!cfg.telegramChatId) {
+    return { error: "Сначала укажите Telegram — других каналов нет." };
   }
   const text = buildSaleMessage({
     amountKzt: 18000,

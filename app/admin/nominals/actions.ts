@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireSuperadmin, auditLog } from "@/lib/admin/guard";
+import { requireCatalogEditor, auditLog } from "@/lib/admin/guard";
 
 const schema = z.object({
   id: z.coerce.number().int().positive().optional(),
@@ -17,7 +17,7 @@ const schema = z.object({
  * проставлена группа (PRD §10).
  */
 export async function setNominalVariantAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = z.coerce.number().int().positive().safeParse(formData.get("id"));
   const raw = String(formData.get("variant") ?? "");
   const variant = raw === "A" || raw === "B" ? raw : null;
@@ -37,7 +37,7 @@ export async function setNominalVariantAction(formData: FormData) {
 }
 
 export async function saveNominalAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const parsed = schema.safeParse({
     id: formData.get("id") || undefined,
     amountKzt: formData.get("amountKzt"),
@@ -76,7 +76,7 @@ export async function saveNominalAction(formData: FormData) {
 }
 
 export async function toggleNominalActiveAction(formData: FormData) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));
   const nominal = await prisma.nominal.findUnique({ where: { id } });
   if (!nominal) return { error: "Номинал не найден." };

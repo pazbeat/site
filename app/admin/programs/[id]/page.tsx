@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireSuperadmin } from "@/lib/admin/guard";
+import { requireCatalogEditor } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { ProgramEditor } from "@/components/admin/program-editor";
 import { prisma } from "@/lib/db";
@@ -8,7 +8,7 @@ import { pickL10n } from "@/lib/l10n";
 export default async function EditProgramPage({
   params,
 }: Readonly<{ params: Promise<{ id: string }> }>) {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const { id } = await params;
   const program = await prisma.program.findUnique({
     where: { id: Number(id) },

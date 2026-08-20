@@ -46,7 +46,7 @@ type Draft = {
   toName: string;
   fromName: string;
   message: string;
-  method: "email" | "whatsapp";
+  method: "email";
   contact: string;
   when: "now" | "scheduled";
   scheduledAt: string;
@@ -139,9 +139,9 @@ export function BuilderClient({
   const [toName, setToName] = useState(resume?.toName ?? "");
   const [fromName, setFromName] = useState(resume?.fromName ?? "");
   const [message, setMessage] = useState(resume?.message ?? "");
-  const [method, setMethod] = useState<"email" | "whatsapp">(
-    resume?.method ?? "email",
-  );
+  // Всегда почта. Старый черновик мог содержать "whatsapp" — приводим к email,
+  // иначе восстановление корзины падало бы на несуществующем варианте.
+  const [method, setMethod] = useState<"email">("email");
   const [contact, setContact] = useState(resume?.contact ?? "");
   const [when, setWhen] = useState<"now" | "scheduled">("now");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -188,7 +188,6 @@ export function BuilderClient({
     setToName(d.toName);
     setFromName(d.fromName);
     setMessage(d.message);
-    setMethod(d.method);
     setContact(d.contact);
     setWhen(d.when);
     setScheduledAt(d.scheduledAt);
@@ -400,7 +399,7 @@ export function BuilderClient({
         return toName.trim().length > 0 && fromName.trim().length > 0;
       case 3:
         if (!contact.trim() || !/\S+@\S+\.\S+/.test(buyerEmail)) return false;
-        if (method === "email" && !/\S+@\S+\.\S+/.test(contact)) return false;
+        if (!/\S+@\S+\.\S+/.test(contact)) return false;
         if (when === "scheduled" && !scheduledAt) return false;
         return true;
       default:
@@ -914,31 +913,15 @@ export function BuilderClient({
               <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
                 {t("s4Hint")}
               </p>
-              <div className="mb-4 flex flex-wrap gap-2.5">
-                <button
-                  type="button"
-                  className={segBtn(method === "email")}
-                  onClick={() => setMethod("email")}
-                >
-                  ✉️ {t("s4Email")}
-                </button>
-                <button
-                  type="button"
-                  className={segBtn(method === "whatsapp")}
-                  onClick={() => setMethod("whatsapp")}
-                >
-                  💬 {t("s4WhatsApp")}
-                </button>
-              </div>
               <div className="mb-4">
                 <label className={labelCls} htmlFor="b-contact">
-                  {method === "email" ? t("s4ContactEmail") : t("s4ContactWa")}{" "}
+                  {t("s4ContactEmail")}{" "}
                   <span className="text-brand-red">*</span>
                 </label>
                 <input
                   id="b-contact"
-                  type={method === "email" ? "email" : "tel"}
-                  placeholder={method === "email" ? "name@mail.kz" : "+7 7__ ___ __ __"}
+                  type="email"
+                  placeholder="name@mail.kz"
                   className={inputCls}
                   required
                   value={contact}
@@ -1153,7 +1136,7 @@ export function BuilderClient({
             <div className="flex justify-between py-1">
               <dt className="text-brand-purple-950/60">{t("sumDelivery")}</dt>
               <dd className="font-semibold">
-                {method === "email" ? t("s4Email") : t("s4WhatsApp")}
+                {t("s4Email")}
               </dd>
             </div>
             {promoValid && (

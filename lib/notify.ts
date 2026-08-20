@@ -2,15 +2,18 @@ import "server-only";
 import { prisma } from "./db";
 
 /**
- * Уведомления администратору о продажах — WhatsApp (через ChatApp) и/или
- * Telegram (бот). Включаются в админке (/admin/settings), настройка хранится
- * в Setting `sale_notifications`. Токен Telegram-бота — секрет, только env.
+ * Уведомления администратору о продажах — Telegram (бот). Включаются в
+ * админке (/admin/settings), настройка хранится в Setting
+ * `sale_notifications`. Токен Telegram-бота — секрет, только env.
  * Вызывается из fulfillOrder best-effort: сбой уведомления не влияет на заказ.
+ *
+ * Канал WhatsApp убран вместе с ChatApp — он больше не оплачивается.
+ * Поле whatsapp в настройках может остаться от прежних сохранений и
+ * намеренно игнорируется.
  */
 
 export type SaleNotifySettings = {
   enabled?: boolean;
-  whatsapp?: string;
   telegramChatId?: string;
 };
 
@@ -71,14 +74,6 @@ export async function sendToChannels(
   text: string,
 ): Promise<string[]> {
   const errors: string[] = [];
-  if (cfg.whatsapp) {
-    try {
-      const { getMessenger } = await import("./messaging");
-      await getMessenger().sendText(cfg.whatsapp, text);
-    } catch (error) {
-      errors.push(`whatsapp: ${error instanceof Error ? error.message : error}`);
-    }
-  }
   if (cfg.telegramChatId) {
     try {
       await sendTelegram(cfg.telegramChatId, text);
@@ -94,7 +89,7 @@ export async function notifySale(
   opts: { manual?: boolean } = {},
 ): Promise<void> {
   const cfg = await getSaleNotifySettings();
-  if (!cfg.enabled || (!cfg.whatsapp && !cfg.telegramChatId)) return;
+  if (!cfg.enabled || !cfg.telegramChatId) return;
 
   const cert = await prisma.certificate.findUnique({
     where: { id: certificateId },
@@ -116,7 +111,7 @@ export async function notifySale(
       : `Сертификат на сумму ${(cert.amountKzt ?? cert.order.amountKzt).toLocaleString("ru-RU")} ₸`,
     salonLine: `${cert.salon.city}, ${cert.salon.address}`,
     toName: cert.toName,
-    deliveryLine: `${cert.deliveryMethod === "whatsapp" ? "WhatsApp" : "Email"} ${cert.deliveryContact}`,
+    deliveryLine: `Email ${cert.deliveryContact}`,
     serial: cert.serial,
     orderId: cert.orderId,
     manual: opts.manual,

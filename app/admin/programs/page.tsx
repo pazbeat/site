@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireSuperadmin } from "@/lib/admin/guard";
+import { requireCatalogEditor } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { ToggleActiveButton } from "@/components/admin/toggle-active";
 import { toggleProgramActiveAction } from "./actions";
@@ -8,7 +8,7 @@ import { pickL10n } from "@/lib/l10n";
 import { formatKzt } from "@/lib/format";
 
 export default async function AdminProgramsPage() {
-  const admin = await requireSuperadmin();
+  const admin = await requireCatalogEditor();
   const programs = await prisma.program.findMany({
     orderBy: { sort: "asc" },
     include: { options: { orderBy: { priceKzt: "asc" } } },

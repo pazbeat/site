@@ -38,11 +38,25 @@ export async function requireAdmin(): Promise<AdminSession> {
   return admin;
 }
 
-/** Требует роль superadmin (контент, пользователи, правовые тексты). */
+/**
+ * Требует роль superadmin: пользователи, правовые тексты, настройки,
+ * бэкапы, аудит-лог, A/B-тест. Это то, что менеджеру не доверяем —
+ * оно меняет юридические обязательства, доступы и сохранность данных.
+ */
 export async function requireSuperadmin(): Promise<AdminSession> {
   const admin = await requireAdmin();
   if (admin.role !== "superadmin") redirect("/admin");
   return admin;
+}
+
+/**
+ * Требует права на справочники магазина: программы и цены, номиналы,
+ * дизайны, промокоды, города и филиалы. Доступно и менеджеру — это его
+ * ежедневная работа, а не настройка системы. Отдельная функция, чтобы
+ * расширение прав менеджера не задело разделы под requireSuperadmin.
+ */
+export async function requireCatalogEditor(): Promise<AdminSession> {
+  return requireAdmin();
 }
 
 /**
