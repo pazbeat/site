@@ -15,6 +15,7 @@ export function KaspiPay({ orderId }: Readonly<{ orderId: string }>) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [qr, setQr] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
+  const [autoConfirm, setAutoConfirm] = useState(true);
   const startedPolling = useRef(false);
 
   // 1. Создаём инвойс
@@ -28,13 +29,15 @@ export function KaspiPay({ orderId }: Readonly<{ orderId: string }>) {
           body: JSON.stringify({ orderId }),
         });
         const data = (await res.json()) as {
-          twocode?: string;
+          payUrl?: string;
           qrDataUrl?: string;
+          autoConfirm?: boolean;
         };
-        if (!res.ok || !data.twocode) throw new Error("invoice");
+        if (!res.ok || !data.payUrl) throw new Error("invoice");
         if (cancelled) return;
-        setLink(data.twocode);
+        setLink(data.payUrl);
         setQr(data.qrDataUrl ?? null);
+        setAutoConfirm(data.autoConfirm !== false);
         setPhase("ready");
       } catch {
         if (!cancelled) setPhase("error");
@@ -117,7 +120,11 @@ export function KaspiPay({ orderId }: Readonly<{ orderId: string }>) {
       )}
       <div className="mt-6 flex items-center justify-center gap-2 text-sm text-brand-purple-950/55">
         <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brand-gold" />
-        {phase === "paid" ? t("paid") : t("waiting")}
+        {phase === "paid"
+          ? t("paid")
+          : autoConfirm
+            ? t("waiting")
+            : t("waitingManual")}
       </div>
     </div>
   );

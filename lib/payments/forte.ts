@@ -6,16 +6,19 @@ import type {
 } from "./types";
 
 /**
- * ForteBank (эквайринг на hosted-странице). Модель без вебхуков — как на
- * рабочем сайте заказчика (Node-RED api.js `byCard` + flows):
- *  1) createOrder → POST /order (Basic auth) → {id, hppUrl, password};
- *  2) редирект покупателя на `${hppUrl}?password=…&id=…` (страница Forte);
- *  3) Forte возвращает на hppRedirectUrl → опрос checkStatus (GET /order/{id})
- *     до статуса «оплачено».
+ * ForteBank — эквайринг на hosted-странице банка. Вебхуков нет, схема такая
+ * же, как на боевом сайте заказчика (Node-RED: узлы `CreateOrder`, `forte`,
+ * `format`, `prepForte`; фронтовый `api.js` → `byCard`):
  *
- * createPayment уводит на нашу страницу `/{locale}/pay/forte?order=…`, которая
- * создаёт заказ Forte и редиректит на hpp; после возврата опрашивает статус.
- * Креды — Basic auth из env (FORTE_USERNAME/FORTE_PASSWORD).
+ *  1) createOrder → `POST /order` с Basic-авторизацией. Тело обязательно
+ *     обёрнуто в объект `order` и несёт `typeRid: "Order_RID"` — плоское тело
+ *     банк не принимает. В ответ `{order: {id, hppUrl, password, status}}`.
+ *  2) покупателя уводим на `${hppUrl}?password=…&id=…` — страницу банка.
+ *  3) банк возвращает его на `hppRedirectUrl`, дальше опрашиваем
+ *     `GET /order/{id}?tranDetailLevel=1` до финального статуса.
+ *
+ * createPayment уводит на нашу страницу `/{locale}/pay/forte?order=…`, она и
+ * создаёт заказ в банке. Креды — Basic из env (FORTE_USERNAME/FORTE_PASSWORD).
  */
 
 const BASE_URL = process.env.FORTE_API_URL ?? "https://api.fortebank.com";
@@ -28,6 +31,10 @@ const BASE_URL = process.env.FORTE_API_URL ?? "https://api.fortebank.com";
  */
 const GATEWAY_TIMEOUT_MS = 20_000;
 
+/**
+ * Статус опрашивается раз в несколько секунд — ждать дольше бессмысленно.
+ */
+const STATUS_TIMEOUT_MS = 10_000;
 
 type Config = { username: string; password: string };
 
@@ -43,14 +50,21 @@ function authHeader(cfg: Config): string {
   return `Basic ${Buffer.from(raw).toString("base64")}`;
 }
 
-// Статусы Forte, означающие успешную оплату / окончательный отказ.
+/**
+ * Статусы заказа Forte. Названия — из ответа банка на боевом сайте
+ * заказчика (там в комментарии зафиксирован `"status": "Preparing"`), плюс
+ * обычные для этого API финальные состояния. Сверяем в нижнем регистре,
+ * неизвестное трактуем как «ещё не финал» и пишем в лог — первая же боевая
+ * оплата покажет реальный набор.
+ */
 const PAID_STATUSES = new Set([
-  "completed",
-  "charged",
-  "approved",
   "paid",
+  "charged",
+  "completed",
+  "approved",
   "success",
   "successful",
+  "settled",
 ]);
 const FAILED_STATUSES = new Set([
   "declined",
@@ -58,8 +72,22 @@ const FAILED_STATUSES = new Set([
   "cancelled",
   "canceled",
   "rejected",
+  "reversed",
+  "refunded",
   "error",
   "expired",
+  "timeout",
+]);
+/** Промежуточные — молча ждём дальше, в лог не пишем. */
+const PENDING_STATUSES = new Set([
+  "preparing",
+  "prepared",
+  "paying",
+  "pending",
+  "created",
+  "new",
+  "inprogress",
+  "in_progress",
 ]);
 
 export type ForteOrder = { redirectUrl: string; forteOrderId: string };
@@ -98,22 +126,34 @@ export class ForteBankProvider implements PaymentProvider {
       },
       signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
       body: JSON.stringify({
-        language: "ru",
-        currency: "KZT",
-        hppRedirectUrl: input.returnUrl,
-        description: input.description,
-        amount: input.amountKzt.toFixed(2),
+        order: {
+          typeRid: "Order_RID",
+          language: "ru",
+          currency: "KZT",
+          hppRedirectUrl: input.returnUrl,
+          description: input.description,
+          // банк ждёт сумму строкой с двумя знаками после точки
+          amount: input.amountKzt.toFixed(2),
+        },
       }),
     });
     const data = (await response.json().catch(() => null)) as {
       order?: { id?: string | number; hppUrl?: string; password?: string };
+      errorCode?: string;
+      errorDescription?: string;
     } | null;
     const order = data?.order;
     if (!response.ok || !order?.id || !order.hppUrl) {
-      throw new Error(`forte_order_failed: ${response.status}`);
+      throw new Error(
+        `forte_order_failed: ${response.status} ${data?.errorCode ?? ""} ${
+          data?.errorDescription ?? ""
+        }`.trim(),
+      );
     }
     const id = String(order.id);
-    const pw = encodeURIComponent(order.password ?? "");
+    // hppUrl приходит без пути — пароль и номер заказа уходят в query,
+    // ровно как это делает боевой сайт заказчика.
+    const pw = encodeURIComponent((order.password ?? "").trim());
     return {
       redirectUrl: `${order.hppUrl}?password=${pw}&id=${encodeURIComponent(id)}`,
       forteOrderId: id,
@@ -125,13 +165,16 @@ export class ForteBankProvider implements PaymentProvider {
     const cfg = readConfig();
     if (!cfg) throw new Error("forte_not_configured");
 
-    const response = await fetch(
+    const url = new URL(
       `${BASE_URL}/order/${encodeURIComponent(forteOrderId)}`,
-      {
-        headers: { Authorization: authHeader(cfg) },
-        signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
-      },
     );
+    // Без уровня детализации банк отдаёт заказ без транзакций
+    url.searchParams.set("tranDetailLevel", "1");
+
+    const response = await fetch(url, {
+      headers: { Authorization: authHeader(cfg) },
+      signal: AbortSignal.timeout(STATUS_TIMEOUT_MS),
+    });
     const data = (await response.json().catch(() => null)) as {
       order?: { status?: string };
     } | null;
@@ -141,6 +184,10 @@ export class ForteBankProvider implements PaymentProvider {
       return "paid";
     }
     if (FAILED_STATUSES.has(status)) return "failed";
+    if (!PENDING_STATUSES.has(status)) {
+      // Незнакомое состояние: ждём дальше, но оставляем след для разбора
+      console.warn("forte unknown status:", status || "(empty)");
+    }
     return "pending";
   }
 

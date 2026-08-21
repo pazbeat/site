@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 import { BuilderClient } from "@/components/builder-client";
+import { ForteBankProvider } from "@/lib/payments/forte";
 import { prisma } from "@/lib/db";
 import { AB_COOKIE, filterByVariant, isAbVariant } from "@/lib/ab";
 import type { BuilderResume, NominalDto, DesignDto } from "@/lib/types";
@@ -108,6 +109,7 @@ export default async function CreatePage({
           initialNominalId={initialNominalId}
           initialType={query.type === "nominal" ? "nominal" : undefined}
           resume={resume}
+          cardEnabled={new ForteBankProvider().isConfigured()}
         />
       </div>
     </main>

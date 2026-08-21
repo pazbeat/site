@@ -106,9 +106,13 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Создание платежа у провайдера; недоступность оплаты не отменяет заказ
+  // Создание платежа у провайдера; недоступность оплаты не отменяет заказ.
+  // Если выбранный способ не настроен (например, банк ещё не выдал креды для
+  // оплаты картой), уводим на Kaspi, а не оставляем покупателя без ссылки.
   let paymentUrl: string | null = null;
-  const provider = getProvider(input.provider ?? "kaspi");
+  const requested = getProvider(input.provider ?? "kaspi");
+  const provider =
+    requested?.isConfigured() === true ? requested : getProvider("kaspi");
   if (provider?.isConfigured()) {
     const origin = publicOrigin(request);
     try {
@@ -121,6 +125,17 @@ export async function POST(request: NextRequest) {
         locale: input.locale,
       });
       paymentUrl = payment.redirectUrl;
+      // На заказе должен стоять тот способ, которым реально платят.
+      // Демо-провайдера в перечислении БД нет — его не записываем.
+      if (
+        provider.id !== input.provider &&
+        (provider.id === "kaspi" || provider.id === "forte")
+      ) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { paymentProvider: provider.id },
+        });
+      }
     } catch (error) {
       console.error("payment_init_failed", {
         orderId: order.id,

@@ -28,6 +28,12 @@ type Props = Readonly<{
   initialType?: "program" | "nominal";
   /** Предзаполнение из брошенного заказа (дожим ?resume=token) */
   resume?: BuilderResume | null;
+  /**
+   * Настроена ли оплата картой (ForteBank). Пока банк не выдал креды,
+   * кнопку не показываем: иначе покупатель доходит до последнего шага и
+   * упирается в ошибку вместо оплаты.
+   */
+  cardEnabled: boolean;
 }>;
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -98,6 +104,7 @@ export function BuilderClient({
   initialNominalId,
   initialType,
   resume,
+  cardEnabled,
 }: Props) {
   const t = useTranslations("Builder");
   const tCommon = useTranslations("Common");
@@ -192,7 +199,8 @@ export function BuilderClient({
     setWhen(d.when);
     setScheduledAt(d.scheduledAt);
     setBuyerEmail(d.buyerEmail);
-    setProvider(d.provider);
+    // Черновик мог сохраниться, когда оплата картой ещё показывалась
+    setProvider(d.provider === "forte" && !cardEnabled ? "kaspi" : d.provider);
   };
 
   const resumeContinue = () => {
@@ -983,7 +991,9 @@ export function BuilderClient({
               <h3 className="font-display text-2xl font-semibold text-brand-purple">
                 {t("s5Title")}
               </h3>
-              <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
+              <div
+                className={`mt-5 grid gap-3.5 ${cardEnabled ? "sm:grid-cols-2" : ""}`}
+              >
                 <button
                   type="button"
                   className={segBtn(provider === "kaspi")}
@@ -996,16 +1006,18 @@ export function BuilderClient({
                     {t("s5KaspiSub")}
                   </small>
                 </button>
-                <button
-                  type="button"
-                  className={segBtn(provider === "forte")}
-                  onClick={() => setProvider("forte")}
-                >
-                  {t("s5Card")}
-                  <small className="font-medium text-brand-purple-950/55">
-                    {t("s5CardSub")}
-                  </small>
-                </button>
+                {cardEnabled && (
+                  <button
+                    type="button"
+                    className={segBtn(provider === "forte")}
+                    onClick={() => setProvider("forte")}
+                  >
+                    {t("s5Card")}
+                    <small className="font-medium text-brand-purple-950/55">
+                      {t("s5CardSub")}
+                    </small>
+                  </button>
+                )}
               </div>
 
               {/* Промокод */}

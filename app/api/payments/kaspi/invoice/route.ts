@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { prisma } from "@/lib/db";
@@ -6,9 +5,11 @@ import { KaspiPayProvider } from "@/lib/payments/kaspi";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 /**
- * Создание Kaspi QR-инвойса для заказа (PayQR). Возвращает ссылку Kaspi
- * (twocode) и готовый QR-код. Идемпотентно: повторный вызов переиспользует
- * ранее выданный orderid PayQR (хранится в order.paymentId).
+ * Платёжная ссылка Kaspi для заказа + готовый QR-код к ней.
+ *
+ * Номер заказа для Kaspi — это наш собственный `order.id`. Так номер в чеке
+ * покупателя совпадает с номером в админке, и оплату можно сверить глазами;
+ * отдельный случайный идентификатор такую сверку ломал.
  */
 export async function POST(request: Request) {
   const limited = rateLimit(`kaspi-invoice:${clientIp(request)}`, 10);
@@ -35,28 +36,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not_payable" }, { status: 409 });
   }
 
-  // Переиспользуем orderid PayQR, чтобы не плодить инвойсы при перезагрузке
-  const payqrOrderId = order.paymentId ?? randomUUID();
+  const payRef = order.paymentId ?? order.id;
   if (!order.paymentId) {
     await prisma.order.update({
       where: { id: order.id },
-      data: { paymentId: payqrOrderId, paymentProvider: "kaspi" },
+      data: { paymentId: payRef, paymentProvider: "kaspi" },
     });
   }
 
   const kaspi = new KaspiPayProvider();
   try {
     const invoice = await kaspi.createInvoice({
-      payqrOrderId,
+      payqrOrderId: payRef,
       amountKzt: order.amountKzt,
       name: "Подарочный сертификат Imbir Thai Spa",
     });
-    const qrDataUrl = await QRCode.toDataURL(invoice.twocode, {
+    const qrDataUrl = await QRCode.toDataURL(invoice.payUrl, {
       margin: 1,
       width: 320,
       color: { dark: "#4D295D", light: "#FFFFFF" },
     });
-    return NextResponse.json({ twocode: invoice.twocode, qrDataUrl });
+    return NextResponse.json({
+      payUrl: invoice.payUrl,
+      qrDataUrl,
+      // Страница по-разному объясняет ожидание: сама подтвердится оплата
+      // или её подтвердит администратор.
+      autoConfirm: kaspi.hasAutomaticConfirmation(),
+    });
   } catch (error) {
     console.error("kaspi invoice failed", {
       orderId: order.id,
