@@ -34,7 +34,20 @@ export async function loadActiveAdmin(
 export async function requireAdmin(): Promise<AdminSession> {
   const session = await auth();
   const admin = await loadActiveAdmin(session?.user?.id);
-  if (!admin) redirect("/admin/login");
+  if (!admin) {
+    // ВРЕМЕННАЯ ДИАГНОСТИКА
+    const { headers } = await import("next/headers");
+    const h = await headers();
+    console.error("[guard] нет админа", {
+      сессия: session ? JSON.stringify(session.user) : "null",
+      кукиЕсть: (h.get("cookie") ?? "").split(";").map((c) => c.trim().split("=")[0]).join(","),
+      nextAction: h.get("next-action") ? "да" : "нет",
+      host: h.get("host"),
+      xfh: h.get("x-forwarded-host"),
+      xfp: h.get("x-forwarded-proto"),
+    });
+    redirect("/admin/login");
+  }
   return admin;
 }
 

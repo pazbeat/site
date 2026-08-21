@@ -35,6 +35,12 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-imbir}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-imbir}
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
+      # Публичный адрес админки для Auth.js. Без него библиотека определяет
+      # адрес сама и за обратным прокси ошибается на localhost:3000 — тогда
+      # любое действие в админке считает сессию чужой и разлогинивает
+      # (поймано живьём 2026-08-21: ни одна форма в админке не сохранялась).
+      AUTH_URL: ${SITE_URL:?set SITE_URL}
+      AUTH_TRUST_HOST: "true"
       CODE_ENCRYPTION_KEY: ${CODE_ENCRYPTION_KEY:?set CODE_ENCRYPTION_KEY}
       SITE_URL: ${SITE_URL:?set SITE_URL}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
