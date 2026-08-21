@@ -27,6 +27,13 @@ const isDev = process.env.NODE_ENV !== "production";
  */
 export default withAuth(async function proxy(request) {
   const { pathname } = request.nextUrl;
+  if (pathname.startsWith("/admin")) {
+    console.error("[proxy] вход", {
+      путь: pathname,
+      метод: request.method,
+      сессия: request.auth?.user ? "есть" : "нет",
+    });
+  }
 
   // Per-request nonce; кладём в заголовки запроса, чтобы Next проставил его
   // своим скриптам (next-intl копирует request.headers в rewrite).
