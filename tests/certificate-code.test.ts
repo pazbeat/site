@@ -9,6 +9,7 @@ import {
   maskCode,
   normalizeCode,
 } from "@/lib/certificate-code";
+import { checkSchema } from "@/lib/validation";
 
 describe("generateCertificateCode", () => {
   it("выдаёт формат IMB-XXXX-XXXX", () => {
@@ -109,5 +110,14 @@ describe("салонный номер сертификата", () => {
   it("салонный номер в админке показывается целиком, случайный — прячется", () => {
     expect(maskCode("WM0001")).toBe("WM0001");
     expect(maskCode("IMB-2ES9-CQQD")).toBe("IMB-••••-••QD");
+  });
+});
+
+describe("схема проверки сертификата принимает салонный номер", () => {
+  it("не отвергает номер за краткость", () => {
+    // Ловушка, на которую уже наступили: минимум в 8 знаков отсекал WM0001
+    expect(checkSchema.safeParse({ code: "WM0001" }).success).toBe(true);
+    expect(checkSchema.safeParse({ code: "WM001" }).success).toBe(true);
+    expect(checkSchema.safeParse({ code: "IMB-2ES9-CQQD" }).success).toBe(true);
   });
 });

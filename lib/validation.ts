@@ -90,7 +90,10 @@ export const promoValidateSchema = z.object({
 });
 
 export const checkSchema = z.object({
-  code: z.string().trim().min(8).max(20),
+  // Салонный номер короче случайного кода: WM0001 — шесть знаков, а самый
+  // короткий возможный (две буквы и три цифры) — пять. Прежний минимум в
+  // восемь знаков молча отвергал их все.
+  code: z.string().trim().min(5).max(20),
 });
 
 export const corporateSchema = z.object({
