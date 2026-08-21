@@ -1,6 +1,7 @@
 import createIntlMiddleware from "next-intl/middleware";
 import NextAuth from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { authConfig } from "./lib/auth.config";
 import { routing } from "./i18n/routing";
 import { buildCsp } from "./lib/security";
@@ -8,17 +9,23 @@ import { AB_COOKIE, pickVariant } from "./lib/ab";
 
 const intl = createIntlMiddleware(routing);
 // Edge-safe экземпляр: только чтение JWT-сессии, без БД/argon2
-const { auth } = NextAuth(authConfig);
+const { auth: withAuth } = NextAuth(authConfig);
 
 const isDev = process.env.NODE_ENV !== "production";
 
 /**
+ * Обёртка `withAuth` обязательна: сессию отдаёт она через `request.auth`.
+ * Вызов `auth()` без аргументов здесь читает контекст запроса Next и на
+ * POST серверных действий его не находит — сессия оказывалась пустой, и
+ * админка отправляла на логин, теряя вход. Снаружи это выглядело так, будто
+ * в админке не сохраняется ни одна форма (поймано живьём 2026-08-21).
+ *
  * Все /admin/* и /api/admin/* закрыты на сервере (PRD §9.3):
  * нет сессии → редирект на логин (страницы) или 401 (API).
  * Остальное — i18n-роутинг next-intl. На каждый ответ навешивается CSP
  * с per-request nonce (PRD §9.2) + прочие security-заголовки.
  */
-export default async function proxy(request: NextRequest) {
+export default withAuth(async function proxy(request) {
   const { pathname } = request.nextUrl;
 
   // Per-request nonce; кладём в заголовки запроса, чтобы Next проставил его
@@ -32,12 +39,12 @@ export default async function proxy(request: NextRequest) {
     headers: requestHeaders,
   });
 
-  const response = await route(patched, request, pathname);
+  const response = await route(patched, request, pathname, request.auth);
   response.headers.set("Content-Security-Policy", csp);
   applySecurityHeaders(response.headers);
   assignAbVariant(request, response, pathname);
   return response;
-}
+});
 
 /**
  * Липкая группа A/B-теста цен (PRD §10). Назначаем здесь, потому что кука
@@ -64,12 +71,12 @@ async function route(
   patched: NextRequest,
   original: NextRequest,
   pathname: string,
+  session: Session | null,
 ): Promise<NextResponse> {
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
     if (pathname === "/admin/login") {
       return NextResponse.next({ request: { headers: patched.headers } });
     }
-    const session = await auth();
     if (!session?.user) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "unauthorized" }, { status: 401 });

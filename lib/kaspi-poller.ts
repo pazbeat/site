@@ -27,7 +27,9 @@ export async function pollPendingKaspiOrders(): Promise<{
 }> {
   if (process.env.PAYMENT_MOCK === "1") return { checked: 0, fulfilled: 0 };
   const kaspi = new KaspiPayProvider();
-  if (!kaspi.isConfigured()) return { checked: 0, fulfilled: 0 };
+  // Ссылка на оплату настроена почти всегда, а вот источника статуса может не
+  // быть — тогда опрашивать нечего, и незачем каждую минуту дёргать базу.
+  if (!kaspi.hasAutomaticConfirmation()) return { checked: 0, fulfilled: 0 };
 
   const orders = await prisma.order.findMany({
     where: {
