@@ -81,7 +81,15 @@ async function route(
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "unauthorized" }, { status: 401 });
       }
-      return NextResponse.redirect(new URL("/admin/login", original.url));
+      // ВРЕМЕННАЯ МЕТКА
+      console.error("[proxy] нет сессии", {
+        путь: pathname,
+        метод: original.method,
+        куки: (original.headers.get("cookie") ?? "").split(";").map((c) => c.trim().split("=")[0]).join(","),
+      });
+      return NextResponse.redirect(
+        new URL("/admin/login?src=proxy", original.url),
+      );
     }
     return NextResponse.next({ request: { headers: patched.headers } });
   }

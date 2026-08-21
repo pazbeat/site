@@ -34,34 +34,37 @@ RUN apk add --no-cache postgresql16-client tar \
   && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
-COPY --from=proddeps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/lib/generated ./lib/generated
+COPY --chown=nextjs:nodejs --from=proddeps /app/node_modules ./node_modules
+COPY --chown=nextjs:nodejs --from=builder /app/.next ./.next
+COPY --chown=nextjs:nodejs --from=builder /app/public ./public
+COPY --chown=nextjs:nodejs --from=builder /app/lib/generated ./lib/generated
 # Шрифты PDF (читаются через fs в рантайме), исходники (RSC/серверный код),
 # конфиги и миграции для migrate deploy на старте
-COPY --from=builder /app/assets ./assets
-COPY --from=builder /app/app ./app
-COPY --from=builder /app/components ./components
-COPY --from=builder /app/lib ./lib
-COPY --from=builder /app/i18n ./i18n
-COPY --from=builder /app/messages ./messages
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/types ./types
-COPY --from=builder /app/proxy.ts ./proxy.ts
-COPY --from=builder /app/instrumentation.ts ./instrumentation.ts
-COPY --from=builder /app/next.config.ts ./next.config.ts
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/package.json ./package.json
+COPY --chown=nextjs:nodejs --from=builder /app/assets ./assets
+COPY --chown=nextjs:nodejs --from=builder /app/app ./app
+COPY --chown=nextjs:nodejs --from=builder /app/components ./components
+COPY --chown=nextjs:nodejs --from=builder /app/lib ./lib
+COPY --chown=nextjs:nodejs --from=builder /app/i18n ./i18n
+COPY --chown=nextjs:nodejs --from=builder /app/messages ./messages
+COPY --chown=nextjs:nodejs --from=builder /app/prisma ./prisma
+COPY --chown=nextjs:nodejs --from=builder /app/types ./types
+COPY --chown=nextjs:nodejs --from=builder /app/proxy.ts ./proxy.ts
+COPY --chown=nextjs:nodejs --from=builder /app/instrumentation.ts ./instrumentation.ts
+COPY --chown=nextjs:nodejs --from=builder /app/next.config.ts ./next.config.ts
+COPY --chown=nextjs:nodejs --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --chown=nextjs:nodejs --from=builder /app/postcss.config.mjs ./postcss.config.mjs
+COPY --chown=nextjs:nodejs --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --chown=nextjs:nodejs --from=builder /app/package.json ./package.json
 # Скрипты обслуживания: создание администратора, разовые правки справочников.
 # Без них в готовом контейнере невозможно завести вход в админку.
-COPY --from=builder /app/scripts ./scripts
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --chown=nextjs:nodejs --from=builder /app/scripts ./scripts
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
 # Нормализуем переносы строк: репозиторий чекаутится на Windows с CRLF,
 # из-за чего шебанг `#!/bin/sh\r` ломает запуск («No such file or directory»)
-RUN sed -i 's/\r$//' ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh && chown -R nextjs:nodejs /app
+# Владелец проставляется прямо при копировании: рекурсивный chown в конце
+# копировал все 3.5 ГБ в отдельный слой — образ пух вдвое, а сборка на
+# сервере уходила в минуты простоя.
+RUN sed -i 's/\r$//' ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
 USER nextjs
 EXPOSE 3000
