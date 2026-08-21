@@ -214,8 +214,6 @@
     "s4DateTime": "Delivery date & time (Asia/Almaty)",
     "s4BuyerEmail": "Your email (copy of the certificate and receipt)",
     "s4CopyNote": "A copy will also be sent to you",
-    "s4BuyerPhone": "Your phone",
-    "s4PhoneNote": "The salon uses it to find the certificate in their system",
     "s5Title": "Payment",
     "s5Kaspi": "Kaspi.kz",
     "s5KaspiSub": "pay in the app",

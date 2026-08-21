@@ -36,13 +36,6 @@ type Props = Readonly<{
   cardEnabled: boolean;
 }>;
 
-/**
- * Телефон Казахстана — та же проверка, что и на сервере (lib/validation.ts).
- * Телефон обязателен: Altegio отдаёт сертификаты клиента ТОЛЬКО по номеру,
- * без него мы не сможем подтягивать остаток по сертификату из CRM.
- */
-const PHONE_RE = /^\+?[78][\d\s()-]{9,14}$/;
-
 type Step = 0 | 1 | 2 | 3 | 4;
 const DRAFT_KEY = "imbir-builder-draft";
 
@@ -64,7 +57,6 @@ type Draft = {
   when: "now" | "scheduled";
   scheduledAt: string;
   buyerEmail: string;
-  buyerPhone: string;
   provider: "kaspi" | "forte";
 };
 
@@ -80,8 +72,7 @@ function isResumable(d: Draft): boolean {
     d.fromName.trim().length > 0 ||
     d.message.trim().length > 0 ||
     d.contact.trim().length > 0 ||
-    d.buyerEmail.trim().length > 0 ||
-    d.buyerPhone.trim().length > 0
+    d.buyerEmail.trim().length > 0
   );
 }
 
@@ -162,7 +153,6 @@ export function BuilderClient({
   const [when, setWhen] = useState<"now" | "scheduled">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [buyerEmail, setBuyerEmail] = useState(resume?.buyerEmail ?? "");
-  const [buyerPhone, setBuyerPhone] = useState(resume?.buyerPhone ?? "");
   const [provider, setProvider] = useState<"kaspi" | "forte">("kaspi");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -209,7 +199,6 @@ export function BuilderClient({
     setWhen(d.when);
     setScheduledAt(d.scheduledAt);
     setBuyerEmail(d.buyerEmail);
-    setBuyerPhone(d.buyerPhone ?? "");
     // Черновик мог сохраниться, когда оплата картой ещё показывалась
     setProvider(d.provider === "forte" && !cardEnabled ? "kaspi" : d.provider);
   };
@@ -270,7 +259,6 @@ export function BuilderClient({
       when,
       scheduledAt,
       buyerEmail,
-      buyerPhone,
       provider,
     };
     try {
@@ -297,7 +285,6 @@ export function BuilderClient({
     when,
     scheduledAt,
     buyerEmail,
-    buyerPhone,
     provider,
   ]);
 
@@ -421,7 +408,6 @@ export function BuilderClient({
       case 3:
         if (!contact.trim() || !/\S+@\S+\.\S+/.test(buyerEmail)) return false;
         if (!/\S+@\S+\.\S+/.test(contact)) return false;
-        if (!PHONE_RE.test(buyerPhone.trim())) return false;
         if (when === "scheduled" && !scheduledAt) return false;
         return true;
       default:
@@ -461,7 +447,6 @@ export function BuilderClient({
               : {}),
           },
           buyerEmail: buyerEmail.trim(),
-          buyerPhone: buyerPhone.trim(),
           // Промокод применяется, только если превью валидно к текущей сумме
           ...(promoValid ? { promoCode: promoApplied.code } : {}),
           provider,
@@ -995,25 +980,6 @@ export function BuilderClient({
                 />
                 <p className="mt-1.5 text-xs text-brand-purple-950/55">
                   {t("s4CopyNote")}
-                </p>
-              </div>
-              <div>
-                <label className={labelCls} htmlFor="b-phone">
-                  {t("s4BuyerPhone")} <span className="text-brand-red">*</span>
-                </label>
-                <input
-                  id="b-phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="+7 700 000 00 00"
-                  className={inputCls}
-                  required
-                  value={buyerPhone}
-                  onChange={(e) => setBuyerPhone(e.target.value)}
-                />
-                <p className="mt-1.5 text-xs text-brand-purple-950/55">
-                  {t("s4PhoneNote")}
                 </p>
               </div>
             </>

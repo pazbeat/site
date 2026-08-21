@@ -57,7 +57,6 @@ export type BuilderResume = {
   method: "email";
   contact: string;
   buyerEmail: string;
-  buyerPhone: string;
 };
 
 export type SalonDto = {

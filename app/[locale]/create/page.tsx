@@ -187,6 +187,5 @@ async function buildResume(
       ? (item.delivery?.contact ?? "")
       : "",
     buyerEmail: order.buyerEmail,
-    buyerPhone: order.buyerPhone ?? "",
   };
 }
