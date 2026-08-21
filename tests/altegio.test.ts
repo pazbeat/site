@@ -87,10 +87,20 @@ describe("altegio buildStorageOperation", () => {
 });
 
 describe("altegio salon mapping", () => {
-  it("покрывает все 7 префиксов уникальными company_id", () => {
+  it("покрывает каждый филиал каталога уникальным company_id", () => {
     const ids = Object.values(SALON_PREFIX_TO_ALTEGIO);
-    expect(ids).toHaveLength(7);
-    expect(new Set(ids).size).toBe(7);
+    const branches = Object.keys(BRANCH_PARAMS);
+    // Карта выводится из каталога — расхождение означало бы, что филиал
+    // остался без company_id и его сертификаты молча не уходили бы в CRM.
+    expect(ids).toHaveLength(branches.length);
+    expect(new Set(ids).size).toBe(branches.length);
+    for (const [companyId, params] of Object.entries(BRANCH_PARAMS)) {
+      expect(SALON_PREFIX_TO_ALTEGIO[params.prefix]).toBe(Number(companyId));
+    }
+  });
+
+  it("включает Семей — он появился позже прочих", () => {
+    expect(SALON_PREFIX_TO_ALTEGIO.WS).toBe(1355056);
   });
 });
 

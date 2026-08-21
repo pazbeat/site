@@ -82,7 +82,7 @@ export async function SiteFooter() {
             <Link href="/create">{tNav("giftCta")}</Link>
             <Link href="/check">{tNav("check")}</Link>
             <Link href="/corporate">{t("corporate")}</Link>
-            {contacts?.email && <a href={`mailto:${contacts.email}`}>{contacts.email}</a>}
+            {contacts?.email && <FooterEmail email={contacts.email} />}
             <a href="https://www.imbir.kz" target="_blank" rel="noopener noreferrer">
               imbir.kz
             </a>
@@ -99,5 +99,34 @@ export async function SiteFooter() {
         </div>
       </div>
     </footer>
+  );
+}
+
+/** Экранирование для вставки в разметку — адрес правится через админку. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Почта в подвале. Cloudflare сам подменяет адреса в разметке на заглушку
+ * «[email protected]» и подставляет свой скрипт-расшифровщик — а его блокирует
+ * наш CSP (nonce + strict-dynamic), и посетитель видит заглушку вместо адреса.
+ * Комментарии email_off/email_on — штатный способ Cloudflare отключить
+ * подмену на куске страницы; в JSX их можно отдать только разметкой.
+ * Значение экранируется: адрес редактируется через админку.
+ */
+function FooterEmail({ email }: Readonly<{ email: string }>) {
+  const safe = escapeHtml(email);
+  return (
+    <span
+      style={{ display: "contents" }}
+      dangerouslySetInnerHTML={{
+        __html: `<!--email_off--><a href="mailto:${safe}">${safe}</a><!--email_on-->`,
+      }}
+    />
   );
 }
