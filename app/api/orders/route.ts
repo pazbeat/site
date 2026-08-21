@@ -6,6 +6,7 @@ import { resolveOrderAmount } from "@/lib/pricing";
 import { evaluatePromoCode } from "@/lib/promo";
 import { getProvider } from "@/lib/payments";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { publicOrigin } from "@/lib/site-url";
 import { orderSchema } from "@/lib/validation";
 
 /**
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
   let paymentUrl: string | null = null;
   const provider = getProvider(input.provider ?? "kaspi");
   if (provider?.isConfigured()) {
-    const origin = new URL(request.url).origin;
+    const origin = publicOrigin(request);
     try {
       const payment = await provider.createPayment({
         orderId: order.id,

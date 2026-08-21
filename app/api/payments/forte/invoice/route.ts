@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { ForteBankProvider } from "@/lib/payments/forte";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { publicOrigin } from "@/lib/site-url";
 
 /**
  * Создание заказа ForteBank и получение hosted-URL для редиректа покупателя.
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   const forte = new ForteBankProvider();
-  const origin = new URL(request.url).origin;
+  const origin = publicOrigin(request);
   const locale =
     (order.item as { locale?: string } | null)?.locale ?? "ru";
   const returnUrl = `${origin}/${locale}/pay/forte?order=${order.id}&ret=1`;
