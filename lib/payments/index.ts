@@ -1,12 +1,10 @@
 import { ForteBankProvider } from "./forte";
-import { FreedomPayProvider } from "./freedom";
 import { KaspiPayProvider } from "./kaspi";
 import { MockPayProvider } from "./mock";
 import type { PaymentProvider, PaymentProviderId } from "./types";
 
 const providers: Record<PaymentProviderId, PaymentProvider> = {
   kaspi: new KaspiPayProvider(),
-  freedom: new FreedomPayProvider(),
   forte: new ForteBankProvider(),
   mock: new MockPayProvider(),
 };
@@ -17,7 +15,7 @@ const providers: Record<PaymentProviderId, PaymentProvider> = {
  */
 export function getProvider(id: string): PaymentProvider | null {
   if (process.env.PAYMENT_MOCK === "1") return providers.mock;
-  if (id === "kaspi" || id === "freedom" || id === "forte") return providers[id];
+  if (id === "kaspi" || id === "forte") return providers[id];
   return null;
 }
 
@@ -26,6 +24,7 @@ export function getWebhookProvider(id: string): PaymentProvider | null {
   if (id === "mock") {
     return process.env.PAYMENT_MOCK === "1" ? providers.mock : null;
   }
-  if (id === "kaspi" || id === "freedom") return providers[id];
+  // У Kaspi (PayQR) и Forte вебхуков нет — оплата подтверждается опросом.
+  if (id === "kaspi") return providers[id];
   return null;
 }

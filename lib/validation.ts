@@ -42,7 +42,8 @@ export const orderSchema = z
     buyerPhone: phone.optional(),
     /// Промокод (Фаза 2); скидка пересчитывается на сервере
     promoCode: z.string().trim().max(40).optional(),
-    provider: z.enum(["kaspi", "freedom", "forte"]).optional(),
+    // Freedom Pay не подключён: картой платят через ForteBank
+    provider: z.enum(["kaspi", "forte"]).optional(),
     locale: z.enum(["ru", "kk", "en"]).default("ru"),
     /// Без явного согласия заказ не создаётся (PRD §5.2)
     consentAccepted: z.literal(true),

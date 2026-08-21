@@ -51,7 +51,7 @@ type Draft = {
   when: "now" | "scheduled";
   scheduledAt: string;
   buyerEmail: string;
-  provider: "kaspi" | "freedom";
+  provider: "kaspi" | "forte";
 };
 
 /** Есть ли в черновике осмысленный прогресс (иначе продолжать нечего). */
@@ -146,7 +146,7 @@ export function BuilderClient({
   const [when, setWhen] = useState<"now" | "scheduled">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [buyerEmail, setBuyerEmail] = useState(resume?.buyerEmail ?? "");
-  const [provider, setProvider] = useState<"kaspi" | "freedom">("kaspi");
+  const [provider, setProvider] = useState<"kaspi" | "forte">("kaspi");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
@@ -998,8 +998,8 @@ export function BuilderClient({
                 </button>
                 <button
                   type="button"
-                  className={segBtn(provider === "freedom")}
-                  onClick={() => setProvider("freedom")}
+                  className={segBtn(provider === "forte")}
+                  onClick={() => setProvider("forte")}
                 >
                   {t("s5Card")}
                   <small className="font-medium text-brand-purple-950/55">

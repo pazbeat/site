@@ -24,8 +24,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 const PROVIDER_LABEL: Record<string, string> = {
   kaspi: "Kaspi",
-  freedom: "Freedom",
-  forte: "Forte",
+  forte: "Картой (Forte)",
   mock: "Демо",
 };
 

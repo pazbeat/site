@@ -16,8 +16,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 
 const PROVIDER_LABEL: Record<string, string> = {
   kaspi: "Kaspi",
-  freedom: "Freedom Pay",
-  forte: "ForteBank",
+  forte: "Картой (Forte)",
   mock: "Демо (mock)",
 };
 

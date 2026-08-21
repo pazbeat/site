@@ -1,6 +1,10 @@
-/** Общий интерфейс платёжных провайдеров (PRD §2): Kaspi Pay и Freedom Pay за ним. */
+/**
+ * Общий интерфейс платёжных провайдеров: Kaspi QR и оплата картой.
+ * Картой сейчас через ForteBank; когда выдадут доступы Halyk ePay,
+ * он встанет сюда же новым провайдером, без правок вызывающего кода.
+ */
 
-export type PaymentProviderId = "kaspi" | "freedom" | "forte" | "mock";
+export type PaymentProviderId = "kaspi" | "forte" | "mock";
 
 export type CreatePaymentParams = {
   orderId: string;
