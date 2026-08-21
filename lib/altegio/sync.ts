@@ -81,7 +81,12 @@ export async function syncCertificateToAltegio(
     return;
   }
 
-  const code = cert.codeEncrypted ? decryptSecret(cert.codeEncrypted) : null;
+  // Номер сертификата: салонный (WM0001) лежит открыто в serial, и брать его
+  // оттуда надёжнее — шифртекст затирается после первого показа кода
+  // покупателю, и повторный синк по нему уже не собрался бы.
+  const code =
+    cert.serial ??
+    (cert.codeEncrypted ? decryptSecret(cert.codeEncrypted) : null);
   if (!code) throw new Error("altegio sync: certificate code unavailable");
 
   // Программный сертификат → точное название товара Altegio (иначе продажа

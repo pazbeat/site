@@ -30,7 +30,7 @@ function ImageCertPreview({
   subtitle,
   forLabel,
   message,
-  code = "IMB-••••-••••",
+  code = "WM••••",
   imageUrl,
 }: CertPreviewProps) {
   return (
@@ -77,7 +77,7 @@ function LegacyCertPreview({
   subtitle,
   forLabel,
   message,
-  code = "IMB-••••-••••",
+  code = "WM••••",
 }: CertPreviewProps) {
   const background =
     bgStyle.kind === "gradient"

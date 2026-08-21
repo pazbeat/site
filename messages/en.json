@@ -310,7 +310,7 @@
     "statusLabel": "Status",
     "balance": "Balance",
     "validUntil": "Valid until",
-    "notFound": "Certificate not found. Check the code — format IMB-XXXX-XXXX.",
+    "notFound": "Certificate not found. Check the number — it is printed on the certificate.",
     "rateLimited": "Too many requests. Please wait a minute and try again.",
     "status": {
       "active": "Active",

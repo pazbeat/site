@@ -76,7 +76,7 @@ export function CheckForm({
         id="check-code"
         value={code}
         onChange={(e) => setCode(e.target.value.toUpperCase())}
-        placeholder="IMB-XXXX-XXXX"
+        placeholder="WM0001"
         maxLength={20}
         className="mb-4 w-full rounded-xl border-[1.5px] border-brand-purple-100 px-3.5 py-3 text-sm tracking-[0.15em] uppercase outline-none transition-colors focus:border-brand-gold"
       />

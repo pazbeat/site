@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "./db";
 import {
+  formatSalonCode,
   generateCertificateCode,
   hashCode,
   maskCode,
@@ -10,9 +11,10 @@ import { getSetting } from "./data";
 import { reportFailure } from "./alerts";
 
 /**
- * Следующий серийный номер салона: WM001, WM002… Атомарно инкрементит
- * счётчик салона (single UPDATE … RETURNING — без гонок). Если у салона
- * не задан codePrefix, серийник не присваивается (null).
+ * Следующий номер сертификата по салону: WM0001, WM0002… Атомарно
+ * инкрементит счётчик салона (single UPDATE … RETURNING — без гонок).
+ * Если у салона не задан codePrefix, номер не присваивается (null) и код
+ * выдаётся случайный.
  */
 async function nextSalonSerial(salonId: number): Promise<string | null> {
   const salon = await prisma.salon.update({
@@ -21,7 +23,7 @@ async function nextSalonSerial(salonId: number): Promise<string | null> {
     select: { codePrefix: true, lastCertSerial: true },
   });
   if (!salon.codePrefix) return null;
-  return `${salon.codePrefix}${String(salon.lastCertSerial).padStart(3, "0")}`;
+  return formatSalonCode(salon.codePrefix, salon.lastCertSerial);
 }
 
 type OrderItem = {
@@ -82,11 +84,13 @@ export async function fulfillOrder(
   const validUntil = new Date();
   validUntil.setMonth(validUntil.getMonth() + validityMonths);
 
-  const code = generateCertificateCode();
-
-  // Внутренний серийный номер по салону (WM001…): атомарный инкремент
-  // счётчика салона. Не публичный — только для админки и Altegio.
+  // Номер сертификата по салону (WM0001…): атомарный инкремент счётчика.
+  // Он же публичный код — один номер и в письме, и в PDF, и в Altegio, как
+  // на действующем сайте: кассир ищет в CRM ровно то, что покупатель видит.
   const serial = await nextSalonSerial(order.salonId);
+  // Запасной путь: у салона нет префикса — выдаём случайный код, иначе
+  // сертификат остался бы вовсе без номера.
+  const code = serial ?? generateCertificateCode();
 
   const certificate = await prisma.certificate.create({
     data: {

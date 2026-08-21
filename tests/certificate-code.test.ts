@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CODE_ALPHABET,
   CODE_REGEX,
+  formatSalonCode,
   generateCertificateCode,
   hashCode,
   isValidCodeFormat,
@@ -76,5 +77,37 @@ describe("maskCode", () => {
   it("показывает только последние 2 символа", () => {
     expect(maskCode("IMB-A9F3-K2M4")).toBe("IMB-••••-••M4");
     expect(maskCode("IMB-A9F3-K2M4")).not.toContain("A9F3");
+  });
+});
+
+describe("салонный номер сертификата", () => {
+  it("собирается как на действующем сайте: префикс и четыре цифры", () => {
+    expect(formatSalonCode("WM", 1)).toBe("WM0001");
+    expect(formatSalonCode("WR", 42)).toBe("WR0042");
+    // счётчик перерос четыре знака — номер просто длиннее, не обрезаем
+    expect(formatSalonCode("WM", 12345)).toBe("WM12345");
+  });
+
+  it("принимается на проверке в любом написании", () => {
+    expect(isValidCodeFormat("WM0001")).toBe(true);
+    expect(isValidCodeFormat("wm0001")).toBe(true);
+    expect(isValidCodeFormat(" WM-0001 ")).toBe(true);
+    expect(normalizeCode("wm 0001")).toBe("WM0001");
+  });
+
+  it("не принимает мусор, похожий на номер", () => {
+    expect(isValidCodeFormat("W0001")).toBe(false);
+    expect(isValidCodeFormat("WMM0001")).toBe(false);
+    expect(isValidCodeFormat("WM01")).toBe(false);
+  });
+
+  it("старый случайный код продолжает работать", () => {
+    expect(isValidCodeFormat("IMB-2ES9-CQQD")).toBe(true);
+    expect(normalizeCode("imb2es9cqqd")).toBe("IMB-2ES9-CQQD");
+  });
+
+  it("салонный номер в админке показывается целиком, случайный — прячется", () => {
+    expect(maskCode("WM0001")).toBe("WM0001");
+    expect(maskCode("IMB-2ES9-CQQD")).toBe("IMB-••••-••QD");
   });
 });
