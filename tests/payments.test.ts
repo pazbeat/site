@@ -99,3 +99,17 @@ describe("мост Kaspi: проверка секрета", () => {
     delete process.env.KASPI_BRIDGE_TOKEN;
   });
 });
+
+describe("оповещение о сбоях", () => {
+  it("не шлёт письмо повторно, пока не остынет", async () => {
+    const { shouldEmail } = await import("@/lib/alerts");
+    const t0 = 1_000_000;
+    expect(shouldEmail("сбой-А", t0)).toBe(true);
+    // тот же сбой минутой позже — письма быть не должно
+    expect(shouldEmail("сбой-А", t0 + 60_000)).toBe(false);
+    // другой сбой пишем сразу
+    expect(shouldEmail("сбой-Б", t0 + 60_000)).toBe(true);
+    // после остывания снова пишем
+    expect(shouldEmail("сбой-А", t0 + 16 * 60_000)).toBe(true);
+  });
+});

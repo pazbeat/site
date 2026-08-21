@@ -8,6 +8,7 @@ import { getProvider } from "@/lib/payments";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { publicOrigin } from "@/lib/site-url";
 import { orderSchema } from "@/lib/validation";
+import { reportFailure } from "@/lib/alerts";
 
 /**
  * Создание заказа (PRD §5.3): статус pending, цена — ТОЛЬКО из БД,
@@ -137,10 +138,10 @@ export async function POST(request: NextRequest) {
         });
       }
     } catch (error) {
-      console.error("payment_init_failed", {
-        orderId: order.id,
-        provider: provider.id,
-        error: error instanceof Error ? error.message : String(error),
+      void reportFailure("оплата: не удалось создать платёж", error, {
+        заказ: order.id,
+        способ: provider.id,
+        сумма: payableKzt,
       });
     }
   }

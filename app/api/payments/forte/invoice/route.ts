@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { ForteBankProvider } from "@/lib/payments/forte";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { publicOrigin } from "@/lib/site-url";
+import { reportFailure } from "@/lib/alerts";
 
 /**
  * Создание заказа ForteBank и получение hosted-URL для редиректа покупателя.
@@ -52,9 +53,9 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ redirectUrl: created.redirectUrl });
   } catch (error) {
-    console.error("forte invoice failed", {
-      orderId: order.id,
-      error: error instanceof Error ? error.message : String(error),
+    void reportFailure("Forte: не создан заказ в банке", error, {
+      заказ: order.id,
+      сумма: order.amountKzt,
     });
     return NextResponse.json({ error: "invoice_failed" }, { status: 502 });
   }

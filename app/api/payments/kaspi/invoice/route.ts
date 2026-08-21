@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { prisma } from "@/lib/db";
 import { KaspiPayProvider } from "@/lib/payments/kaspi";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { reportFailure } from "@/lib/alerts";
 
 /**
  * Платёжная ссылка Kaspi для заказа + готовый QR-код к ней.
@@ -64,9 +65,9 @@ export async function POST(request: Request) {
       autoConfirm: kaspi.hasAutomaticConfirmation(),
     });
   } catch (error) {
-    console.error("kaspi invoice failed", {
-      orderId: order.id,
-      error: error instanceof Error ? error.message : String(error),
+    void reportFailure("Kaspi: не выдана ссылка на оплату", error, {
+      заказ: order.id,
+      сумма: order.amountKzt,
     });
     return NextResponse.json({ error: "invoice_failed" }, { status: 502 });
   }

@@ -7,6 +7,7 @@ import {
 } from "./certificate-code";
 import { encryptSecret } from "./crypto";
 import { getSetting } from "./data";
+import { reportFailure } from "./alerts";
 
 /**
  * Следующий серийный номер салона: WM001, WM002… Атомарно инкрементит
@@ -120,11 +121,17 @@ export async function fulfillOrder(
     const { enqueueDelivery } = await import("./queue");
     await enqueueDelivery(certificate.id, certificate.scheduledAt);
   } catch (error) {
-    console.error("enqueue delivery failed, delivering inline", error);
+    void reportFailure("доставка: очередь недоступна", error, {
+      сертификат: certificate.id,
+      заказ: orderId,
+    });
     void import("./delivery")
       .then(({ deliverCertificate }) => deliverCertificate(certificate.id))
       .catch((deliveryError) =>
-        console.error("inline delivery failed", deliveryError),
+        reportFailure("доставка: не ушло письмо", deliveryError, {
+          сертификат: certificate.id,
+          заказ: orderId,
+        }),
       );
   }
 
@@ -134,7 +141,13 @@ export async function fulfillOrder(
     .then(({ syncCertificateToAltegio }) =>
       syncCertificateToAltegio(certificate.id),
     )
-    .catch((error) => console.error("altegio sync failed (non-fatal)", error));
+    .catch((error) =>
+      reportFailure("Altegio: сертификат не записан в CRM", error, {
+        сертификат: certificate.id,
+        заказ: orderId,
+        серийник: certificate.serial,
+      }),
+    );
 
   // Уведомление админу о продаже (Telegram) — тоже best-effort.
   void import("./notify")
@@ -143,7 +156,11 @@ export async function fulfillOrder(
         manual: externalPaymentId.startsWith("manual:"),
       }),
     )
-    .catch((error) => console.error("sale notify failed (non-fatal)", error));
+    .catch((error) =>
+      reportFailure("уведомление о продаже не отправлено", error, {
+        сертификат: certificate.id,
+      }),
+    );
 
   return { status: "fulfilled", certificateId: certificate.id };
 }
