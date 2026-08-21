@@ -69,9 +69,9 @@ describe("altegio buildStorageOperation", () => {
     expect(tx.good_special_number).toBe("IMB-ABCD-EFGH");
   });
 
-  it("проставляет номинал в cost_per_unit и sale_amount", () => {
+  it("проставляет номинал в стоимость", () => {
     expect(tx.cost_per_unit).toBe(20000);
-    expect(tx.sale_amount).toBe(20000);
+    expect(tx.cost).toBe(20000);
   });
 
   it("продаёт реальный товар-сертификат из контекста", () => {
@@ -79,10 +79,20 @@ describe("altegio buildStorageOperation", () => {
     expect(op.storage_id).toBe(424028);
   });
 
-  it("привязывает клиента (client_id) — иначе сертификат не виден в CRM", () => {
+  it("привязывает клиента (client_id) — по нему потом читаем остаток из CRM", () => {
     expect(op.client_id).toBe(184315997);
     expect(tx.client_id).toBe(184315997);
-    expect(op.phone).toBe("77000000199");
+    expect(op.client.phone).toBe("77000000199");
+  });
+
+  it("продаёт ОДНУ штуку, а сумму кладёт в стоимость — как действующий сайт", () => {
+    // sale_amount у Altegio это количество: сумма здесь означала бы продажу
+    // сорока тысяч сертификатов вместо одного на сорок тысяч.
+    expect(tx.amount).toBe(1);
+    expect(tx.sale_amount).toBe(1);
+    expect(tx.service_amount).toBe(1);
+    expect(tx.cost).toBe(tx.cost_per_unit);
+    expect(tx.discount).toBeNull();
   });
 });
 

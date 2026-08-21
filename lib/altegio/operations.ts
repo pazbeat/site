@@ -225,7 +225,9 @@ export function buildStorageOperation(p: IssueParams, ctx: IssueContext) {
     abonements: [],
     account_id: ctx.accountId,
     client: {
-      id: client.id,
+      // Ключ id есть только у заведённой карточки: у заказчика его в теле
+      // нет вовсе, когда клиента не создают.
+      ...(client.id === null ? {} : { id: client.id }),
       name: client.name,
       surname: client.surname ?? "",
       patronymic: client.patronymic ?? "",
@@ -233,22 +235,18 @@ export function buildStorageOperation(p: IssueParams, ctx: IssueContext) {
       phone: client.phone,
       fullname: client.fullname ?? client.name,
     },
-    email: client.email ?? "",
-    fullname: client.name,
-    name: client.name,
-    patronymic: "",
-    phone: client.phone,
-    surname: "",
     date: now,
     document: {
       id: 0,
       type_id: 1,
       type: { id: 1, title: "start_guide_questionnaire.products_sales" },
       storage_id: 0,
+      user_id: 0,
       comment: ctx.comment,
       company_id: 0,
       create_date: now,
       number: 0,
+      user: { id: 0, name: "", phone: "" },
     },
     goods_transactions: [
       {
@@ -262,10 +260,13 @@ export function buildStorageOperation(p: IssueParams, ctx: IssueContext) {
         client_id: ctx.clientId ?? 0,
         comment: ctx.comment,
         company_id: 0,
-        cost: 0,
+        // Количество — одна штука, а не сумма: sale_amount у Altegio это
+        // количество к продаже. Суммой заполняются cost и cost_per_unit —
+        // ровно так это делает действующий сайт (api.js, createProduct).
+        cost: p.amountKzt,
         cost_per_unit: p.amountKzt,
         deleted: false,
-        discount: 0,
+        discount: null,
         document_id: 0,
         good: ctx.good,
         good_id: goodId,
@@ -282,7 +283,7 @@ export function buildStorageOperation(p: IssueParams, ctx: IssueContext) {
         manual_cost: 0,
         master_id: 0,
         operation_unit_type: 1,
-        sale_amount: p.amountKzt,
+        sale_amount: 1,
         sale_unit: unit,
         sale_unit_id: goodUnitId,
         service_amount: 1,
