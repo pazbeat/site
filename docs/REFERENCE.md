@@ -5,7 +5,7 @@
 > **В этом файле нет и не должно быть паролей, ключей и токенов.**
 > Файл отслеживается гитом и лежит на GitHub — всё, что сюда попадёт,
 > станет публичным. Сами значения секретов живут только в двух местах:
-> локальный `.env` (в `.gitignore`) и переменные окружения Railway.
+> локальный `.env` (в `.gitignore`) и `.env.production` на сервере.
 > Личные пароли — в менеджере паролей, не в репозитории.
 
 ## Репозиторий и стенды
@@ -14,18 +14,18 @@
 |---|---|
 | Код | https://github.com/pazbeat/site.git |
 | Основная ветка | `main`, текущая рабочая — `redesign` |
-| Тестовый стенд | https://imbir-production.up.railway.app |
-| Railway проект | `imbir-preview`, id `49506c4d-b945-46ff-983f-7f04e55fe321` |
-| Сервисы Railway | `imbir` (приложение), `Postgres` (база) |
-| Деплой | `railway up --detach` из корня проекта |
+| Боевой стенд | https://new.imbir.kz (hoster.kz, Астана, 185.129.51.231) |
+| Что на сервере | Docker Compose (app + db + backup), nginx, Let's Encrypt, за Cloudflare |
+| Каталог | `/opt/imbir/site`, окружение — `.env.production` рядом |
+| Деплой | `git pull` + `docker compose --env-file .env.production up -d --build` |
 | Локальная БД | Docker-контейнер `imbir-pg` (postgres:16-alpine) |
 
-**Внимание:** на стенде включены боевые Resend и ChatApp — заказы, созданные
-там, шлют настоящие письма и сообщения в WhatsApp. Ссылку широко не раздавать.
+**Внимание:** на стенде включён боевой Resend — заказы, созданные там, шлют
+настоящие письма. Ссылку широко не раздавать.
 
 ## Переменные окружения
 
-Значения — в `.env` локально и в Railway (`railway variables`). Здесь только
+Значения — в `.env` локально и в `.env.production` на сервере. Здесь только
 назначение.
 
 ### Обязательные
@@ -38,14 +38,17 @@
 - `RESEND_API_KEY`, `MAIL_FROM`, `MANAGER_EMAIL`
 - Домен `imbir.kz` верифицирован, владелец аккаунта — izecreamchik@gmail.com
 
-### WhatsApp (ChatApp, chatapp.online)
-- `CHATAPP_EMAIL`, `CHATAPP_PASSWORD`, `CHATAPP_APP_ID`, `CHATAPP_LICENSE_ID`,
-  `CHATAPP_MESSENGER`
-- `WHATSAPP_MOCK=1` — писать в `.wa-outbox` вместо реальной отправки
+### WhatsApp
+Убран: доставка сертификата идёт только на email, интеграция ChatApp удалена.
 
 ### Платежи
-- Kaspi через PayQR: `KASPI_PAY_MERCHANT_ID`, `KASPI_PAY_TERMINAL`
-- ForteBank: `FORTE_USERNAME`, `FORTE_PASSWORD`, `FORTE_API_URL`
+- Kaspi, основной способ — ссылка на форму сервиса: `KASPI_PAY_LINK_SLUG`,
+  `KASPI_PAY_SERVICE_ID`, `KASPI_PAY_ORDER_FIELD_ID`. Значения читаются прямо
+  из ссылки в кабинете Kaspi: `kaspi.kz/pay/{SLUG}?service_id={ID}&{ПОЛЕ}=…`
+- Kaspi через PayQR (запасной путь и источник статуса): `KASPI_PAY_MERCHANT_ID`,
+  `KASPI_PAY_TERMINAL`. На сервере закомментированы — API шлюза не отвечает
+- ForteBank: `FORTE_USERNAME`, `FORTE_PASSWORD`, `FORTE_API_URL`. Пока пары
+  логин/пароль нет, кнопка «оплата картой» в конструкторе не показывается
 - `PAYMENT_MOCK=1` — демо-провайдер, **в проде не включать**
 
 ### Altegio (CRM)
@@ -77,11 +80,11 @@
 - `add-region-salons.ts`, `apply-price-2026-07.ts`, `apply-designs.ts` — правки
   справочных данных
 
-**Против базы стенда** (она во внутренней сети Railway, снаружи недоступна) —
-через публичный прокси Postgres:
+**Против базы стенда** (порт наружу не опубликован) — изнутри контейнера
+приложения, там же лежат и скрипты, и `tsx`:
 
 ```bash
-railway run --service Postgres node -e "const {execSync}=require('child_process'); execSync('npx tsx scripts/apply-program-photos.ts',{stdio:'inherit',env:{...process.env,DATABASE_URL:process.env.DATABASE_PUBLIC_URL}})"
+ssh root@185.129.51.231 'cd /opt/imbir/site && docker compose --env-file .env.production exec -T app node_modules/.bin/tsx scripts/apply-test-100.ts'
 ```
 
 ## Как продолжить работу с другого компьютера
@@ -106,7 +109,7 @@ npm run dev
 
 **Откуда брать значения для `.env`:**
 
-- боевые — из переменных стенда: `railway variables` (нужен `railway login`);
+- боевые — из `.env.production` на сервере (`/opt/imbir/site`);
 - либо из менеджера паролей владельца;
 - для локальной разработки многое можно не заполнять: без ключей Resend и
   ChatApp письма и сообщения пишутся в `.mail-outbox/` и `.wa-outbox/`,
