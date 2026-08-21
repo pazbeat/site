@@ -154,8 +154,12 @@ export async function syncCertificateToAltegio(
       altegioSyncStatus: "synced",
       altegioSyncedAt: new Date(),
       altegioCompanyId: result.companyId,
+      // Пустой телефон не пишем: сверка остатков ищет клиента по номеру, и
+      // пустая строка отправляла бы её в заведомо провальный запрос.
       altegioClientPhone:
-        result.status === "issued" ? result.clientPhone : undefined,
+        result.status === "issued" && result.clientPhone
+          ? result.clientPhone
+          : undefined,
       altegioCertId:
         result.status === "issued" ? String(result.documentId) : undefined,
     },

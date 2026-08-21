@@ -61,7 +61,8 @@ export type IssueParams = {
 };
 
 type AltegioClientRef = {
-  id: number;
+  /** null — карточки клиента нет: покупатель не оставлял телефон. */
+  id: number | null;
   name: string;
   surname?: string;
   patronymic?: string;
@@ -76,7 +77,13 @@ export type IssueContext = {
   storageId: number;
   masterId: number;
   accountId: number;
-  clientId: number;
+  /**
+   * Карточка клиента в Altegio. null, если покупатель не оставил телефон:
+   * завести клиента без номера их API не даёт («Client's phone number cannot
+   * be empty» — проверено живьём 2026-08-21), а данные покупателя всё равно
+   * уходят в документ продажи. Ровно так же поступает действующий сайт.
+   */
+  clientId: number | null;
   client: AltegioClientRef;
   /** Объект товара для тела операции. */
   good: Record<string, unknown>;
@@ -252,7 +259,7 @@ export function buildStorageOperation(p: IssueParams, ctx: IssueContext) {
         loyalty_abonement_id: 0,
         actual_amounts: [],
         amount: 1,
-        client_id: ctx.clientId,
+        client_id: ctx.clientId ?? 0,
         comment: ctx.comment,
         company_id: 0,
         cost: 0,
@@ -320,7 +327,8 @@ export type IssueResult =
       status: "issued";
       documentId: number;
       companyId: number;
-      clientId: number;
+      /** null — покупатель без телефона, карточки клиента в CRM нет. */
+      clientId: number | null;
       number: string;
       clientPhone: string;
       paid: boolean;
@@ -346,11 +354,16 @@ async function resolveContext(params: IssueParams): Promise<IssueContext> {
 
   if (companyId && goodId && branch) {
     const phone = params.buyerPhone ? normalizePhone(params.buyerPhone) : "";
-    const clientId = await findOrCreateClient(companyId, {
-      name: params.buyerName ?? "Клиент сайта",
-      phone,
-      email: params.buyerEmail,
-    });
+    // Клиента заводим, только если есть телефон: без номера Altegio карточку
+    // не создаёт. Без клиента продажа всё равно проходит — данные покупателя
+    // уходят в документ, как это делает действующий сайт.
+    const clientId = phone
+      ? await findOrCreateClient(companyId, {
+          name: params.buyerName ?? "Клиент сайта",
+          phone,
+          email: params.buyerEmail,
+        })
+      : null;
     return {
       companyId,
       storageId: branch.storageId,
