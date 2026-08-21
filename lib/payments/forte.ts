@@ -20,6 +20,15 @@ import type {
 
 const BASE_URL = process.env.FORTE_API_URL ?? "https://api.fortebank.com";
 
+/**
+ * Ограничение ожидания шлюза. Без него зависший шлюз держит запрос
+ * покупателя бесконечно: страница оплаты просто не отвечает, и человек
+ * не понимает, оплатил он или нет. Поймано живьём — payqr.kz отвечал на
+ * корень за 0.4 с, а его API молчал десятками секунд.
+ */
+const GATEWAY_TIMEOUT_MS = 20_000;
+
+
 type Config = { username: string; password: string };
 
 function readConfig(): Config | null {
@@ -87,6 +96,7 @@ export class ForteBankProvider implements PaymentProvider {
         "Content-Type": "application/json",
         Authorization: authHeader(cfg),
       },
+      signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
       body: JSON.stringify({
         language: "ru",
         currency: "KZT",
@@ -117,7 +127,10 @@ export class ForteBankProvider implements PaymentProvider {
 
     const response = await fetch(
       `${BASE_URL}/order/${encodeURIComponent(forteOrderId)}`,
-      { headers: { Authorization: authHeader(cfg) } },
+      {
+        headers: { Authorization: authHeader(cfg) },
+        signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
+      },
     );
     const data = (await response.json().catch(() => null)) as {
       order?: { status?: string };

@@ -15,6 +15,15 @@ import type {
 
 const BASE_URL = process.env.KASPI_PAYQR_BASE_URL ?? "https://payqr.kz";
 
+/**
+ * Ограничение ожидания шлюза. Без него зависший шлюз держит запрос
+ * покупателя бесконечно: страница оплаты просто не отвечает, и человек
+ * не понимает, оплатил он или нет. Поймано живьём — payqr.kz отвечал на
+ * корень за 0.4 с, а его API молчал десятками секунд.
+ */
+const GATEWAY_TIMEOUT_MS = 20_000;
+
+
 type Config = { machid: string; terNumber: string };
 
 function readConfig(): Config | null {
@@ -59,6 +68,7 @@ export class KaspiPayProvider implements PaymentProvider {
     const response = await fetch(`${BASE_URL}/v1/le/qr_invoice`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
       body: JSON.stringify({
         machid: cfg.machid,
         terNumber: cfg.terNumber,
@@ -89,6 +99,7 @@ export class KaspiPayProvider implements PaymentProvider {
     const response = await fetch(`${BASE_URL}/v1/le/pay_status`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
       body: JSON.stringify({ orderid: payqrOrderId, machid: cfg.machid }),
     });
     const data = (await response.json().catch(() => ({}))) as {
