@@ -54,11 +54,7 @@ function buildLimits(input: {
 }
 
 export async function savePromoAction(formData: FormData) {
-  console.error("[action] savePromoAction начало", {
-    code: String(formData.get("code") ?? ""),
-  });
   const admin = await requireCatalogEditor();
-  console.error("[action] прошли проверку прав", admin.email);
   const parsed = schema.safeParse({
     id: formData.get("id") || undefined,
     code: formData.get("code"),

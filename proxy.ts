@@ -1,17 +1,41 @@
 import createIntlMiddleware from "next-intl/middleware";
-import NextAuth from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import type { Session } from "next-auth";
-import { authConfig } from "./lib/auth.config";
 import { routing } from "./i18n/routing";
 import { buildCsp } from "./lib/security";
 import { AB_COOKIE, pickVariant } from "./lib/ab";
 
 const intl = createIntlMiddleware(routing);
-// Edge-safe экземпляр: только чтение JWT-сессии, без БД/argon2
-const { auth: withAuth } = NextAuth(authConfig);
 
 const isDev = process.env.NODE_ENV !== "production";
+
+/**
+ * Имя куки сессии Auth.js. Оно же — соль шифрования токена, поэтому должно
+ * совпадать в точности; префикс `__Secure-` библиотека ставит только на https.
+ */
+const SESSION_COOKIE = isDev
+  ? "authjs.session-token"
+  : "__Secure-authjs.session-token";
+
+/**
+ * Чтение сессии без побочных эффектов: getToken только расшифровывает куку.
+ *
+ * Обёртка `auth()` из next-auth здесь не годится — она попутно обновляет куку
+ * сессии и переносит Set-Cookie на наш ответ. На обычных страницах это
+ * незаметно, а на POST серверного действия ломало вход: посредник пропускал
+ * запрос с живой сессией, действие не запускалось вовсе, и сразу после ответа
+ * кука оказывалась стёртой. Снаружи выглядело так, будто в админке не
+ * сохраняется ни одна форма (разобрано живьём 2026-08-21).
+ */
+async function readSession(request: NextRequest) {
+  return getToken({
+    req: request,
+    secret: process.env.AUTH_SECRET,
+    salt: SESSION_COOKIE,
+    cookieName: SESSION_COOKIE,
+    secureCookie: !isDev,
+  });
+}
 
 /**
  * Обёртка `withAuth` обязательна: сессию отдаёт она через `request.auth`.
@@ -25,15 +49,8 @@ const isDev = process.env.NODE_ENV !== "production";
  * Остальное — i18n-роутинг next-intl. На каждый ответ навешивается CSP
  * с per-request nonce (PRD §9.2) + прочие security-заголовки.
  */
-export default withAuth(async function proxy(request) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname.startsWith("/admin")) {
-    console.error("[proxy] вход", {
-      путь: pathname,
-      метод: request.method,
-      сессия: request.auth?.user ? "есть" : "нет",
-    });
-  }
 
   // Per-request nonce; кладём в заголовки запроса, чтобы Next проставил его
   // своим скриптам (next-intl копирует request.headers в rewrite).
@@ -46,12 +63,18 @@ export default withAuth(async function proxy(request) {
     headers: requestHeaders,
   });
 
-  const response = await route(patched, request, pathname, request.auth);
+  // Сессию читаем только там, где она нужна, — на публичных страницах
+  // расшифровывать куку незачем.
+  const needsSession =
+    pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+  const session = needsSession ? await readSession(request) : null;
+
+  const response = await route(patched, request, pathname, session);
   response.headers.set("Content-Security-Policy", csp);
   applySecurityHeaders(response.headers);
   assignAbVariant(request, response, pathname);
   return response;
-});
+}
 
 /**
  * Липкая группа A/B-теста цен (PRD §10). Назначаем здесь, потому что кука
@@ -78,25 +101,17 @@ async function route(
   patched: NextRequest,
   original: NextRequest,
   pathname: string,
-  session: Session | null,
+  session: { uid?: unknown } | null,
 ): Promise<NextResponse> {
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
     if (pathname === "/admin/login") {
       return NextResponse.next({ request: { headers: patched.headers } });
     }
-    if (!session?.user) {
+    if (!session?.uid) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "unauthorized" }, { status: 401 });
       }
-      // ВРЕМЕННАЯ МЕТКА
-      console.error("[proxy] нет сессии", {
-        путь: pathname,
-        метод: original.method,
-        куки: (original.headers.get("cookie") ?? "").split(";").map((c) => c.trim().split("=")[0]).join(","),
-      });
-      return NextResponse.redirect(
-        new URL("/admin/login?src=proxy", original.url),
-      );
+      return NextResponse.redirect(new URL("/admin/login", original.url));
     }
     return NextResponse.next({ request: { headers: patched.headers } });
   }
