@@ -64,3 +64,38 @@ describe("buildKaspiPayLink", () => {
     expect(link.match(/service_id=/g)).toHaveLength(1);
   });
 });
+
+describe("мост Kaspi: проверка секрета", () => {
+  const req = (token?: string) =>
+    new Request("https://x/", {
+      // В заголовки HTTP помещается только ASCII — отсюда латиница
+      headers: token ? { "x-bridge-token": token } : {},
+    });
+
+  it("выключен, пока секрет не задан в окружении", async () => {
+    delete process.env.KASPI_BRIDGE_TOKEN;
+    const { bridgeAuthorized, bridgeToken } = await import("@/lib/kaspi-bridge");
+    expect(bridgeToken()).toBeNull();
+    expect(bridgeAuthorized(req("anything"))).toBe(false);
+  });
+
+  it("пускает только с точным секретом", async () => {
+    process.env.KASPI_BRIDGE_TOKEN = "s3cret-token-value";
+    const { bridgeAuthorized } = await import("@/lib/kaspi-bridge");
+    expect(bridgeAuthorized(req("s3cret-token-value"))).toBe(true);
+    expect(bridgeAuthorized(req("s3cret-token-valuX"))).toBe(false);
+    expect(bridgeAuthorized(req("s3cret"))).toBe(false);
+    expect(bridgeAuthorized(req())).toBe(false);
+    delete process.env.KASPI_BRIDGE_TOKEN;
+  });
+
+  it("принимает секрет и в виде Bearer", async () => {
+    process.env.KASPI_BRIDGE_TOKEN = "s3cret-token-value";
+    const { bridgeAuthorized } = await import("@/lib/kaspi-bridge");
+    const r = new Request("https://x/", {
+      headers: { authorization: "Bearer s3cret-token-value" },
+    });
+    expect(bridgeAuthorized(r)).toBe(true);
+    delete process.env.KASPI_BRIDGE_TOKEN;
+  });
+});
