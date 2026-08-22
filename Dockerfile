@@ -30,7 +30,8 @@ COPY --from=builder /app/lib/generated ./lib/generated
 FROM base AS runner
 ENV NODE_ENV=production
 # postgresql16-client + tar — pg_dump/pg_restore для панели бэкапов (/admin/backup)
-RUN apk add --no-cache postgresql16-client tar \
+# openssl — подпись манифеста .pkpass (PKCS#7); в базовом образе его нет
+RUN apk add --no-cache postgresql16-client tar openssl \
   && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 

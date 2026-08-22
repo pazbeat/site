@@ -149,3 +149,13 @@ export function shouldPushUpdate(shown: ShownState, fields: PassFields): boolean
 export function generatePassSerial(): string {
   return randomBytes(16).toString("hex");
 }
+
+/**
+ * Токен веб-сервиса обновлений. Отдельный секрет, а не код сертификата:
+ * он лежит в самом пропуске на устройстве и приходит в каждом запросе
+ * Apple. В базе шифруется AES-GCM, а не хэшируется — обновлённый пропуск
+ * обязан нести тот же токен, иначе устройство отвалится.
+ */
+export function generatePassAuthToken(): string {
+  return randomBytes(24).toString("base64url");
+}

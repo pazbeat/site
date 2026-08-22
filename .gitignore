@@ -43,6 +43,9 @@ yarn-error.log*
 # WhatsApp mock outbox
 /.wa-outbox
 
+# Wallet mock outbox: неподписанные .pkpass для проверки глазами
+/.wallet-outbox
+
 # runtime-загруженные картинки дизайнов (сид-открытки в public/designs — в гите)
 /public/uploads
 
