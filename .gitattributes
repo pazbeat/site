@@ -2,3 +2,6 @@
 # `#!/bin/sh\r` ломает запуск в Linux-контейнере.
 *.sh text eol=lf
 docker-entrypoint.sh text eol=lf
+
+# Конфиги nginx копируются на сервер как есть — тоже LF.
+deploy/nginx/*.conf text eol=lf
