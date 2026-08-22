@@ -447,6 +447,9 @@ model WalletPass {
   /// Баланс, который сейчас реально показан на карте. Позволяет не дёргать
   /// push, когда сверка с Altegio ничего не изменила.
   shownBalanceKzt Int?         @map("shown_balance_kzt")
+  /// Показана ли карта серой. Отдельно от остатка: блокировка и возврат
+  /// его не меняют, а карту закрыть обязаны — иначе пуш не уйдёт.
+  shownVoided     Boolean      @default(false) @map("shown_voided")
   lastPushedAt  DateTime?      @map("last_pushed_at")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")

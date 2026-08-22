@@ -20,3 +20,12 @@ export function getWalletProvider(): WalletPassProvider {
   }
   return provider;
 }
+
+/**
+ * Готовы ли мы отдавать пропуски наружу. Неподписанный пропуск телефон всё
+ * равно отвергнет, поэтому лучше честный отказ, чем битый файл: по нему
+ * хотя бы видно, что дело в отсутствующем сертификате Apple.
+ */
+export function isWalletConfigured(): boolean {
+  return getWalletProvider().id === "apple";
+}
