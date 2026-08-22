@@ -3,6 +3,7 @@ import { prisma } from "../db";
 import { decryptSecret } from "../crypto";
 import { isAltegioConfigured, listClientCertificates } from "./client";
 import { isAltegioTest } from "./sync";
+import { refreshPassesForCertificate } from "../wallet/notify";
 import type { CertificateStatus } from "../generated/prisma/client";
 
 /**
@@ -171,6 +172,9 @@ export async function syncRedemptionsFromAltegio(): Promise<SyncStats> {
         if (applied === "updated") {
           stats.updated++;
           if (action.kind === "sync") stats.redeemedKzt += action.redeemedKzt;
+          // Остаток изменился — карта в кошельке обязана это показать.
+          // Внутри всё гасится: сверка не должна падать из-за Apple.
+          await refreshPassesForCertificate(cert.id);
         }
         if (applied === "missing") stats.missing++;
         if (applied === "dry") stats.dryRun++;

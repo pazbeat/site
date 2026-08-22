@@ -8,6 +8,7 @@ import { CertPreview } from "@/components/cert-preview";
 import { ClaimCode } from "@/components/claim-code";
 import { GiftReveal } from "@/components/gift-reveal";
 import { prisma } from "@/lib/db";
+import { isWalletConfigured } from "@/lib/wallet";
 import { pickL10n } from "@/lib/l10n";
 import { formatDuration, formatKzt } from "@/lib/format";
 import type { DesignBgStyle } from "@/lib/types";
@@ -121,6 +122,16 @@ export default async function SuccessPage({
             >
               {t("downloadPdf")}
             </a>
+            {/* Пока сертификат Apple не перевыпущен, кнопку не показываем:
+                пропуск подписать нечем, и телефон его отвергнет. */}
+            {isWalletConfigured() && (
+              <a
+                href={`/api/certificates/pkpass?token=${encodeURIComponent(token)}`}
+                className="inline-block rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
+              >
+                {t("addToWallet")}
+              </a>
+            )}
             <Link
               href="/create"
               className="inline-block rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
