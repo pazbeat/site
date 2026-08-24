@@ -69,11 +69,14 @@ describe("подпись токенов Google", () => {
   });
 
   it("разворачивает ключ, записанный одной строкой с \\n", () => {
-    // Ровно в таком виде ключ лежит в JSON сервисного аккаунта и в env
+    // Ровно в таком виде ключ лежит в JSON сервисного аккаунта
     const escaped = privateKey.replace(/\n/g, "\\n");
-    expect(normalizePrivateKey(escaped)).toBe(privateKey);
-    // Уже нормальный ключ не портим
-    expect(normalizePrivateKey(privateKey)).toBe(privateKey);
+    expect(normalizePrivateKey(escaped).trim()).toBe(privateKey.trim());
+  });
+
+  it("готовый PEM не портит, лишние пробелы по краям убирает", () => {
+    expect(normalizePrivateKey(privateKey).trim()).toBe(privateKey.trim());
+    expect(normalizePrivateKey(`\n  ${privateKey}  \n`)).toBe(privateKey.trim());
   });
 
   it("токен не содержит символов, ломающих URL", () => {
@@ -218,5 +221,25 @@ describe("утверждение для доступа к API", () => {
     });
     expect(a.aud).toBe("https://oauth2.googleapis.com/token");
     expect((a.exp as number) - (a.iat as number)).toBe(3600);
+  });
+});
+
+describe("ключ переживает дорогу до контейнера", () => {
+  it("принимает PEM, записанный в base64", () => {
+    // Так ключ приходится хранить в env-файле: docker-compose разворачивает
+    // \n в настоящий перенос и обрывает значение на первой строке
+    const packed = Buffer.from(privateKey, "utf8").toString("base64");
+    expect(normalizePrivateKey(packed)).toBe(privateKey);
+  });
+
+  it("подписывает ключом из base64 так же, как исходным", () => {
+    const packed = Buffer.from(privateKey, "utf8").toString("base64");
+    const token = signJwtRs256({ a: 1 }, packed);
+    const [h, p, sig] = token.split(".");
+    const ok = createVerify("RSA-SHA256")
+      .update(`${h}.${p}`)
+      .end()
+      .verify(publicKey, Buffer.from(sig, "base64url"));
+    expect(ok).toBe(true);
   });
 });

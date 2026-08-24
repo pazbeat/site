@@ -16,12 +16,24 @@ function base64url(input: Buffer | string): string {
 }
 
 /**
- * Приватный ключ из JSON сервисного аккаунта. В JSON переносы строк
- * записаны как `\n`; если ключ кладут в переменную окружения, они обычно
- * такими и остаются — PEM с буквальным «backslash n» не разбирается.
+ * Приватный ключ сервисного аккаунта в трёх видах, которые встречаются живьём:
+ *
+ *  · настоящий PEM с переносами — если задан через `environment:`;
+ *  · PEM, где переносы записаны как `\n` — так он лежит в JSON от Google;
+ *  · base64 от PEM — так его приходится хранить в env-файле.
+ *
+ * Третий случай не прихоть: docker-compose разворачивает `\n` в env-файле в
+ * настоящий перенос и обрывает значение на первой же строке. Ключ доезжал до
+ * контейнера огрызком в 27 символов — ровно заголовок `-----BEGIN…`, и
+ * подпись падала. Поймано живьём 2026-08-24.
  */
 export function normalizePrivateKey(raw: string): string {
-  return raw.includes("\\n") ? raw.replace(/\\n/g, "\n") : raw;
+  const value = raw.trim();
+  if (value.includes("BEGIN")) {
+    return value.includes("\\n") ? value.replace(/\\n/g, "\n") : value;
+  }
+  // Не похоже на PEM — значит ключ передан в base64
+  return Buffer.from(value, "base64").toString("utf8");
 }
 
 export function signJwtRs256(
