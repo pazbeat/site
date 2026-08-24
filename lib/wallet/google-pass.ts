@@ -16,6 +16,15 @@ import type { PassFields } from "./pass";
 /** Цвета брендбука (AGENTS.md §3), а не сиреневый действующего сайта. */
 const BRAND_PURPLE = "#4D295D";
 
+/**
+ * Версия картинок карты. Google забирает логотип и баннер по ссылке и держит
+ * их у себя — по тому же адресу новую картинку он уже не заберёт. Меняете
+ * изображение — увеличьте число, иначе у покупателей останется старое.
+ * Заодно versioned-адрес обходит отрицательный кэш Cloudflare, если ссылку
+ * успели запросить до выкладки файла.
+ */
+const IMAGE_VERSION = 1;
+
 export type GoogleIds = {
   issuerId: string;
   /** Хвост идентификатора класса — одно оформление на все карты */
@@ -73,8 +82,14 @@ export function buildGiftCardClass(
     localizedIssuerName: {
       defaultValue: { language: "ru", value: "Imbir Thai Spa" },
     },
-    programLogo: image(`${base}/brand/wallet-logo.png`, "Imbir Thai Spa"),
-    heroImage: image(`${base}/brand/wallet-hero.jpg`, "Салон Imbir Thai Spa"),
+    programLogo: image(
+      `${base}/brand/wallet-logo.png?v=${IMAGE_VERSION}`,
+      "Imbir Thai Spa",
+    ),
+    heroImage: image(
+      `${base}/brand/wallet-hero.jpg?v=${IMAGE_VERSION}`,
+      "Салон Imbir Thai Spa",
+    ),
     homepageUri: {
       uri: `${base}/`,
       description: "Сайт сертификатов",

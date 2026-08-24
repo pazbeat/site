@@ -250,8 +250,8 @@ describe("оформление карты", () => {
   it("несёт логотип и баннер — без них карта пустой прямоугольник", () => {
     const logo = cls.programLogo as { sourceUri: { uri: string } };
     const hero = cls.heroImage as { sourceUri: { uri: string } };
-    expect(logo.sourceUri.uri).toBe("https://new.imbir.kz/brand/wallet-logo.png");
-    expect(hero.sourceUri.uri).toBe("https://new.imbir.kz/brand/wallet-hero.jpg");
+    expect(logo.sourceUri.uri).toContain("/brand/wallet-logo.png");
+    expect(hero.sourceUri.uri).toContain("/brand/wallet-hero.jpg");
   });
 
   it("ссылки на картинки абсолютные — Google забирает их сам", () => {
@@ -262,5 +262,12 @@ describe("оформление карты", () => {
 
   it("не сдваивает косую черту, если адрес пришёл со слэшем на конце", () => {
     expect(JSON.stringify(cls)).not.toContain("kz//");
+  });
+
+  it("картинки помечены версией — иначе Google не заберёт новую", () => {
+    const logo = cls.programLogo as { sourceUri: { uri: string } };
+    const hero = cls.heroImage as { sourceUri: { uri: string } };
+    expect(logo.sourceUri.uri).toMatch(/\?v=\d+$/);
+    expect(hero.sourceUri.uri).toMatch(/\?v=\d+$/);
   });
 });
