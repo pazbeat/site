@@ -316,4 +316,33 @@ describe("выбор кошелька по устройству", () => {
       expect(prefersApple(ua)).toBe(false);
     }
   });
+
+  // Ловушка, на которую уже наступали: за обратным прокси запрос приходит на
+  // localhost:3000, и переадресация по `new URL(request.url).origin` уводила
+  // покупателя туда же — кнопка «Добавить в кошелёк» вела в никуда.
+  it("переадресация идёт на публичный адрес, а не на адрес запроса", async () => {
+    const site = process.env.SITE_URL;
+    const issuer = process.env.GOOGLE_WALLET_ISSUER_ID;
+    const email = process.env.GOOGLE_WALLET_CLIENT_EMAIL;
+    const key = process.env.GOOGLE_WALLET_PRIVATE_KEY;
+    process.env.SITE_URL = "https://new.imbir.kz";
+    process.env.GOOGLE_WALLET_ISSUER_ID = IDS.issuerId;
+    process.env.GOOGLE_WALLET_CLIENT_EMAIL = "svc@example.iam.gserviceaccount.com";
+    process.env.GOOGLE_WALLET_PRIVATE_KEY = privateKey;
+    try {
+      const { GET } = await import("@/app/api/certificates/wallet/route");
+      const response = await GET(
+        new Request("http://localhost:3000/api/certificates/wallet?token=abc123"),
+      );
+      const location = response.headers.get("location") ?? "";
+      expect(location).toContain("https://new.imbir.kz/");
+      expect(location).not.toContain("localhost");
+      expect(location).toContain("token=abc123");
+    } finally {
+      process.env.SITE_URL = site;
+      process.env.GOOGLE_WALLET_ISSUER_ID = issuer;
+      process.env.GOOGLE_WALLET_CLIENT_EMAIL = email;
+      process.env.GOOGLE_WALLET_PRIVATE_KEY = key;
+    }
+  });
 });

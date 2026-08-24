@@ -148,7 +148,7 @@ export function BuilderClient({
   const [message, setMessage] = useState(resume?.message ?? "");
   // Всегда почта. Старый черновик мог содержать "whatsapp" — приводим к email,
   // иначе восстановление корзины падало бы на несуществующем варианте.
-  const [method, setMethod] = useState<"email">("email");
+  const method = "email" as const;
   const [contact, setContact] = useState(resume?.contact ?? "");
   const [when, setWhen] = useState<"now" | "scheduled">("now");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -217,6 +217,12 @@ export function BuilderClient({
   // При входе читаем черновик: есть прогресс → спросим (после согласия),
   // иначе сразу разрешаем сохранение нового. Дожим (resume) авторитетнее
   // черновика: заказ уже восстановлен из письма — старый черновик стираем.
+  //
+  // setState в эффекте здесь намеренный: localStorage на сервере нет, а чтение
+  // его прямо в рендере разошлось бы с разметкой при гидрации. Правило про
+  // каскадные перерисовки этот случай не покрывает — эффект как раз и есть
+  // «подписка на внешнюю систему», для которой он предназначен.
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     if (resume) {
       clearDraft();
@@ -235,8 +241,11 @@ export function BuilderClient({
     } catch {
       // битый/недоступный storage — игнорируем
     }
-    setResumeResolved(true);
+    // Пустые зависимости намеренно: черновик читаем ровно один раз при входе.
+    // Добавить сюда `resume` — значит перечитывать его на каждое изменение
+    // пропса и затирать уже начатое оформление.
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   // Сохраняем черновик на каждое изменение — но только после того, как решён
   // вопрос «продолжить/заново» и пока заказ не создан (иначе затрём при входе).

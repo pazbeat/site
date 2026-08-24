@@ -1,14 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
-import { routing, type Locale } from "@/i18n/routing";
+import { type Locale } from "@/i18n/routing";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 
 const WA_PHONE = "77081118098";
 const WA_DISPLAY = "+7 708 111 8098";
-const LANG_LABELS: Record<string, string> = { ru: "RU", kk: "KK", en: "EN" };
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -24,7 +24,12 @@ export function SiteHeader() {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
-  const [open, setOpen] = useState(false);
+  // Мобильное меню помним вместе с адресом, на котором его открыли. Так оно
+  // само закрывается при переходе — без эффекта, который ради этого дёргал
+  // setState на каждой смене пути и вызывал лишний каскад перерисовок.
+  const [openedAt, setOpenedAt] = useState<string | null>(null);
+  const open = openedAt === pathname;
+  const toggleMenu = () => setOpenedAt((prev) => (prev === pathname ? null : pathname));
 
   useEffect(() => {
     if (!isHome) return;
@@ -33,10 +38,6 @@ export function SiteHeader() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [isHome]);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   const solid = !isHome || scrolled || open;
   const waHref = `https://wa.me/${WA_PHONE}?text=${encodeURIComponent(t("waGreeting"))}`;
@@ -96,22 +97,9 @@ export function SiteHeader() {
             {t("giftCta")}
           </Link>
 
-          <nav className="flex shrink-0 gap-1.5" aria-label="Язык">
-            {routing.locales.map((loc) => (
-              <Link
-                key={loc}
-                href={pathname}
-                locale={loc}
-                className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold tracking-wider transition-colors ${
-                  loc === locale
-                    ? "bg-gold-gradient border-transparent text-[#1c0726]"
-                    : "border-white/30 text-white/80 hover:border-brand-gold-300 hover:text-white"
-                }`}
-              >
-                {LANG_LABELS[loc]}
-              </Link>
-            ))}
-          </nav>
+          <Suspense fallback={<div className="h-[30px] w-[110px] shrink-0" />}>
+            <LocaleSwitcher current={locale} />
+          </Suspense>
 
           <a
             href={waHref}
@@ -125,7 +113,7 @@ export function SiteHeader() {
 
           <button
             type="button"
-            onClick={() => setOpen((v) => !v)}
+            onClick={toggleMenu}
             aria-label="Меню"
             aria-expanded={open}
             className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/30 text-white lg:hidden"

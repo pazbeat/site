@@ -28,6 +28,9 @@ export function GiftReveal({
   const [phase, setPhase] = useState<"closed" | "opening" | "open">("closed");
   const [mounted, setMounted] = useState(false);
 
+  // Тот же случай, что и в конструкторе: sessionStorage доступен только в
+  // браузере, читать его в рендере нельзя — разойдётся с серверной разметкой.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setMounted(true);
     try {
@@ -38,6 +41,7 @@ export function GiftReveal({
       // приватный режим — просто покажем упаковку
     }
   }, [revealKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const open = () => {
     if (phase !== "closed") return;

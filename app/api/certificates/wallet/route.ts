@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isWalletConfigured } from "@/lib/wallet";
 import { isGoogleWalletConfigured } from "@/lib/wallet/google";
+import { publicOrigin } from "@/lib/site-url";
 
 /**
  * Одна кнопка «Добавить в кошелёк» на всех.
@@ -37,8 +38,11 @@ export async function GET(request: Request) {
       ? "/api/certificates/pkpass"
       : "/api/certificates/google-wallet";
 
+  // Адрес берём из SITE_URL, а не из `url.origin`: за обратным прокси
+  // внутри контейнера запрос приходит на localhost:3000, и покупателя
+  // уводило именно туда — кнопка «Добавить в кошелёк» никуда не вела.
   return NextResponse.redirect(
-    new URL(`${target}?token=${encodeURIComponent(token)}`, url.origin),
+    new URL(`${target}?token=${encodeURIComponent(token)}`, publicOrigin(request)),
     { status: 302, headers: { "Cache-Control": "no-store" } },
   );
 }
