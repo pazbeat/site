@@ -71,11 +71,13 @@ export default async function SuccessPage({
 
   const certificate = order.certificates[0];
   const option = certificate.programOption;
-  // Срок печатаем по времени салона, а не браузера (как на карте и в PDF)
+  // Срок печатаем по времени салона, а не браузера (как на карте и в PDF).
+  // Цифрами, а не «24 ноября 2026 г.»: словесный формат в русском уже
+  // заканчивается точкой, и во фразе получалось две подряд.
   const validUntilLabel = new Intl.DateTimeFormat("ru-RU", {
     timeZone: "Asia/Almaty",
     day: "2-digit",
-    month: "long",
+    month: "2-digit",
     year: "numeric",
   }).format(certificate.validUntil);
   const title =
