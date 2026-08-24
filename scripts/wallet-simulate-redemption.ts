@@ -38,15 +38,19 @@ async function main() {
 
   console.log(`сертификат ${serial}: было ${certificate.balanceKzt} ₸`);
 
+  // Статус выводим из остатка так же, как это делает сверка с Altegio
+  // (reconcileCertificate). Раньше скрипт ставил «used» на нуле и обратно
+  // уже не возвращал — после проверки погашения сертификат навсегда
+  // оставался погашенным, даже если вернуть ему остаток.
+  const full = certificate.amountKzt ?? certificate.balanceKzt;
+  const status =
+    balance <= 0 ? "used" : balance >= full ? "active" : "partially_used";
+
   await prisma.certificate.update({
     where: { id: certificate.id },
-    // Статус трогаем только на нуле — так же поступает сверка с Altegio
-    data: {
-      balanceKzt: balance,
-      status: balance <= 0 ? "used" : certificate.status,
-    },
+    data: { balanceKzt: balance, status },
   });
-  console.log(`стало ${balance} ₸`);
+  console.log(`стало ${balance} ₸ · статус ${status}`);
 
   const passes = await prisma.walletPass.findMany({
     where: { certificateId: certificate.id },
@@ -73,11 +77,7 @@ async function main() {
   }
 
   // Для наглядности: что реально лежит у сертификата после правки
-  const source = toPassSource({
-    ...certificate,
-    balanceKzt: balance,
-    status: balance <= 0 ? "used" : certificate.status,
-  });
+  const source = toPassSource({ ...certificate, balanceKzt: balance, status });
   if (source) {
     const fields = buildPassFields(source);
     console.log(
