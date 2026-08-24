@@ -76,11 +76,16 @@ services:
       BACKUP_DIR: /backups
       RETENTION_DAYS: "30"
     volumes:
-      - ./scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
+      # Монтируем КАТАЛОГ, а не файл. Пробросив отдельный файл, контейнер
+      # держит его inode: `git pull` пишет новый файл и переименовывает поверх,
+      # inode меняется, и внутри остаётся прежнее содержимое. Так контейнер
+      # четыре дня незаметно выполнял самую первую версию скрипта, хотя в
+      # репозитории она давно была исправлена (поймано 2026-08-24).
+      - ./scripts:/opt/imbir-scripts:ro
       - backups:/backups
     # Раз в сутки: бэкап снимается при старте контейнера и дальше каждые 24 часа.
     # Это не расписание по часам — момент задаёт последний перезапуск стенда.
-    entrypoint: ["sh", "-c", "while true; do sh /usr/local/bin/backup-db.sh; sleep 86400; done"]
+    entrypoint: ["sh", "-c", "while true; do sh /opt/imbir-scripts/backup-db.sh; sleep 86400; done"]
 
 volumes:
   pgdata:
