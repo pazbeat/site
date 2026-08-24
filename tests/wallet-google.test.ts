@@ -201,14 +201,36 @@ describe("состояние карты", () => {
 });
 
 describe("обновление сохранённой карты", () => {
-  it("меняет только остаток и состояние — остальное не трогаем", () => {
+  it("шлёт только своё: остаток, состояние и подписи", () => {
     const patch = buildGiftCardPatch(buildPassFields(source({ balanceKzt: 7000 }), NOW), NOW);
     expect(Object.keys(patch).sort()).toEqual([
       "balance",
       "balanceUpdateTime",
       "state",
+      "textModulesData",
     ]);
     expect(patch.balance).toEqual({ micros: 7_000_000_000, currencyCode: "KZT" });
+  });
+
+  it("не трогает штрихкод и привязку — их хранит Google", () => {
+    const patch = buildGiftCardPatch(buildPassFields(source(), NOW), NOW);
+    expect(patch).not.toHaveProperty("barcode");
+    expect(patch).not.toHaveProperty("id");
+    expect(patch).not.toHaveProperty("classId");
+  });
+
+  it("на погашенной карте называет причину", () => {
+    // Иначе владелец видит ноль и не понимает: потратил или сломалось
+    const patch = buildGiftCardPatch(buildPassFields(source({ balanceKzt: 0 }), NOW), NOW);
+    const modules = patch.textModulesData as Array<{ id: string; body: string }>;
+    expect(modules.find((m) => m.id === "state")?.body).toBe("Погашен");
+    expect(patch.state).toBe("INACTIVE");
+  });
+
+  it("на действующей карте строки статуса нет", () => {
+    const patch = buildGiftCardPatch(buildPassFields(source(), NOW), NOW);
+    const modules = patch.textModulesData as Array<{ id: string }>;
+    expect(modules.some((m) => m.id === "state")).toBe(false);
   });
 });
 

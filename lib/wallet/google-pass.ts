@@ -107,6 +107,29 @@ export function giftCardState(fields: PassFields): "ACTIVE" | "EXPIRED" | "INACT
   return fields.voidReason === "Срок истёк" ? "EXPIRED" : "INACTIVE";
 }
 
+/** Текстовые блоки карты. Общие для выпуска и обновления — см. патч ниже. */
+export function buildTextModules(
+  fields: PassFields,
+): Array<Record<string, string>> {
+  const modules: Array<Record<string, string>> = [
+    { id: "holder", header: "Кому", body: fields.holder },
+    { id: "salon", header: "Филиал", body: fields.salonName },
+    { id: "valid", header: "Действует до", body: fields.validUntilLabel },
+  ];
+  // Номинал показываем, только когда часть уже потрачена, — как на Apple
+  if (fields.ofAmountLabel) {
+    modules.push({
+      id: "nominal",
+      header: "Номинал",
+      body: fields.ofAmountLabel.replace(/^из\s+/, ""),
+    });
+  }
+  if (fields.voidReason) {
+    modules.push({ id: "state", header: "Статус", body: fields.voidReason });
+  }
+  return modules;
+}
+
 /** Сама карта. `now` параметром — чтобы тест не зависел от часов. */
 export function buildGiftCardObject(input: {
   ids: GoogleIds;
@@ -116,23 +139,7 @@ export function buildGiftCardObject(input: {
 }): Record<string, unknown> {
   const { ids, serialNumber, fields } = input;
   const now = input.now ?? new Date();
-
-  const textModules: Array<Record<string, string>> = [
-    { id: "holder", header: "Кому", body: fields.holder },
-    { id: "salon", header: "Филиал", body: fields.salonName },
-    { id: "valid", header: "Действует до", body: fields.validUntilLabel },
-  ];
-  // Номинал показываем, только когда часть уже потрачена, — как на Apple
-  if (fields.ofAmountLabel) {
-    textModules.push({
-      id: "nominal",
-      header: "Номинал",
-      body: fields.ofAmountLabel.replace(/^из\s+/, ""),
-    });
-  }
-  if (fields.voidReason) {
-    textModules.push({ id: "state", header: "Статус", body: fields.voidReason });
-  }
+  const textModules = buildTextModules(fields);
 
   return {
     id: giftCardObjectId(ids, serialNumber),
@@ -158,8 +165,13 @@ export function buildGiftCardObject(input: {
 
 /**
  * Что меняем у уже сохранённой карты при сверке остатка. Отправляем только
- * изменяемые поля: PATCH с полным объектом затёр бы то, что владелец или
- * Google успели поменять у себя.
+ * своё: остаток, состояние и текстовые блоки. Полный объект слать нельзя —
+ * затёрло бы то, что Google хранит у себя (штрихкод, привязку к устройству).
+ *
+ * Текстовые блоки идут вместе с остатком не для красоты: в них живёт строка
+ * «Статус: Погашен». Без неё погашенная карта показывала ноль и уезжала в
+ * неактивные, но причину не называла — владелец видел пустую карту и не
+ * понимал, потратил он её или что-то сломалось.
  */
 export function buildGiftCardPatch(
   fields: PassFields,
@@ -172,5 +184,6 @@ export function buildGiftCardPatch(
       currencyCode: "KZT",
     },
     balanceUpdateTime: { date: now.toISOString() },
+    textModulesData: buildTextModules(fields),
   };
 }
