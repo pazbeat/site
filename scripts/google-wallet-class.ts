@@ -49,7 +49,8 @@ async function token(): Promise<string> {
 
 async function main() {
   const ids = { issuerId, classSuffix };
-  const payload = buildGiftCardClass(ids);
+  const origin = process.env.SITE_URL?.trim() || "https://new.imbir.kz";
+  const payload = buildGiftCardClass(ids, origin);
   console.log("класс:", giftCardClassId(ids));
   if (process.argv[2] !== "--apply") {
     console.log(JSON.stringify(payload, null, 2));
@@ -58,18 +59,16 @@ async function main() {
   }
   const access = await token();
   const base = "https://walletobjects.googleapis.com/walletobjects/v1/giftCardClass";
-  const response = await fetch(base, {
-    method: "POST",
+  // PUT, а не POST: класс уже может существовать, и тогда его надо обновить —
+  // иначе правки оформления не доедут до карт, сохранённых покупателями.
+  const response = await fetch(`${base}/${giftCardClassId(ids)}`, {
+    method: "PUT",
     headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const text = await response.text();
   if (response.ok) {
-    console.log("✓ класс создан");
-    return;
-  }
-  if (response.status === 409) {
-    console.log("класс уже есть — это нормально");
+    console.log("✓ оформление отправлено в Google");
     return;
   }
   console.error("не удалось:", response.status, text.slice(0, 400));

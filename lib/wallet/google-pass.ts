@@ -36,8 +36,31 @@ export function giftCardObjectId(ids: GoogleIds, serialNumber: string): string {
   return `${ids.issuerId}.${safe}`;
 }
 
-/** Оформление: одно на все карты сети. */
-export function buildGiftCardClass(ids: GoogleIds): Record<string, unknown> {
+/** Картинка для Google: он забирает её по ссылке и кэширует у себя. */
+function image(uri: string, description: string): Record<string, unknown> {
+  return {
+    sourceUri: { uri },
+    contentDescription: {
+      defaultValue: { language: "ru", value: description },
+    },
+  };
+}
+
+/**
+ * Оформление: одно на все карты сети.
+ *
+ * Логотип и баннер обязательны не по документации, а по виду: без них карта
+ * выглядит пустым цветным прямоугольником с парой строк. Ссылки абсолютные —
+ * картинки забирает сам Google, относительный путь ему некуда подставить.
+ *
+ * Класс общий, поэтому смена картинок меняет вид и у карт, уже сохранённых
+ * покупателями: обновлять каждую по отдельности не нужно.
+ */
+export function buildGiftCardClass(
+  ids: GoogleIds,
+  origin: string,
+): Record<string, unknown> {
+  const base = origin.replace(/\/+$/, "");
   return {
     id: giftCardClassId(ids),
     issuerName: "Imbir Thai Spa",
@@ -49,6 +72,12 @@ export function buildGiftCardClass(ids: GoogleIds): Record<string, unknown> {
     merchantName: "Imbir Thai Spa",
     localizedIssuerName: {
       defaultValue: { language: "ru", value: "Imbir Thai Spa" },
+    },
+    programLogo: image(`${base}/brand/wallet-logo.png`, "Imbir Thai Spa"),
+    heroImage: image(`${base}/brand/wallet-hero.jpg`, "Салон Imbir Thai Spa"),
+    homepageUri: {
+      uri: `${base}/`,
+      description: "Сайт сертификатов",
     },
   };
 }

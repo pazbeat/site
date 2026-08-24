@@ -89,7 +89,7 @@ describe("тело ссылки «Сохранить в Кошелёк»", () =>
   const payload = buildSaveJwtPayload({
     clientEmail: "wallet@imbir.iam.gserviceaccount.com",
     origin: "https://new.imbir.kz",
-    giftCardClass: buildGiftCardClass(IDS),
+    giftCardClass: buildGiftCardClass(IDS, "https://new.imbir.kz"),
     giftCardObject: buildGiftCardObject({
       ids: IDS,
       serialNumber: "abc123",
@@ -241,5 +241,26 @@ describe("ключ переживает дорогу до контейнера",
       .end()
       .verify(publicKey, Buffer.from(sig, "base64url"));
     expect(ok).toBe(true);
+  });
+});
+
+describe("оформление карты", () => {
+  const cls = buildGiftCardClass(IDS, "https://new.imbir.kz/");
+
+  it("несёт логотип и баннер — без них карта пустой прямоугольник", () => {
+    const logo = cls.programLogo as { sourceUri: { uri: string } };
+    const hero = cls.heroImage as { sourceUri: { uri: string } };
+    expect(logo.sourceUri.uri).toBe("https://new.imbir.kz/brand/wallet-logo.png");
+    expect(hero.sourceUri.uri).toBe("https://new.imbir.kz/brand/wallet-hero.jpg");
+  });
+
+  it("ссылки на картинки абсолютные — Google забирает их сам", () => {
+    const uris = JSON.stringify(cls).match(/https?:\/\/[^"]+/g) ?? [];
+    expect(uris.length).toBeGreaterThan(0);
+    for (const uri of uris) expect(uri.startsWith("https://")).toBe(true);
+  });
+
+  it("не сдваивает косую черту, если адрес пришёл со слэшем на конце", () => {
+    expect(JSON.stringify(cls)).not.toContain("kz//");
   });
 });

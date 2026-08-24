@@ -78,7 +78,7 @@ export function buildGoogleSaveUrl(input: {
     buildSaveJwtPayload({
       clientEmail: cfg.clientEmail,
       origin: input.origin,
-      giftCardClass: buildGiftCardClass(cfg),
+      giftCardClass: buildGiftCardClass(cfg, input.origin),
       giftCardObject: buildGiftCardObject({
         ids: cfg,
         serialNumber: input.serialNumber,
