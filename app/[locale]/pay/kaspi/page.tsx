@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
 import { KaspiPay } from "@/components/kaspi-pay";
@@ -19,7 +19,14 @@ export default async function KaspiPayPage({
   if (!orderId) notFound();
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order || order.status !== "pending") notFound();
+  if (!order) notFound();
+  // Уже оплачен — ведём к сертификату, а не в 404. Так бывает у каждого, кто
+  // вернулся назад или обновил страницу после оплаты: заказ уже не pending,
+  // и страница показывала «не найдено» вместо купленного сертификата.
+  if (order.status === "paid") {
+    redirect(`/${locale}/success?token=${order.successToken}`);
+  }
+  if (order.status !== "pending") notFound();
 
   const t = await getTranslations("KaspiPay");
 

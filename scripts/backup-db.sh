@@ -19,8 +19,14 @@ TMP="$OUT.part"
 
 mkdir -p "$BACKUP_DIR"
 
-# --no-owner/--no-privileges — переносимо между окружениями; gzip — сжатие
-if ! pg_dump "$DATABASE_URL" --no-owner --no-privileges | gzip > "$TMP"; then
+# --no-owner/--no-privileges — переносимо между окружениями; gzip — сжатие.
+#
+# Схему pgboss не сохраняем: это журнал выполненных заданий очереди, он
+# копится тысячами строк в сутки и втрое раздувал дамп, ничего не давая при
+# восстановлении. Очередь заводит свои таблицы сама при старте приложения, а
+# отложенная доставка держит дату в собственной таблице (модель sweeper), так
+# что потерять из-за этого нечего.
+if ! pg_dump "$DATABASE_URL" --no-owner --no-privileges --exclude-schema=pgboss | gzip > "$TMP"; then
   rm -f "$TMP"
   echo "backup FAILED: pg_dump не отработал, файл не создан" >&2
   exit 1

@@ -78,7 +78,8 @@ services:
     volumes:
       - ./scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
       - backups:/backups
-    # Раз в сутки в 03:00 (Asia/Almaty ≈ UTC+5 → 22:00 UTC); контейнер спит между запусками
+    # Раз в сутки: бэкап снимается при старте контейнера и дальше каждые 24 часа.
+    # Это не расписание по часам — момент задаёт последний перезапуск стенда.
     entrypoint: ["sh", "-c", "while true; do sh /usr/local/bin/backup-db.sh; sleep 86400; done"]
 
 volumes:
