@@ -28,8 +28,12 @@ type LoadedCertificate = NonNullable<Awaited<ReturnType<typeof loadCertificate>>
 
 /** Данные сертификата для карты; null — если номер недоступен. */
 export function toPassSource(certificate: LoadedCertificate): PassSource | null {
-  if (!certificate.codeEncrypted) return null;
-  const code = decryptSecret(certificate.codeEncrypted);
+  // Салонный номер лежит открыто в serial — берём его. Шифртекст остаётся
+  // запасным путём для сертификатов старого формата (IMB-…), выпущенных до
+  // перехода на салонную нумерацию.
+  const code =
+    certificate.serial ??
+    (certificate.codeEncrypted ? decryptSecret(certificate.codeEncrypted) : null);
   if (!code) return null;
 
   return {

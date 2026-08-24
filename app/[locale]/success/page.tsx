@@ -5,7 +5,6 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { CertPreview } from "@/components/cert-preview";
-import { ClaimCode } from "@/components/claim-code";
 import { GiftReveal } from "@/components/gift-reveal";
 import { prisma } from "@/lib/db";
 import { isWalletConfigured } from "@/lib/wallet";
@@ -123,33 +122,27 @@ export default async function SuccessPage({
             />
           </div>
 
-          <ClaimCode token={token} />
+          {/* Блока «показать код» больше нет: номер сертификата — салонный
+              (WM0001) и напечатан прямо на карточке выше. Прятать его не от
+              кого, а сообщение «код уже был показан» только сбивало с толку. */}
 
-          <div className="mt-9 flex flex-wrap justify-center gap-3">
+          <div className="mx-auto mt-9 flex max-w-sm flex-col gap-3">
             <a
               href={`/api/certificates/pdf?token=${encodeURIComponent(token)}`}
-              className="inline-block rounded-full bg-brand-purple px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-purple-600"
+              className="rounded-full bg-brand-purple px-7 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-brand-purple-600"
             >
               {t("downloadPdf")}
             </a>
-            {/* Пока сертификат Apple не перевыпущен, кнопку не показываем:
-                пропуск подписать нечем, и телефон его отвергнет. */}
-            {isWalletConfigured() && (
+            {/* Одна кнопка на обе платформы: маршрут сам смотрит на устройство
+                и уводит в Apple Wallet или в Google Кошелёк. Показываем её,
+                только если хотя бы одна платформа настроена — иначе телефон
+                упрётся в отказ. */}
+            {(isWalletConfigured() || isGoogleWalletConfigured()) && (
               <a
-                href={`/api/certificates/pkpass?token=${encodeURIComponent(token)}`}
-                className="inline-block rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
+                href={`/api/certificates/wallet?token=${encodeURIComponent(token)}`}
+                className="rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-center text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
               >
                 {t("addToWallet")}
-              </a>
-            )}
-            {/* Google независим от Apple: ключи у них разные, и одна
-                платформа может быть настроена без другой. */}
-            {isGoogleWalletConfigured() && (
-              <a
-                href={`/api/certificates/google-wallet?token=${encodeURIComponent(token)}`}
-                className="inline-block rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
-              >
-                {t("addToGoogleWallet")}
               </a>
             )}
             <a
@@ -158,13 +151,13 @@ export default async function SuccessPage({
               )}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-gold-gradient inline-block rounded-full px-7 py-3 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
+              className="bg-gold-gradient rounded-full px-7 py-3 text-center text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
             >
               {t("waShare")}
             </a>
             <Link
               href="/create"
-              className="inline-block rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
+              className="rounded-full px-7 py-3 text-center text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple-50"
             >
               {t("createMore")}
             </Link>

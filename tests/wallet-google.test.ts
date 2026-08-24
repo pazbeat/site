@@ -293,3 +293,27 @@ describe("оформление карты", () => {
     expect(hero.sourceUri.uri).toMatch(/\?v=\d+$/);
   });
 });
+
+describe("выбор кошелька по устройству", () => {
+  it("iPhone, iPad и Mac уходят в Apple", async () => {
+    const { prefersApple } = await import("@/app/api/certificates/wallet/route");
+    for (const ua of [
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+      "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    ]) {
+      expect(prefersApple(ua)).toBe(true);
+    }
+  });
+
+  it("Android, Windows и пустая строка — в Google", async () => {
+    const { prefersApple } = await import("@/app/api/certificates/wallet/route");
+    for (const ua of [
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8)",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "",
+    ]) {
+      expect(prefersApple(ua)).toBe(false);
+    }
+  });
+});
