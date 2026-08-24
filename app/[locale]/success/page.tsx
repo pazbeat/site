@@ -71,6 +71,13 @@ export default async function SuccessPage({
 
   const certificate = order.certificates[0];
   const option = certificate.programOption;
+  // Срок печатаем по времени салона, а не браузера (как на карте и в PDF)
+  const validUntilLabel = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Asia/Almaty",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(certificate.validUntil);
   const title =
     certificate.type === "program" && option
       ? pickL10n(option.program.names, locale)
@@ -143,6 +150,16 @@ export default async function SuccessPage({
                 {t("addToGoogleWallet")}
               </a>
             )}
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(
+                `${t("waMessage")} ${certificate.codeDisplay}`,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-gold-gradient inline-block rounded-full px-7 py-3 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
+            >
+              {t("waShare")}
+            </a>
             <Link
               href="/create"
               className="inline-block rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
@@ -150,6 +167,16 @@ export default async function SuccessPage({
               {t("createMore")}
             </Link>
           </div>
+
+          {/* Условия — те же, что покупатель видел при согласии. Здесь они
+              нужны второй раз: сертификат часто пересылают, и получатель
+              этой страницы согласия не читал. */}
+          <ul className="mx-auto mt-10 max-w-md space-y-2.5 border-t border-brand-purple-100 pt-7 text-left text-sm text-brand-purple-950/70">
+            <li>{t("termValidUntil", { date: validUntilLabel })}</li>
+            <li>{t("termBranches")}</li>
+            <li>{t("termElectronic")}</li>
+            <li>{t("termBooking")}</li>
+          </ul>
         </GiftReveal>
       </div>
     </main>

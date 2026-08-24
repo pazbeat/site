@@ -273,7 +273,11 @@
     "downloadPdf": "Download PDF",
     "addToWallet": "Add to Apple Wallet",
     "addToGoogleWallet": "Add to Google Wallet",
-    "createMore": "Create another"
+    "createMore": "Create another",
+    "termValidUntil": "Valid for 3 months from purchase, until {date}.",
+    "termBranches": "Accepted at any Imbir Thai Spa Classic salon except Imbir Platinum.",
+    "termElectronic": "The certificate is available in electronic form only.",
+    "termBooking": "Please book at least 7 days in advance."
   },
   "MockPay": {
     "demo": "Demo payment",

@@ -11,7 +11,10 @@ type ClaimState =
 
 /**
  * Забирает код сертификата ОДИН раз (POST — не префетчится) и показывает
- * его с кнопкой копирования и шарингом в WhatsApp.
+ * его с кнопкой копирования.
+ *
+ * Кнопки «отправить» здесь нет намеренно: она нужна и при повторном заходе,
+ * когда код уже показан, поэтому живёт на самой странице успеха.
  */
 export function ClaimCode({ token }: Readonly<{ token: string }>) {
   const t = useTranslations("Success");
@@ -61,8 +64,6 @@ export function ClaimCode({ token }: Readonly<{ token: string }>) {
     );
   }
 
-  const waText = encodeURIComponent(`${t("waMessage")} ${state.code}`);
-
   return (
     <div className="text-center">
       <p className="mb-2 text-xs font-bold tracking-wider text-brand-purple-950/60 uppercase">
@@ -85,15 +86,7 @@ export function ClaimCode({ token }: Readonly<{ token: string }>) {
           {copied ? t("copied") : t("copy")}
         </button>
       </div>
-      <p className="mb-5 text-xs text-brand-purple-950/55">{t("onceNote")}</p>
-      <a
-        href={`https://wa.me/?text=${waText}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="bg-gold-gradient inline-block rounded-full px-7 py-3 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
-      >
-        {t("waShare")}
-      </a>
+      <p className="text-xs text-brand-purple-950/55">{t("onceNote")}</p>
     </div>
   );
 }

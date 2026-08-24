@@ -273,7 +273,11 @@
     "downloadPdf": "PDF жүктеу",
     "addToWallet": "Apple Wallet-ке қосу",
     "addToGoogleWallet": "Google Wallet-ке қосу",
-    "createMore": "Тағы біреуін жасау"
+    "createMore": "Тағы біреуін жасау",
+    "termValidUntil": "Жарамдылық мерзімі — сатып алған сәттен бастап 3 ай, {date} дейін.",
+    "termBranches": "Imbir Thai Spa Classic желісінің кез келген филиалында жарамды, Imbir Platinum-нан басқа.",
+    "termElectronic": "Сертификаттың тек электрондық нұсқасы қолжетімді.",
+    "termBooking": "Жазылу алдын ала — 7 күн бұрын."
   },
   "MockPay": {
     "demo": "Демо-төлем",

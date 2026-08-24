@@ -273,7 +273,11 @@
     "downloadPdf": "Скачать PDF",
     "addToWallet": "Добавить в Apple Wallet",
     "addToGoogleWallet": "Добавить в Google Кошелёк",
-    "createMore": "Создать ещё один"
+    "createMore": "Создать ещё один",
+    "termValidUntil": "Срок действия — 3 месяца с момента покупки, до {date}.",
+    "termBranches": "Действует в любом филиале сети Imbir Thai Spa Classic, кроме Imbir Platinum.",
+    "termElectronic": "Доступна только электронная версия сертификата.",
+    "termBooking": "Запись предварительная — за 7 дней."
   },
   "MockPay": {
     "demo": "Демо-оплата",
