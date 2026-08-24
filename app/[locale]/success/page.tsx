@@ -9,6 +9,7 @@ import { ClaimCode } from "@/components/claim-code";
 import { GiftReveal } from "@/components/gift-reveal";
 import { prisma } from "@/lib/db";
 import { isWalletConfigured } from "@/lib/wallet";
+import { isGoogleWalletConfigured } from "@/lib/wallet/google";
 import { pickL10n } from "@/lib/l10n";
 import { formatDuration, formatKzt } from "@/lib/format";
 import type { DesignBgStyle } from "@/lib/types";
@@ -130,6 +131,16 @@ export default async function SuccessPage({
                 className="inline-block rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
               >
                 {t("addToWallet")}
+              </a>
+            )}
+            {/* Google независим от Apple: ключи у них разные, и одна
+                платформа может быть настроена без другой. */}
+            {isGoogleWalletConfigured() && (
+              <a
+                href={`/api/certificates/google-wallet?token=${encodeURIComponent(token)}`}
+                className="inline-block rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
+              >
+                {t("addToGoogleWallet")}
               </a>
             )}
             <Link

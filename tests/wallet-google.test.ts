@@ -1,0 +1,222 @@
+import { generateKeyPairSync, createVerify } from "node:crypto";
+import { describe, expect, it } from "vitest";
+import {
+  buildOauthAssertion,
+  buildSaveJwtPayload,
+  decodeJwtParts,
+  normalizePrivateKey,
+  signJwtRs256,
+} from "@/lib/wallet/google-jwt";
+import {
+  buildGiftCardClass,
+  buildGiftCardObject,
+  buildGiftCardPatch,
+  giftCardObjectId,
+  giftCardState,
+} from "@/lib/wallet/google-pass";
+import { buildPassFields, type PassSource } from "@/lib/wallet/pass";
+
+const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+  modulusLength: 2048,
+  publicKeyEncoding: { type: "spki", format: "pem" },
+  privateKeyEncoding: { type: "pkcs8", format: "pem" },
+});
+
+const IDS = { issuerId: "3388000000012345678", classSuffix: "imbir-gift" };
+const NOW = new Date("2026-08-24T10:00:00.000Z");
+
+function source(over: Partial<PassSource> = {}): PassSource {
+  return {
+    code: "WM0001",
+    holder: "Айгуль",
+    amountKzt: 20000,
+    balanceKzt: 20000,
+    status: "active",
+    validUntil: new Date("2026-11-21T00:00:00.000Z"),
+    salonName: "Имбирь на Мәңгілік Ел",
+    programName: null,
+    ...over,
+  };
+}
+
+describe("подпись токенов Google", () => {
+  it("собирает JWT из трёх частей с заголовком RS256", () => {
+    const token = signJwtRs256({ hello: "мир" }, privateKey);
+    const { header, payload } = decodeJwtParts(token);
+    expect(header).toEqual({ alg: "RS256", typ: "JWT" });
+    expect(payload).toEqual({ hello: "мир" });
+  });
+
+  it("подпись сходится с открытым ключом", () => {
+    const token = signJwtRs256({ a: 1 }, privateKey);
+    const [h, p, sig] = token.split(".");
+    const ok = createVerify("RSA-SHA256")
+      .update(`${h}.${p}`)
+      .end()
+      .verify(publicKey, Buffer.from(sig, "base64url"));
+    expect(ok).toBe(true);
+  });
+
+  it("подделанное тело подпись не проходит", () => {
+    const token = signJwtRs256({ sum: 100 }, privateKey);
+    const [h, , sig] = token.split(".");
+    const forged = Buffer.from(JSON.stringify({ sum: 999999 })).toString("base64url");
+    const ok = createVerify("RSA-SHA256")
+      .update(`${h}.${forged}`)
+      .end()
+      .verify(publicKey, Buffer.from(sig, "base64url"));
+    expect(ok).toBe(false);
+  });
+
+  it("разворачивает ключ, записанный одной строкой с \\n", () => {
+    // Ровно в таком виде ключ лежит в JSON сервисного аккаунта и в env
+    const escaped = privateKey.replace(/\n/g, "\\n");
+    expect(normalizePrivateKey(escaped)).toBe(privateKey);
+    // Уже нормальный ключ не портим
+    expect(normalizePrivateKey(privateKey)).toBe(privateKey);
+  });
+
+  it("токен не содержит символов, ломающих URL", () => {
+    const token = signJwtRs256({ v: "значение" }, privateKey);
+    expect(token).toBe(encodeURIComponent(token).replace(/%2E/gi, "."));
+  });
+});
+
+describe("тело ссылки «Сохранить в Кошелёк»", () => {
+  const payload = buildSaveJwtPayload({
+    clientEmail: "wallet@imbir.iam.gserviceaccount.com",
+    origin: "https://new.imbir.kz",
+    giftCardClass: buildGiftCardClass(IDS),
+    giftCardObject: buildGiftCardObject({
+      ids: IDS,
+      serialNumber: "abc123",
+      fields: buildPassFields(source(), NOW),
+      now: NOW,
+    }),
+    now: NOW.getTime(),
+  });
+
+  it("адресовано Google и помечено как сохранение карты", () => {
+    expect(payload.aud).toBe("google");
+    expect(payload.typ).toBe("savetowallet");
+    expect(payload.iss).toContain("gserviceaccount.com");
+  });
+
+  it("разрешает открывать ссылку только с нашего домена", () => {
+    expect(payload.origins).toEqual(["https://new.imbir.kz"]);
+  });
+
+  it("несёт и оформление, и саму карту — иначе класс пришлось бы заводить заранее", () => {
+    const inner = payload.payload as Record<string, unknown[]>;
+    expect(inner.giftCardClasses).toHaveLength(1);
+    expect(inner.giftCardObjects).toHaveLength(1);
+  });
+});
+
+describe("карта Google", () => {
+  it("идентификатор строится от серийника, а не от кода сертификата", () => {
+    const id = giftCardObjectId(IDS, "abc123");
+    expect(id).toBe("3388000000012345678.abc123");
+    expect(id).not.toContain("WM0001");
+  });
+
+  it("вычищает из идентификатора запрещённые символы", () => {
+    expect(giftCardObjectId(IDS, "a b/c#1")).toBe("3388000000012345678.abc1");
+  });
+
+  it("остаток уходит в микроединицах тенге", () => {
+    const card = buildGiftCardObject({
+      ids: IDS,
+      serialNumber: "s1",
+      fields: buildPassFields(source({ balanceKzt: 20000 }), NOW),
+      now: NOW,
+    });
+    expect(card.balance).toEqual({ micros: 20_000_000_000, currencyCode: "KZT" });
+  });
+
+  it("штрихкод несёт номер сертификата", () => {
+    const card = buildGiftCardObject({
+      ids: IDS,
+      serialNumber: "s1",
+      fields: buildPassFields(source(), NOW),
+      now: NOW,
+    });
+    expect(card.barcode).toMatchObject({ type: "PDF_417", value: "WM0001" });
+    expect(card.cardNumber).toBe("WM0001");
+  });
+
+  it("номинал показывает, только когда часть потрачена", () => {
+    const whole = buildGiftCardObject({
+      ids: IDS,
+      serialNumber: "s1",
+      fields: buildPassFields(source({ balanceKzt: 20000 }), NOW),
+      now: NOW,
+    }).textModulesData as Array<{ id: string }>;
+    expect(whole.some((m) => m.id === "nominal")).toBe(false);
+
+    const spent = buildGiftCardObject({
+      ids: IDS,
+      serialNumber: "s1",
+      fields: buildPassFields(source({ balanceKzt: 5000 }), NOW),
+      now: NOW,
+    }).textModulesData as Array<{ id: string; body: string }>;
+    expect(spent.find((m) => m.id === "nominal")?.body).toContain("20");
+  });
+
+  it("цвет из брендбука, а не сиреневый действующего сайта", () => {
+    const card = buildGiftCardObject({
+      ids: IDS,
+      serialNumber: "s1",
+      fields: buildPassFields(source(), NOW),
+      now: NOW,
+    });
+    expect(card.hexBackgroundColor).toBe("#4D295D");
+  });
+});
+
+describe("состояние карты", () => {
+  const state = (over: Partial<PassSource>) =>
+    giftCardState(buildPassFields(source(over), NOW));
+
+  it("действующая карта активна", () => {
+    expect(state({})).toBe("ACTIVE");
+  });
+
+  it("истёкший срок помечается отдельно от прочих причин", () => {
+    expect(state({ status: "expired" })).toBe("EXPIRED");
+  });
+
+  it("блокировка и возврат закрывают карту", () => {
+    expect(state({ status: "blocked" })).toBe("INACTIVE");
+    expect(state({ status: "refunded" })).toBe("INACTIVE");
+  });
+
+  it("нулевой остаток закрывает карту, даже если статус ещё active", () => {
+    // Сверка с Altegio обнуляет баланс раньше, чем сменится статус
+    expect(state({ balanceKzt: 0 })).toBe("INACTIVE");
+  });
+});
+
+describe("обновление сохранённой карты", () => {
+  it("меняет только остаток и состояние — остальное не трогаем", () => {
+    const patch = buildGiftCardPatch(buildPassFields(source({ balanceKzt: 7000 }), NOW), NOW);
+    expect(Object.keys(patch).sort()).toEqual([
+      "balance",
+      "balanceUpdateTime",
+      "state",
+    ]);
+    expect(patch.balance).toEqual({ micros: 7_000_000_000, currencyCode: "KZT" });
+  });
+});
+
+describe("утверждение для доступа к API", () => {
+  it("живёт час и адресовано серверу токенов Google", () => {
+    const a = buildOauthAssertion({
+      clientEmail: "wallet@imbir.iam.gserviceaccount.com",
+      scope: "https://www.googleapis.com/auth/wallet_object.issuer",
+      now: NOW.getTime(),
+    });
+    expect(a.aud).toBe("https://oauth2.googleapis.com/token");
+    expect((a.exp as number) - (a.iat as number)).toBe(3600);
+  });
+});

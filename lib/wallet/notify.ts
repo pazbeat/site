@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { pushToDevices } from "./apns";
+import { updateGoogleCard } from "./google";
 import { buildPassFields } from "./pass";
 import { markShown, passNeedsPush, toPassSource } from "./service";
 
@@ -11,9 +12,14 @@ import { markShown, passNeedsPush, toPassSource } from "./service";
  * поменялся баланс, и карта обязана это показать. Ради этого весь кошелёк
  * и делался — у действующего сайта карта замирает на сумме покупки навсегда.
  *
+ * Платформы разбужены по-разному, потому что устроены по-разному: Apple
+ * умеет только «сходи за новой картой» (push на устройства), а у Google карта
+ * лежит на их стороне — ей меняем остаток прямо через API, и рассылку по
+ * телефонам Google берёт на себя.
+ *
  * Best-effort и молча: сверка погашений не должна падать из-за того, что
- * Apple не ответил. Не разбудили сейчас — телефон придёт за обновлением сам,
- * просто позже.
+ * Apple или Google не ответили. Не разбудили сейчас — телефон придёт за
+ * обновлением сам, просто позже.
  */
 export async function refreshPassesForCertificate(certificateId: string): Promise<void> {
   try {
@@ -35,6 +41,21 @@ export async function refreshPassesForCertificate(certificateId: string): Promis
     for (const pass of passes) {
       // Сверка могла ничего не изменить — тогда и будить незачем
       if (!passNeedsPush(pass, fields)) continue;
+
+      if (pass.platform === "google") {
+        try {
+          await updateGoogleCard({ serialNumber: pass.serialNumber, fields });
+        } catch (error) {
+          console.error("wallet: карта Google не обновлена", {
+            certificateId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          // Не помечаем показанным: следующая сверка попробует снова
+          continue;
+        }
+        await markShown(pass.id, fields);
+        continue;
+      }
 
       const result = await pushToDevices(pass.devices.map((device) => device.pushToken));
 

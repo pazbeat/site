@@ -272,6 +272,7 @@
     "waMessage": "Тебе подарок от Imbir Thai Spa! Код сертификата:",
     "downloadPdf": "Скачать PDF",
     "addToWallet": "Добавить в Apple Wallet",
+    "addToGoogleWallet": "Добавить в Google Кошелёк",
     "createMore": "Создать ещё один"
   },
   "MockPay": {

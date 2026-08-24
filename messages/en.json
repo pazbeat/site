@@ -272,6 +272,7 @@
     "waMessage": "You've got a gift from Imbir Thai Spa! Certificate code:",
     "downloadPdf": "Download PDF",
     "addToWallet": "Add to Apple Wallet",
+    "addToGoogleWallet": "Add to Google Wallet",
     "createMore": "Create another"
   },
   "MockPay": {
