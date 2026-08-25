@@ -7,6 +7,10 @@ const BRIDGE_URL = 'https://new.imbir.kz/api/kaspi/order/';
 const BRIDGE_TOKEN = 'ВСТАВИТЬ_СЕКРЕТ';
 const BRIDGE_TIMEOUT_MS = 5000;
 
+// Номера нового сайта: двадцать цифр, первая — девятка.
+// Номера этого сайта начинаются с единицы, пересечься не могут.
+const IS_NEW_SITE_ORDER = /^9[0-9]{19}$/;
+
 async function tellNewSite(orderId) {
     try {
         const controller = new globalThis.AbortController();
@@ -60,8 +64,9 @@ if (id == '001AA01' || id == '001AA02') {
             result: 0,
         };
     } catch (e) {
+        node.warn('kaspi pay: свой заказ не найден, code=' + e.code + ', id=' + id);
         let bridged = null;
-        if (e.code == 'not_found') {
+        if (IS_NEW_SITE_ORDER.test(String(id))) {
             bridged = await tellNewSite(id);
         }
 
