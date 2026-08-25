@@ -74,6 +74,36 @@ export const getCurrentLegalVersionIds = cache(async () => {
   ) as Record<LegalDocType, number | null>;
 });
 
+/** Все правовые документы разом в редакции для нужной локали. */
+export const LEGAL_DOC_TYPES = [
+  "offer",
+  "privacy",
+  "rules",
+  "consent_modal",
+] as const satisfies readonly LegalDocType[];
+
+/**
+ * Версии всех документов, которые увидит посетитель на данном языке.
+ *
+ * Нужна для записи согласия: раньше туда клался `currentVersionId`, то есть
+ * всегда РУССКАЯ редакция, даже когда покупатель читал казахскую. Запись
+ * ссылалась на текст, которого он не видел, — в споре это обесценивает всю
+ * доказательственную цепочку. Резолвим ровно тем же путём, каким документ
+ * отдаётся на экран.
+ */
+export async function getLegalVersionsForLocale(locale: string) {
+  const entries = await Promise.all(
+    LEGAL_DOC_TYPES.map(async (type) => {
+      const version = await getLegalVersionForLocale(type, locale);
+      return [type, version] as const;
+    }),
+  );
+  return Object.fromEntries(entries) as Record<
+    LegalDocType,
+    Awaited<ReturnType<typeof getLegalVersionForLocale>>
+  >;
+}
+
 export const getSetting = cache(async (key: string) => {
   const row = await prisma.setting.findUnique({ where: { key } });
   return row?.value ?? null;

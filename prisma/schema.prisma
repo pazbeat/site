@@ -218,6 +218,11 @@ model LegalVersion {
   documentId           Int            @map("document_id")
   document             LegalDocument  @relation("DocumentVersions", fields: [documentId], references: [id])
   contentHtmlSanitized String         @map("content_html_sanitized")
+  /// SHA-256 текста этой редакции, снятый при её создании. Позволяет
+  /// показать, что содержимое строки не правили после того, как на неё
+  /// сослались согласия покупателей: пересчитанный отпечаток обязан совпасть.
+  /// Пусто у редакций, заведённых до появления поля.
+  contentSha256        String?        @map("content_sha256")
   lang                 String         @default("ru")
   createdAt            DateTime       @default(now()) @map("created_at")
   authorId             Int?           @map("author_id")
@@ -361,6 +366,10 @@ model CorporateRequest {
   qty       Int
   comment   String?
   status    CorporateStatus @default(new)
+  /// Согласие на обработку ПД — того же состава, что у заказа
+  /// ({versions, hashes, ip, ua, locale, ts}, см. lib/consent.ts).
+  /// Пусто у заявок, оставленных до появления галочки в форме.
+  consent   Json?
   createdAt DateTime        @default(now()) @map("created_at")
 
   @@map("corporate_requests")

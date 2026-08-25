@@ -58,9 +58,29 @@ export default async function AdminOrderPage({
 
   const consent = order.consent as {
     versions?: Record<string, number>;
+    hashes?: Record<string, string>;
     ip?: string;
+    ua?: string;
+    locale?: string;
     ts?: string;
   };
+  // Тексты редакций, на которые сослалось согласие: без них запись «offer:13»
+  // ничего не доказывает — нужно уметь показать, ЧТО именно человек принял.
+  const consentVersionIds = Object.values(consent.versions ?? {}).filter(
+    (v): v is number => typeof v === "number",
+  );
+  const consentVersions = consentVersionIds.length
+    ? await prisma.legalVersion.findMany({
+        where: { id: { in: consentVersionIds } },
+        select: {
+          id: true,
+          lang: true,
+          createdAt: true,
+          contentSha256: true,
+          document: { select: { type: true } },
+        },
+      })
+    : [];
   const item = order.item as {
     toName?: string;
     fromName?: string;
@@ -116,19 +136,47 @@ export default async function AdminOrderPage({
             Согласие (PRD §5.2)
           </h2>
           <dl className="text-sm">
-            <Row label="IP" value={consent.ip ?? "—"} />
             <Row label="Время" value={consent.ts ?? "—"} />
-            <Row
-              label="Версии документов"
-              value={
-                consent.versions
-                  ? Object.entries(consent.versions)
-                      .map(([k, v]) => `${k}:${v}`)
-                      .join(", ")
-                  : "—"
-              }
-            />
+            <Row label="IP" value={consent.ip ?? "—"} />
+            <Row label="Язык документов" value={consent.locale ?? "—"} />
+            <Row label="Браузер (User-Agent)" value={consent.ua ?? "—"} />
           </dl>
+
+          <h3 className="mt-4 mb-2 text-xs font-bold tracking-wider text-brand-purple-600 uppercase">
+            Принятые редакции
+          </h3>
+          {consentVersions.length === 0 ? (
+            <p className="text-sm text-brand-purple-600">—</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {consentVersions.map((v) => {
+                const hash = consent.hashes?.[v.document.type];
+                return (
+                  <li key={v.id} className="border-b border-brand-purple-100 pb-2 last:border-0">
+                    <Link
+                      href={`/admin/legal/version/${v.id}`}
+                      className="font-semibold text-brand-purple underline"
+                    >
+                      {v.document.type} · редакция №{v.id}
+                    </Link>{" "}
+                    <span className="text-brand-purple-600">
+                      ({v.lang}, от {v.createdAt.toISOString().slice(0, 10)})
+                    </span>
+                    {hash ? (
+                      <div className="mt-0.5 font-mono text-[11px] break-all text-brand-purple-600">
+                        sha256: {hash}
+                        {v.contentSha256 && v.contentSha256 !== hash ? (
+                          <span className="ml-1 font-sans font-bold text-brand-red">
+                            ← не сходится с текущим текстом редакции!
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
       </div>
 

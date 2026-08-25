@@ -3,6 +3,7 @@
  * Переводы KK/EN — из утверждённого прототипа docs/prototype.html.
  * Запуск: npx prisma db seed (нужен DATABASE_URL).
  */
+import { createHash } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -72,6 +73,11 @@ const DESIGNS = DESIGN_SEED.map((d) => ({
 
 // Реальные правовые тексты (санитизированный HTML в prisma/legal/*.{lang}.html;
 // RU импортирован из docx заказчика, KK/EN — переводы; scripts/import-legal.ts).
+/** Отпечаток редакции. Дублирует lib/consent.ts: тот server-only, тут tsx. */
+function legalHash(html: string): string {
+  return createHash("sha256").update(html, "utf8").digest("hex");
+}
+
 function legalHtml(type: string, lang: string): string | null {
   const file = path.join(process.cwd(), "prisma", "legal", `${type}.${lang}.html`);
   return existsSync(file) ? readFileSync(file, "utf8") : null;
@@ -81,7 +87,13 @@ const LEGAL_PLACEHOLDERS: Array<{
   type: "offer" | "privacy" | "rules" | "consent_modal";
   html: string;
 }> = [
-  { type: "consent_modal", html: "<p>Привет, ты точно хочешь купить?</p>" },
+  // Текст модалки — такой же боевой документ, как оферта: его номер уходит в
+  // запись согласия покупателя. Плейсхолдер здесь означал, что развёрнутый с
+  // нуля стенд показывал бы шуточную строку вместо условий покупки.
+  {
+    type: "consent_modal",
+    html: legalHtml("consent_modal", "ru") ?? "",
+  },
   { type: "offer", html: legalHtml("offer", "ru") ?? "" },
   { type: "privacy", html: legalHtml("privacy", "ru") ?? "" },
   { type: "rules", html: legalHtml("rules", "ru") ?? "" },
@@ -135,7 +147,12 @@ async function main() {
     });
     // RU — актуальная версия; KK/EN — переводы (если есть файлы)
     const ruVersion = await prisma.legalVersion.create({
-      data: { documentId: document.id, contentHtmlSanitized: doc.html, lang: "ru" },
+      data: {
+        documentId: document.id,
+        contentHtmlSanitized: doc.html,
+        contentSha256: legalHash(doc.html),
+        lang: "ru",
+      },
     });
     await prisma.legalDocument.update({
       where: { id: document.id },
@@ -145,7 +162,12 @@ async function main() {
       const html = legalHtml(doc.type, lang);
       if (!html) continue;
       await prisma.legalVersion.create({
-        data: { documentId: document.id, contentHtmlSanitized: html, lang },
+        data: {
+          documentId: document.id,
+          contentHtmlSanitized: html,
+          contentSha256: legalHash(html),
+          lang,
+        },
       });
     }
   }

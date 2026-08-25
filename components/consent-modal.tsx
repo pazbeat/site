@@ -67,10 +67,21 @@ export function ConsentModal({
     <div
       role="dialog"
       aria-modal="true"
+      aria-labelledby="consent-title"
       className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-brand-purple-950/70 p-4 backdrop-blur-sm"
     >
-      <div className="modal-panel flex max-h-[90dvh] w-full max-w-lg flex-col rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl sm:p-8">
-        <h2 className="mb-3 font-display text-2xl font-semibold text-brand-purple">
+      {/* tabIndex/autoFocus: клавиатура должна попадать внутрь окна, а не
+          продолжать обход страницы под ним. Escape намеренно не закрывает —
+          согласие даётся осознанно, случайное нажатие не должно его снимать. */}
+      <div
+        autoFocus
+        tabIndex={-1}
+        className="modal-panel flex max-h-[90dvh] w-full max-w-lg flex-col rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl outline-none sm:p-8"
+      >
+        <h2
+          id="consent-title"
+          className="mb-3 font-display text-2xl font-semibold text-brand-purple"
+        >
           {t("title")}
         </h2>
 
@@ -96,6 +107,7 @@ export function ConsentModal({
                 <Link
                   href={`/legal/${type}`}
                   target="_blank"
+                  rel="noopener noreferrer"
                   className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-gold"
                 >
                   {tLegal(type)} ↗

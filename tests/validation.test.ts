@@ -105,35 +105,39 @@ describe("checkSchema", () => {
 });
 
 describe("corporateSchema", () => {
+  const base = {
+    company: "ТОО «Ромашка»",
+    contact: "hr@romashka.kz",
+    qty: 25,
+    consentAccepted: true as const,
+  };
+
   it("принимает валидную заявку", () => {
-    expect(
-      corporateSchema.safeParse({
-        company: "ТОО «Ромашка»",
-        contact: "hr@romashka.kz",
-        qty: 25,
-      }).success,
-    ).toBe(true);
+    expect(corporateSchema.safeParse(base).success).toBe(true);
   });
 
   it("отклоняет нулевое количество и пустую компанию", () => {
-    expect(
-      corporateSchema.safeParse({ company: "", contact: "a@b.kz", qty: 25 })
-        .success,
-    ).toBe(false);
-    expect(
-      corporateSchema.safeParse({ company: "X", contact: "a@b.kz", qty: 0 })
-        .success,
-    ).toBe(false);
+    expect(corporateSchema.safeParse({ ...base, company: "" }).success).toBe(false);
+    expect(corporateSchema.safeParse({ ...base, qty: 0 }).success).toBe(false);
   });
 
   it("корпоративный минимум — 10 сертификатов", () => {
+    expect(corporateSchema.safeParse({ ...base, qty: 9 }).success).toBe(false);
+    expect(corporateSchema.safeParse({ ...base, qty: 10 }).success).toBe(true);
+  });
+
+  // Форма собирает контакт живого человека — это персональные данные, и
+  // принимать их без записанного согласия нельзя, как и в заказе.
+  it("без согласия заявка не принимается", () => {
+    const { consentAccepted: _omit, ...withoutConsent } = base;
+    expect(corporateSchema.safeParse(withoutConsent).success).toBe(false);
     expect(
-      corporateSchema.safeParse({ company: "X", contact: "a@b.kz", qty: 9 })
-        .success,
+      corporateSchema.safeParse({ ...base, consentAccepted: false }).success,
     ).toBe(false);
-    expect(
-      corporateSchema.safeParse({ company: "X", contact: "a@b.kz", qty: 10 })
-        .success,
-    ).toBe(true);
+  });
+
+  it("язык по умолчанию русский", () => {
+    const parsed = corporateSchema.safeParse(base);
+    expect(parsed.success && parsed.data.locale).toBe("ru");
   });
 });

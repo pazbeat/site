@@ -11,6 +11,7 @@
  * Санитизация зеркалит lib/admin/sanitize.ts (server-only, в tsx не грузится).
  */
 import "dotenv/config";
+import { createHash } from "node:crypto";
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import path from "node:path";
 import sanitizeHtml from "sanitize-html";
@@ -119,7 +120,14 @@ async function main() {
       }
 
       const version = await prisma.legalVersion.create({
-        data: { documentId: document.id, contentHtmlSanitized: clean, lang },
+        data: {
+          documentId: document.id,
+          contentHtmlSanitized: clean,
+          // Отпечаток снимаем здесь же: lib/consent.ts помечен server-only и
+          // под tsx не грузится. Алгоритм обязан совпадать — sha256 от текста.
+          contentSha256: createHash("sha256").update(clean, "utf8").digest("hex"),
+          lang,
+        },
       });
       if (lang === "ru") {
         await prisma.legalDocument.update({

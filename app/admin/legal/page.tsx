@@ -16,7 +16,10 @@ export default async function AdminLegalPage() {
   const documents = await prisma.legalDocument.findMany({
     include: {
       currentVersion: true,
-      versions: { orderBy: { createdAt: "desc" }, take: 5 },
+      // Без обрезки: согласие трёхмесячной давности может ссылаться на
+      // редакцию, которая в пятёрку последних уже не попадает, — а именно её
+      // и потребуется открыть в споре.
+      versions: { orderBy: { createdAt: "desc" } },
     },
   });
   const byType = new Map(documents.map((d) => [d.type, d]));

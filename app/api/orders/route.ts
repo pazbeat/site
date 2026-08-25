@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AB_COOKIE, isAbVariant } from "@/lib/ab";
 import { prisma } from "@/lib/db";
-import { getCurrentLegalVersionIds } from "@/lib/data";
+import { buildConsentRecord } from "@/lib/consent";
 import { resolveOrderAmount } from "@/lib/pricing";
 import { evaluatePromoCode } from "@/lib/promo";
 import { getProvider } from "@/lib/payments";
@@ -70,14 +70,13 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Согласие: версии актуальных правовых документов + IP/UA/ts (PRD §5.2)
-  const versions = await getCurrentLegalVersionIds();
-  const consent = {
-    versions,
+  // Согласие: редакции документов в языке покупателя + отпечатки + IP/UA/ts
+  // (PRD §5.2). Собирается на сервере — см. lib/consent.ts.
+  const consent = await buildConsentRecord({
     ip,
     ua: request.headers.get("user-agent") ?? "",
-    ts: new Date().toISOString(),
-  };
+    locale: input.locale,
+  });
 
   // Группа A/B-теста цен, в которой покупатель видел номиналы (PRD §10)
   const abRaw = request.cookies.get(AB_COOKIE)?.value;

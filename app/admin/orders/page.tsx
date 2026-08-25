@@ -71,6 +71,11 @@ export default async function AdminOrdersPage({
     const or: Prisma.OrderWhereInput[] = [
       { buyerEmail: { contains: query, mode: "insensitive" } },
       { buyerPhone: { contains: query } },
+      // Номер заказа искали чаще всего и не находили: именно он уходит в чек
+      // Kaspi и в письмо менеджеру, но под формат кода сертификата не подходит
+      // и в поиск не попадал. paymentId — внешний номер у Forte.
+      { id: query },
+      { paymentId: query },
     ];
     if (isValidCodeFormat(query)) {
       or.push({ certificates: { some: { codeHash: hashCode(query) } } });
@@ -107,7 +112,7 @@ export default async function AdminOrdersPage({
         <input
           name="q"
           defaultValue={query}
-          placeholder="Код IMB-…, email или телефон"
+          placeholder="Номер заказа, код WM0001, email или телефон"
           className={`min-w-[200px] flex-1 ${inputCls}`}
         />
         <select name="status" defaultValue={sp.status ?? ""} className={inputCls}>

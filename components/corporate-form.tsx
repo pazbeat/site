@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 
 const inputCls =
   "w-full rounded-xl border-[1.5px] border-brand-purple-100 bg-white px-3.5 py-3 text-sm outline-none transition-colors focus:border-brand-gold";
@@ -9,10 +10,12 @@ const labelCls = "mb-1.5 block text-[13px] font-bold";
 
 export function CorporateForm() {
   const t = useTranslations("Corporate");
+  const locale = useLocale();
   const [company, setCompany] = useState("");
   const [contact, setContact] = useState("");
   const [qty, setQty] = useState("10");
   const [comment, setComment] = useState("");
+  const [consent, setConsent] = useState(false);
   const [state, setState] = useState<"idle" | "sending" | "ok" | "error" | "rateLimited">(
     "idle",
   );
@@ -29,6 +32,8 @@ export function CorporateForm() {
           contact: contact.trim(),
           qty: Number(qty),
           comment: comment.trim(),
+          consentAccepted: consent,
+          locale,
         }),
       });
       if (response.status === 429) setState("rateLimited");
@@ -113,9 +118,44 @@ export function CorporateForm() {
           {t("errRateLimited")}
         </p>
       )}
+      {/* Согласие обязательно: форма собирает контакт живого человека.
+          Ссылки на документы стоят прямо в подписи к галочке и кликабельны —
+          «Я согласен» без ссылок в споре не работает. */}
+      <label className="mb-4 flex items-start gap-2.5 text-[13px] leading-snug">
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-brand-gold"
+        />
+        <span>
+          {t.rich("consent", {
+            offer: (chunks) => (
+              <Link
+                href="/legal/offer"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-brand-purple underline"
+              >
+                {chunks}
+              </Link>
+            ),
+            privacy: (chunks) => (
+              <Link
+                href="/legal/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-brand-purple underline"
+              >
+                {chunks}
+              </Link>
+            ),
+          })}
+        </span>
+      </label>
       <button
         type="submit"
-        disabled={state === "sending"}
+        disabled={state === "sending" || !consent}
         className="w-full rounded-full bg-brand-purple px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-purple-600 disabled:opacity-50"
       >
         {t("submit")}

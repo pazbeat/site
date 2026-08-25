@@ -102,4 +102,8 @@ export const corporateSchema = z.object({
   /// Корпоративные заказы — от 10 сертификатов
   qty: z.number().int().min(10).max(10_000),
   comment: z.string().trim().max(1000).optional().default(""),
+  /// Вторая точка сбора ПД: `contact` — это email или телефон живого человека.
+  /// Без согласия заявка не принимается, ровно как и заказ.
+  consentAccepted: z.literal(true),
+  locale: z.enum(["ru", "kk", "en"]).default("ru"),
 });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildConsentRecord } from "@/lib/consent";
 import { prisma } from "@/lib/db";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { corporateSchema } from "@/lib/validation";
@@ -29,8 +30,17 @@ export async function POST(request: Request) {
     );
   }
 
+  // Согласие фиксируется тем же составом, что и у заказа, и записывается
+  // одной строкой вместе с заявкой — подделать из браузера нельзя.
+  const { consentAccepted: _accepted, locale, ...fields } = parsed.data;
+  const consent = await buildConsentRecord({
+    ip,
+    ua: request.headers.get("user-agent") ?? "",
+    locale,
+  });
+
   const created = await prisma.corporateRequest.create({
-    data: parsed.data,
+    data: { ...fields, consent },
   });
 
   return NextResponse.json({ id: created.id }, { status: 201 });

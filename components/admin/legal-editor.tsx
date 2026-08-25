@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { RichText } from "./rich-text";
 import { toastResult } from "./toast";
 import { saveLegalAction } from "@/app/admin/legal/actions";
@@ -89,7 +90,15 @@ export function LegalEditor({
           <ul className="text-sm">
             {history.map((v) => (
               <li key={v.id} className="py-1 text-brand-purple-950/70">
-                #{v.id} · {v.lang.toUpperCase()} · {v.createdAt}
+                {/* Ссылка обязательна: по номеру редакции из записи согласия
+                    нужно уметь открыть тот самый текст. */}
+                <Link
+                  href={`/admin/legal/version/${v.id}`}
+                  className="text-brand-purple underline"
+                >
+                  #{v.id}
+                </Link>{" "}
+                · {v.lang.toUpperCase()} · {v.createdAt}
                 {v.isCurrent && (
                   <span className="ml-2 text-xs font-bold text-brand-gold-700">
                     опубликована

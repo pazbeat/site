@@ -361,7 +361,8 @@
     "submit": "Send request",
     "success": "Request sent! A manager will contact you shortly.",
     "error": "Could not send the request. Please try again.",
-    "errRateLimited": "Too many attempts. Please wait a minute and retry."
+    "errRateLimited": "Too many attempts. Please wait a minute and retry.",
+    "consent": "I consent to the processing of personal data and accept the terms of the <offer>public offer</offer> and the <privacy>privacy policy</privacy>."
   },
   "Footer": {
     "about": "A network of Thai massage & spa salons. Therapists certified by the best schools of Thailand.",
