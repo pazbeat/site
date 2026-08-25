@@ -89,7 +89,6 @@ export default async function AdminSourcesPage({
   const rows = buildChannelReport([...byChannel.values()]);
   const sum = totals(rows);
   const headline = periodStartsEarlier ? null : summarize(rows);
-  const unknown = rows.find((r) => r.channel === "unknown");
 
   const link = (extra: Record<string, string>) => {
     const params = new URLSearchParams();
@@ -102,38 +101,61 @@ export default async function AdminSourcesPage({
 
   return (
     <AdminChrome email={admin.email} role={admin.role} title="Источники">
+      <p className="mb-5 max-w-3xl text-sm text-brand-purple-950/70">
+        Страница отвечает на один вопрос: <b>откуда приходят люди, которые
+        покупают</b>. Каждая строка — канал, по которому посетитель попал на
+        сайт. Главная колонка — <b>«на 100 заходов»</b>: сколько денег приносит
+        сотня посетителей из этого канала. По ней и отсортировано — канал сверху
+        выгоднее остальных.
+      </p>
+
       <PeriodPicker basePath="/admin/sources" period={period} />
 
       {countingSince === null ? (
-        <p className="mb-5 rounded-2xl border border-brand-gold/50 bg-brand-gold-100/40 p-4 text-sm">
-          Счётчик заходов ещё не собрал ни одной записи. Заходы появятся, как
-          только на сайт зайдёт первый посетитель; покупки видны уже сейчас.
-        </p>
+        <div className="mb-5 rounded-2xl border border-brand-gold/50 bg-brand-gold-100/40 p-4 text-sm">
+          <p className="mb-2 font-bold">Счёт заходов только начался</p>
+          <p className="mb-2">
+            Пока на сайт не зашёл ни один посетитель после запуска учёта, поэтому
+            в колонке «заходов» пусто. Покупки в таблице видны — они берутся из
+            заказов и были всегда.
+          </p>
+          <p>
+            Цифры появятся сами, по мере того как люди будут заходить. Первые
+            выводы можно делать через неделю-другую.
+          </p>
+        </div>
       ) : periodStartsEarlier ? (
-        <p className="mb-5 rounded-2xl border border-brand-gold/50 bg-brand-gold-100/40 p-4 text-sm">
-          Счётчик заходов работает с{" "}
-          <b>{countingSince.toISOString().slice(0, 10)}</b>. За более ранние даты
-          заходов нет, поэтому конверсия за этот период занижена и не показана.
-        </p>
+        <div className="mb-5 rounded-2xl border border-brand-gold/50 bg-brand-gold-100/40 p-4 text-sm">
+          <p className="mb-2 font-bold">Период шире, чем работает счётчик</p>
+          <p>
+            Заходы считаются с{" "}
+            <b>{countingSince.toISOString().slice(0, 10)}</b>, а выбранный период
+            начинается раньше. Поэтому конверсия за него была бы заниженной и не
+            показана — покупки и выручка при этом верные.
+          </p>
+        </div>
       ) : null}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label={`Заходов · ${period.label}`} value={String(sum.visits)} />
         <Kpi label="Покупок" value={String(sum.orders)} />
+        {/* Конверсия без заходов — бессмыслица: делить не на что. Показывать
+            «0,0 %» рядом с двумя покупками значило бы врать. */}
         <Kpi
           label="Конверсия"
-          value={periodStartsEarlier ? "—" : `${sum.conversionPct.toFixed(1)} %`}
+          value={
+            periodStartsEarlier || sum.visits === 0
+              ? "—"
+              : `${sum.conversionPct.toFixed(1)} %`
+          }
+          hint={
+            sum.visits === 0 && sum.orders > 0
+              ? "нечего делить: заходы за этот период не считались"
+              : undefined
+          }
         />
         <Kpi label="Выручка" value={formatKzt(sum.revenueKzt)} />
       </div>
-
-      {unknown && unknown.orders > 0 && (
-        <p className="mb-4 text-xs text-brand-purple-950/60">
-          Источник не определён у {unknown.orders} покупок на{" "}
-          {formatKzt(unknown.revenueKzt)} — это заказы, оформленные до запуска
-          учёта источников либо с отключёнными куками.
-        </p>
-      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-brand-purple-950/60">Считать покупку за каналом:</span>
@@ -178,7 +200,12 @@ export default async function AdminSourcesPage({
               <tr key={r.channel} className="border-b border-brand-purple-100/60 last:border-0">
                 <td className="px-4 py-3 font-semibold">
                   {r.channel === "unknown" ? (
-                    <span className="text-brand-purple-950/60">Без метки</span>
+                    <>
+                      <span className="text-brand-purple-950/60">Без метки</span>
+                      <span className="block text-[11px] font-normal text-brand-purple-950/45">
+                        заказы до запуска учёта
+                      </span>
+                    </>
                   ) : (
                     <Link
                       href={`/admin/orders?source=${r.channel}&status=paid`}
@@ -235,32 +262,100 @@ export default async function AdminSourcesPage({
         </p>
       )}
 
-      <div className="mt-5 space-y-1 text-xs text-brand-purple-950/55">
-        <p>
-          Один посетитель считается один раз в сутки. Заказ учитывается в месяце
-          создания — так же, как в «Продажах», чтобы отчёты сходились.
-        </p>
-        <p>
-          Конверсия и «на 100 заходов» не показываются, пока по каналу меньше 30
-          заходов: на малых числах эти цифры случайны.
-        </p>
-        <p>
-          Чтобы канал был виден отдельной строкой, ссылки в рекламе и рассылках
-          нужно размечать метками вида{" "}
-          <code>?utm_source=instagram&amp;utm_medium=cpc&amp;utm_campaign=8marta</code>.
-        </p>
-      </div>
+      <details className="mt-5 rounded-2xl border border-brand-purple-100 bg-white p-5 text-sm">
+        <summary className="cursor-pointer font-bold text-brand-purple">
+          Как читать этот отчёт и что нужно делать
+        </summary>
+
+        <div className="mt-4 space-y-4 text-brand-purple-950/75">
+          <div>
+            <p className="mb-1 font-bold text-brand-purple">Что означают колонки</p>
+            <ul className="ml-4 list-disc space-y-1">
+              <li>
+                <b>Заходов</b> — сколько человек пришло. Один посетитель считается
+                один раз в сутки, сколько бы страниц он ни открыл.
+              </li>
+              <li>
+                <b>Открыли конструктор</b> — сколько из них дошло до выбора
+                сертификата. Если заходов много, а здесь мало — канал приводит
+                случайных людей.
+              </li>
+              <li>
+                <b>На 100 заходов</b> — сколько денег приносит сотня посетителей.
+                Главная колонка: канал может давать мало заходов, но дорогие
+                покупки — и быть выгоднее шумного.
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="mb-1 font-bold text-brand-purple">Почему бывают прочерки</p>
+            <p>
+              Пока по каналу меньше 30 заходов, конверсия и выручка на сотню не
+              показываются. На малых числах они случайны: две случайные покупки
+              при трёх заходах дали бы «конверсию 66 %» и увели бы бюджет не туда.
+            </p>
+          </div>
+
+          <div>
+            <p className="mb-1 font-bold text-brand-purple">
+              Что нужно от вас, чтобы каналы разделились
+            </p>
+            <p className="mb-2">
+              Google и Яндекс узнаются сами. А вот рекламу, Instagram и рассылки
+              без пометки в ссылке различить нельзя — они сольются в «прочее».
+              Поэтому в объявлениях и постах ставьте не просто адрес сайта, а с
+              хвостом:
+            </p>
+            <code className="block overflow-x-auto rounded-lg bg-brand-purple-50 p-3 text-xs">
+              https://new.imbir.kz/?utm_source=instagram&amp;utm_medium=cpc&amp;utm_campaign=8marta
+            </code>
+            <p className="mt-2">
+              <b>utm_source</b> — где размещаете (instagram, google, 2gis),{" "}
+              <b>utm_medium</b> — платно или нет (<code>cpc</code> для рекламы,{" "}
+              <code>post</code> для обычного поста), <b>utm_campaign</b> — название
+              акции, чтобы отличать одну от другой.
+            </p>
+          </div>
+
+          <div>
+            <p className="mb-1 font-bold text-brand-purple">
+              «Кто закрыл» и «кто привёл»
+            </p>
+            <p>
+              Человек может прийти из Instagram, уйти, а через неделю вернуться
+              из поиска и купить. <b>Кто привёл</b> покажет Instagram — он
+              познакомил с вами. <b>Кто закрыл</b> покажет поиск — на нём
+              состоялась покупка. Обе цифры полезны, но по-разному: первая — про
+              то, где искать новых людей, вторая — про то, что дожимает продажу.
+            </p>
+          </div>
+
+          <div>
+            <p className="mb-1 font-bold text-brand-purple">Про сходимость</p>
+            <p>
+              Заказ учитывается в месяце создания — так же, как в «Продажах»,
+              поэтому выручка в двух отчётах совпадает до тенге.
+            </p>
+          </div>
+        </div>
+      </details>
     </AdminChrome>
   );
 }
 
-function Kpi({ label, value }: Readonly<{ label: string; value: string }>) {
+function Kpi({
+  label,
+  value,
+  hint,
+}: Readonly<{ label: string; value: string; hint?: string }>) {
   return (
     <div className="rounded-2xl border border-brand-purple-100 bg-white p-5">
       <div className="text-xs font-semibold tracking-wide text-brand-purple-950/55 uppercase">
         {label}
       </div>
       <div className="mt-2 font-display text-3xl text-brand-purple">{value}</div>
+      {hint && <div className="mt-1 text-xs text-brand-purple-950/50">{hint}</div>}
     </div>
   );
 }
