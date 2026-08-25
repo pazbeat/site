@@ -41,7 +41,7 @@ docker compose --env-file .env.production up -d --build   # миграции п�
 ```
 
 ## Бэкапы
-Сервис `backup` пишет `imbir-<timestamp>.sql.gz` в volume `backups` раз в сутки, ротация 30 дней (PRD §9.12). Проверить/восстановить:
+Сервис `backup` пишет `imbir-<timestamp>.sql.gz` в volume `backups` раз в сутки, ротация 90 дней (PRD §9.12). Схема `pgboss` из дампа исключена — это журнал очереди, он копил тысячи строк в сутки и втрое раздувал копию. Копия весит ~136 КБ. Проверить/восстановить:
 ```bash
 docker compose exec backup ls -lh /backups
 # восстановление:
@@ -49,13 +49,34 @@ gunzip -c /backups/imbir-YYYYMMDD-HHMMSS.sql.gz | docker compose exec -T db psql
 ```
 Рекомендуется дополнительно выгружать volume `backups` на внешнее хранилище (S3/rsync).
 
+## Место на диске: кэш сборки Docker
+
+**Главный пожиратель места — не сайт, а кэш сборки.** Каждая пересборка
+(`up -d --build`) оставляет ~1.5 ГБ промежуточных слоёв, и по умолчанию Docker
+их не удаляет никогда. За месяц деплоев кэш занял **30 ГБ из 48** — при том
+что сама база весит 80 МБ, а копии 8 МБ. Поймано 2026-08-25, освобождено 28.5 ГБ.
+
+Чтобы не повторялось, заведён еженедельный cron (воскресенье, 04:17):
+```bash
+17 4 * * 0 /usr/bin/docker builder prune -af --max-used-space 5GB >> /var/log/docker-prune.log 2>&1
+```
+5 ГБ оставляем намеренно: пустой кэш делает следующую сборку медленной.
+
+Разобраться, если место снова кончается:
+```bash
+docker system df            # сводка: образы / контейнеры / тома / кэш сборки
+du -shx /var/lib/* | sort -hr | head    # что заняло вне Docker
+docker builder prune -af --max-used-space 5GB   # почистить вручную
+```
+
 ## Проверено локально
 Образ собран (`docker build`), контейнер поднят против PostgreSQL: `migrate deploy` отработал, Next стартовал, `GET /ru` и `/kk` → 200, production-CSP с nonce + HSTS присутствуют, `/admin/orders` без сессии → 307 на login.
 
 ## Открытые задачи эксплуатации
 - Подключить Sentry (`SENTRY_DSN`) со scrubbing ПД.
 - Прогнать OWASP ZAP baseline (PRD §9.14).
-- Настроить внешнюю выгрузку бэкапов.
+- **Настроить внешнюю выгрузку бэкапов** — копии лежат на том же сервере, что и
+  база: потеря сервера уносит и данные, и все копии. Это важнее срока хранения.
 - Убедиться, что в `.env.production` НЕТ `PAYMENT_MOCK` и `ADMIN_2FA_DISABLED`.
 
 Альтернатива Docker — **Vercel + управляемый PostgreSQL** (Neon/Supabase): задать те же env в проекте Vercel, `prisma migrate deploy` в build-команде, cron бэкапов — средствами провайдера БД. pg-boss требует постоянно живого процесса, поэтому на Vercel очереди выносятся в отдельный worker (или на Docker-хост).
