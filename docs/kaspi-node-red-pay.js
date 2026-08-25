@@ -21,13 +21,12 @@ function withTimeout(promise, ms) {
     return Promise.race([promise, guard]).finally(function () { clearTimeout(timer); });
 }
 
-// fetch может быть не проброшен в песочницу — проверяем, не падая
+// fetch берём только через globalThis: голое имя редактор Node-RED считает
+// необъявленной переменной и помечает узел негодным при развёртывании.
 function getFetch() {
-    if (typeof fetch === 'function') return fetch;
-    if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
-        return globalThis.fetch;
-    }
-    return null;
+    if (typeof globalThis === 'undefined') return null;
+    if (typeof globalThis.fetch !== 'function') return null;
+    return globalThis.fetch;
 }
 
 async function tellNewSite(orderId) {
