@@ -4,6 +4,7 @@ import { AdminChrome } from "@/components/admin/chrome";
 import { prisma } from "@/lib/db";
 import { hashCode, isValidCodeFormat } from "@/lib/certificate-code";
 import { formatKzt } from "@/lib/format";
+import { normalizeOrderRef } from "@/lib/order-ref";
 import { CHANNELS, CHANNEL_LABELS } from "@/lib/source";
 import { channelLabel } from "@/lib/sources";
 import type { Prisma } from "@/lib/generated/prisma/client";
@@ -82,6 +83,8 @@ export default async function AdminOrdersPage({
       // и в поиск не попадал. paymentId — внешний номер у Forte.
       { id: query },
       { paymentId: query },
+      // Короткий номер — именно он попадает в чек Kaspi покупателю
+      { kaspiRef: normalizeOrderRef(query) },
     ];
     if (isValidCodeFormat(query)) {
       or.push({ certificates: { some: { codeHash: hashCode(query) } } });

@@ -49,6 +49,9 @@ export async function POST(request: Request) {
   try {
     const invoice = await kaspi.createInvoice({
       payqrOrderId: payRef,
+      // В ссылку и QR идёт короткий номер: длинный внутренний приложение
+      // Kaspi отбрасывает по маске, не дойдя до проверки заказа.
+      publicRef: order.kaspiRef ?? payRef,
       amountKzt: order.amountKzt,
       name: "Подарочный сертификат Imbir Thai Spa",
     });

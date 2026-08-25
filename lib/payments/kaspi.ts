@@ -144,13 +144,15 @@ export class KaspiPayProvider implements PaymentProvider {
    */
   async createInvoice(input: {
     payqrOrderId: string;
+    /** Короткий номер для ссылки и QR; не задан — payqrOrderId */
+    publicRef?: string;
     amountKzt: number;
     name: string;
   }): Promise<KaspiInvoice> {
     const link = readLinkConfig();
     if (link) {
       return {
-        payUrl: buildKaspiPayLink(link, input.payqrOrderId),
+        payUrl: buildKaspiPayLink(link, input.publicRef ?? input.payqrOrderId),
         source: "link",
       };
     }

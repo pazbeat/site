@@ -8,6 +8,12 @@ export type PaymentProviderId = "kaspi" | "forte" | "mock";
 
 export type CreatePaymentParams = {
   orderId: string;
+  /**
+   * Короткий номер для показа наружу. Приложение Kaspi проверяет номер по
+   * маске кабинета и наш внутренний (25 знаков) отбрасывает, не спросив
+   * бэкенд. Не задан — используется orderId.
+   */
+  publicRef?: string;
   amountKzt: number;
   description: string;
   /** Куда провайдер вернёт покупателя после оплаты (страница успеха с токеном) */

@@ -40,6 +40,9 @@ export async function POST(
   if (!order) {
     return NextResponse.json({ error: "order_not_found" }, { status: 404 });
   }
+  // Kaspi знает заказ под коротким номером, а выпуск сертификата идёт по
+  // внутреннему — переключаемся на него сразу после поиска.
+  const internalId = order.orderId;
 
   // Сверка суммы на сервере (PRD §9): клиентской сумме не верим
   const claimedKzt =
@@ -61,7 +64,7 @@ export async function POST(
   }
 
   const paymentRef = body.txnId ? `kaspi:${body.txnId}` : `kaspi:bridge`;
-  const result = await fulfillOrder(orderId, paymentRef);
+  const result = await fulfillOrder(internalId, paymentRef);
 
   if (result.status === "not_found") {
     return NextResponse.json({ error: "order_not_found" }, { status: 404 });

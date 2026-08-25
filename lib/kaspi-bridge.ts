@@ -2,6 +2,7 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { resolveProgramTitle } from "@/lib/altegio/catalog";
+import { normalizeOrderRef } from "@/lib/order-ref";
 
 /**
  * Мост для Kaspi через бэкенд действующего сайта.
@@ -23,6 +24,8 @@ import { resolveProgramTitle } from "@/lib/altegio/catalog";
 
 export type BridgeOrder = {
   orderId: string;
+  /** Короткий номер, под которым заказ виден в Kaspi */
+  kaspiRef: string | null;
   /** Вид услуги — то, что покупатель увидит в приложении Kaspi */
   name: string;
   amountKzt: number;
@@ -87,12 +90,20 @@ async function serviceName(
   return `Новый Электронный ${faceAmountKzt}`;
 }
 
-/** Данные заказа для проверки в Kaspi; null — заказа нет. */
+/**
+ * Данные заказа для проверки в Kaspi; null — заказа нет.
+ *
+ * Ищем и по короткому номеру, и по внутреннему: наружу уходит короткий
+ * (`IM4K7X2` — длинный приложение Kaspi отбрасывает по маске), но заказы,
+ * созданные до его появления, короткого не имеют.
+ */
 export async function describeOrder(
-  orderId: string,
+  ref: string,
 ): Promise<BridgeOrder | null> {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
+  const order = await prisma.order.findFirst({
+    where: {
+      OR: [{ kaspiRef: normalizeOrderRef(ref) }, { id: ref }],
+    },
     include: { salon: true },
   });
   if (!order) return null;
@@ -103,6 +114,7 @@ export async function describeOrder(
 
   return {
     orderId: order.id,
+    kaspiRef: order.kaspiRef,
     name: await serviceName(item, item.amountKzt ?? amountKzt),
     amountKzt,
     amountTiyn: amountKzt * 100,

@@ -8,6 +8,7 @@ import { resolveOrderAmount } from "@/lib/pricing";
 import { evaluatePromoCode } from "@/lib/promo";
 import { getProvider } from "@/lib/payments";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { generateOrderRef } from "@/lib/order-ref";
 import { publicOrigin } from "@/lib/site-url";
 import { orderSchema } from "@/lib/validation";
 import { reportFailure } from "@/lib/alerts";
@@ -95,8 +96,19 @@ export async function POST(request: NextRequest) {
   // из браузера нельзя.
   const src = parseSourceCookie(request.cookies.get(SRC_COOKIE)?.value);
 
+  // Короткий номер для Kaspi: длинный внутренний приложение отбрасывает по
+  // маске, не дойдя до бэкенда. Совпадения практически невероятны, но проверку
+  // делаем — колонка уникальна, и падать на ней при оформлении нельзя.
+  let kaspiRef = generateOrderRef();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const taken = await prisma.order.findUnique({ where: { kaspiRef } });
+    if (!taken) break;
+    kaspiRef = generateOrderRef();
+  }
+
   const order = await prisma.order.create({
     data: {
+      kaspiRef,
       salonId: input.salonId,
       buyerEmail: input.buyerEmail,
       buyerPhone: input.buyerPhone ?? null,
@@ -138,6 +150,8 @@ export async function POST(request: NextRequest) {
     try {
       const payment = await provider.createPayment({
         orderId: order.id,
+        // Kaspi показываем короткий номер — длинный он не принимает
+        publicRef: order.kaspiRef ?? order.id,
         amountKzt: payableKzt,
         description: `Imbir Thai Spa: подарочный сертификат (заказ ${order.id})`,
         successUrl: `${origin}/${input.locale}/success?token=${order.successToken}`,
