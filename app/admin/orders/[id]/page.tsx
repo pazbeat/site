@@ -132,9 +132,17 @@ export default async function AdminOrderPage({
         </section>
 
         <section className="rounded-2xl border border-brand-purple-100 bg-white p-5">
-          <h2 className="mb-3 font-display text-lg text-brand-purple">
-            Согласие (PRD §5.2)
+          <h2 className="mb-1 font-display text-lg text-brand-purple">
+            Согласие покупателя
           </h2>
+          {/* Пояснение для того, кто будет собирать доказательства к спору:
+              отдельного поля «галочка проставлена» нет и не нужно — сервер не
+              создаёт заказ без подтверждённого согласия, поэтому существование
+              этой записи и есть доказательство. */}
+          <p className="mb-3 text-xs text-brand-purple-950/60">
+            Заказ не создаётся без проставленной галочки — записи ниже сняты
+            сервером в момент оформления и с браузера не подделываются.
+          </p>
           <dl className="text-sm">
             <Row label="Время" value={consent.ts ?? "—"} />
             <Row label="IP" value={consent.ip ?? "—"} />
