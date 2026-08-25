@@ -19,12 +19,30 @@
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /**
- * Длина номера. Ровно как у тестовых номеров Kaspi — под их маску.
- * Если окажется, что маска другая, менять надо здесь.
+ * Приставка, отличающая наши номера от номеров действующего сайта.
+ *
+ * Это не украшение, а защита от подмены заказа. Kaspi спрашивает про номер
+ * СТАРЫЙ сайт: тот ищет заказ у себя и только не найдя — обращается к нам.
+ * Совпади наш номер с чужим — старый нашёл бы свой заказ, до нас дело бы не
+ * дошло, и покупатель оплатил бы чужую сумму. Номера действующего сайта
+ * начинаются с цифр (его тестовые — `001AA01`, `002AA01`), поэтому две буквы
+ * в начале делают пересечение невозможным, а не просто маловероятным.
+ * Буквы взяты из безопасного алфавита: `I` похожа на единицу, а приставку
+ * покупатель тоже читает с чека.
+ */
+const PREFIX = "SR";
+
+/**
+ * Длина номера целиком, вместе с приставкой. Ровно как у тестовых номеров
+ * Kaspi — под маску их кабинета. Окажется маска другой — менять здесь.
  */
 export const ORDER_REF_LENGTH = 7;
 
-export const ORDER_REF_REGEX = new RegExp(`^[${ALPHABET}]{${ORDER_REF_LENGTH}}$`);
+const RANDOM_PART = ORDER_REF_LENGTH - PREFIX.length;
+
+export const ORDER_REF_REGEX = new RegExp(
+  `^${PREFIX}[${ALPHABET}]{${RANDOM_PART}}$`,
+);
 
 export function isOrderRef(value: string): boolean {
   return ORDER_REF_REGEX.test(value.trim().toUpperCase());
@@ -38,13 +56,13 @@ export function normalizeOrderRef(value: string): string {
 /**
  * Случайный номер. Случайный, а не по счётчику: последовательные номера
  * позволяли бы перебором смотреть чужие суммы в приложении Kaspi.
- * 32 знака в семи позициях — больше тридцати миллиардов вариантов.
+ * 32 знака в пяти позициях — больше тридцати миллионов вариантов.
  */
 export function generateOrderRef(
   random: () => number = Math.random,
 ): string {
-  let out = "";
-  for (let i = 0; i < ORDER_REF_LENGTH; i += 1) {
+  let out = PREFIX;
+  for (let i = 0; i < RANDOM_PART; i += 1) {
     out += ALPHABET[Math.floor(random() * ALPHABET.length)];
   }
   return out;

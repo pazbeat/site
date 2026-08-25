@@ -22,6 +22,18 @@ describe("короткий номер заказа для Kaspi", () => {
     }
   });
 
+  // Kaspi спрашивает про номер СТАРЫЙ сайт: тот ищет у себя и только не найдя
+  // обращается к нам. Совпади номера — покупатель оплатил бы чужой заказ.
+  // Номера действующего сайта начинаются с цифр, наши — с букв.
+  it("начинается с приставки, которой нет у действующего сайта", () => {
+    for (let i = 0; i < 100; i += 1) {
+      expect(generateOrderRef().startsWith("SR")).toBe(true);
+    }
+    expect(isOrderRef("001AA01")).toBe(false);
+    expect(isOrderRef("002AA01")).toBe(false);
+    expect(isOrderRef("1234567")).toBe(false);
+  });
+
   it("узнаётся и приводится к общему виду", () => {
     const ref = generateOrderRef();
     expect(isOrderRef(ref)).toBe(true);
@@ -32,7 +44,8 @@ describe("короткий номер заказа для Kaspi", () => {
   it("чужое за номер не принимает", () => {
     expect(isOrderRef("cmt8o1zhw000227nj3dwz5me3")).toBe(false);
     expect(isOrderRef("ABC")).toBe(false);
-    expect(isOrderRef("ABCDEF0")).toBe(false);
+    expect(isOrderRef("ABCDEFG")).toBe(false);
+    expect(isOrderRef("SR0AAAA")).toBe(false);
   });
 
   it("не повторяется", () => {
