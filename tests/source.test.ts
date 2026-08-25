@@ -75,12 +75,18 @@ describe("определение канала", () => {
     expect(detectTouch(u("/ru/programs"), null, "/ru/programs")).toBeNull();
   });
 
-  it("метка кампании чистится от опасных знаков", () => {
-    // Кириллица, пробелы и угловые скобки выброшены; цифры и латиница — знаки
-    // допустимые, они остаются
-    expect(sanitizeCampaign("8 Марта <script>")).toBe("8script");
+  // Владелец пишет название акции сам, и по-русски это естественнее.
+  // Раньше «8марта» превращалось в «8» и выглядело поломкой.
+  it("метка кампании принимает кириллицу", () => {
+    expect(sanitizeCampaign("8марта")).toBe("8марта");
+    expect(sanitizeCampaign("Новый Год")).toBe("новый-год");
     expect(sanitizeCampaign("march8_2026")).toBe("march8_2026");
+  });
+
+  it("метка кампании чистится от опасных знаков", () => {
+    expect(sanitizeCampaign("<script>alert(1)</script>")).toBe("scriptalert1script");
     expect(sanitizeCampaign(null)).toBe("");
+    expect(sanitizeCampaign("a".repeat(60)).length).toBe(32);
   });
 });
 

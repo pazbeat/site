@@ -313,8 +313,10 @@ export default async function AdminSourcesPage({
             <p className="mt-2">
               <b>utm_source</b> — где размещаете (instagram, google, 2gis),{" "}
               <b>utm_medium</b> — платно или нет (<code>cpc</code> для рекламы,{" "}
-              <code>post</code> для обычного поста), <b>utm_campaign</b> — название
-              акции, чтобы отличать одну от другой.
+              <code>post</code> для обычного поста), <b>utm_campaign</b> —{" "}
+              <b>название акции, которое вы придумываете сами</b>: «8марта»,
+              «новыйгод», «блогер-айым». Нужно, чтобы в отчёте отличать одну
+              рекламу от другой. Можно писать по-русски.
             </p>
           </div>
 
