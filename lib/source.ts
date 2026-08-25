@@ -239,19 +239,30 @@ export function detectTouch(
   const utmMedium = q.get("utm_medium") ?? "";
   const campaign = sanitizeCampaign(q.get("utm_campaign"));
 
-  if (utmSource || utmMedium || click) {
-    const channel = utmSource || utmMedium
-      ? channelFromUtm(utmSource, utmMedium, Boolean(click))
-      : click![0] === "gclid"
-        ? "google-ads"
-        : click![0] === "yclid"
-          ? "yandex-ads"
-          : "instagram-ads";
+  const clickPart = click
+    ? { clickIdType: click[0], clickId: sanitizeClickId(click[1]) }
+    : { clickIdType: "" as ClickIdType, clickId: "" };
+
+  if (utmSource || utmMedium) {
     return {
-      channel,
+      channel: channelFromUtm(utmSource, utmMedium, Boolean(click)),
       campaign,
-      clickIdType: click ? click[0] : "",
-      clickId: click ? sanitizeClickId(click[1]) : "",
+      ...clickPart,
+    };
+  }
+
+  // Идентификатор клика без меток. Google и Яндекс подставляют свои только
+  // на рекламные переходы — им можно верить. А `fbclid` Meta дописывает к
+  // ЛЮБОЙ исходящей ссылке, включая обычный пост: приняв его за рекламу, мы
+  // записали бы органику из Instagram в платный канал и завысили отдачу
+  // рекламы. Поэтому по нему канал не определяем — идентификатор сохраняем
+  // (он нужен для отчёта в рекламный кабинет), а канал ищем дальше по
+  // адресу страницы-источника.
+  if (click && (click[0] === "gclid" || click[0] === "yclid")) {
+    return {
+      channel: click[0] === "gclid" ? "google-ads" : "yandex-ads",
+      campaign,
+      ...clickPart,
     };
   }
 
@@ -259,7 +270,7 @@ export function detectTouch(
     try {
       const host = new URL(referer).hostname.toLowerCase();
       const channel = channelFromHost(host);
-      if (channel) return { channel, campaign: "", clickIdType: "", clickId: "" };
+      if (channel) return { channel, campaign, ...clickPart };
     } catch {
       // мусор в заголовке — просто нет касания
     }

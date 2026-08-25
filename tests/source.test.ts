@@ -33,11 +33,37 @@ describe("определение канала", () => {
     ).toBe("google");
   });
 
-  it("идентификатор клика сам по себе означает рекламу", () => {
+  // Google и Яндекс подставляют свои идентификаторы только на рекламные
+  // переходы — им можно верить.
+  it("gclid и yclid означают рекламу сами по себе", () => {
     const t = detectTouch(u("/ru", "?gclid=EAIaIQobCh"), null, "/ru");
     expect(t?.channel).toBe("google-ads");
     expect(t?.clickIdType).toBe("gclid");
     expect(t?.clickId).toBe("EAIaIQobCh");
+    expect(detectTouch(u("/ru", "?yclid=99887"), null, "/ru")?.channel).toBe("yandex-ads");
+  });
+
+  // А fbclid Meta дописывает к ЛЮБОЙ исходящей ссылке, включая обычный пост.
+  // Приняв его за рекламу, мы записали бы органику в платный канал и завысили
+  // отдачу рекламы.
+  it("fbclid рекламой не считается — канал берётся из перехода", () => {
+    const organic = detectTouch(
+      u("/ru", "?fbclid=IwAR123"),
+      "https://l.instagram.com/",
+      "/ru",
+    );
+    expect(organic?.channel).toBe("instagram");
+    // но сам идентификатор сохраняем — он нужен для отчёта в кабинет Meta
+    expect(organic?.clickId).toBe("IwAR123");
+  });
+
+  it("платный Instagram отличается от обычного только меткой", () => {
+    expect(
+      detectTouch(u("/ru", "?utm_source=instagram&utm_medium=cpc"), null, "/ru")?.channel,
+    ).toBe("instagram-ads");
+    expect(
+      detectTouch(u("/ru"), "https://www.instagram.com/", "/ru")?.channel,
+    ).toBe("instagram");
   });
 
   it("незнакомый источник попадает в «прочее», а не плодит строки в отчёте", () => {
