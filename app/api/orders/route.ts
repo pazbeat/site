@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AB_COOKIE, isAbVariant } from "@/lib/ab";
 import { SRC_COOKIE, parseSourceCookie } from "@/lib/source";
+import { currentAdmin } from "@/lib/admin/guard";
 import { prisma } from "@/lib/db";
 import { buildConsentRecord } from "@/lib/consent";
 import { resolveOrderAmount } from "@/lib/pricing";
@@ -41,6 +42,13 @@ export async function POST(request: NextRequest) {
     );
   }
   const input = parsed.data;
+
+  // Демо-оплата — только администратору, и проверяем это ДО создания заказа,
+  // чтобы не оставлять в базе мусор от чужой попытки. На отсутствие кнопки в
+  // интерфейсе не полагаемся: запрос можно послать и мимо страницы.
+  if (input.provider === "mock" && !(await currentAdmin())) {
+    return NextResponse.json({ error: "forbidden_provider" }, { status: 403 });
+  }
 
   // Цена — источник истины только сервер/БД (PRD §5.3)
   const pricing = await resolveOrderAmount(input.salonId, input.item);
@@ -95,7 +103,8 @@ export async function POST(request: NextRequest) {
       // Сумма к оплате — со скидкой промокода (если применён)
       amountKzt: payableKzt,
       promoId,
-      paymentProvider: input.provider ?? null,
+      // Демо-провайдера в перечислении БД нет — оставляем пустым
+      paymentProvider: input.provider === "mock" ? null : (input.provider ?? null),
       abVariant: isAbVariant(abRaw) ? abRaw : null,
       srcFirst: src?.first ?? null,
       srcLast: src?.last ?? null,

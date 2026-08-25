@@ -6,6 +6,7 @@ import type { Locale } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 import { BuilderClient } from "@/components/builder-client";
 import { ForteBankProvider } from "@/lib/payments/forte";
+import { currentAdmin } from "@/lib/admin/guard";
 import { prisma } from "@/lib/db";
 import { AB_COOKIE, filterByVariant, isAbVariant } from "@/lib/ab";
 import { countVisit } from "@/lib/visits";
@@ -54,6 +55,9 @@ export default async function CreatePage({
   // приводит канал покупателей или случайных посетителей.
   const builderChannel = (await headers()).get("x-imbir-builder");
   if (builderChannel) void countVisit(builderChannel, "builder");
+
+  const demoEnabled =
+    process.env.PAYMENT_MOCK === "1" && (await currentAdmin()) !== null;
   const t = await getTranslations("Builder");
   const tNav = await getTranslations("Nav");
 
@@ -117,6 +121,10 @@ export default async function CreatePage({
           initialType={query.type === "nominal" ? "nominal" : undefined}
           resume={resume}
           cardEnabled={new ForteBankProvider().isConfigured()}
+          // Демо-оплата — только вошедшему администратору: сертификат
+          // выпускается в Altegio по-настоящему, и бесплатная покупка не
+          // должна быть доступна случайному посетителю стенда.
+          demoEnabled={demoEnabled}
         />
       </div>
     </main>

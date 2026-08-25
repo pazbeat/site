@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { currentAdmin } from "@/lib/admin/guard";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
 import { MockPayButton } from "@/components/mock-pay-button";
@@ -14,7 +15,10 @@ export default async function MockPayPage({
   params: Promise<{ locale: Locale }>;
   searchParams: Promise<{ order?: string }>;
 }>) {
+  // Демо-страница закрыта дважды: флагом окружения и админ-сессией. Без
+  // второго условия ссылку на неё можно было бы просто угадать.
   if (process.env.PAYMENT_MOCK !== "1") notFound();
+  if (!(await currentAdmin())) notFound();
   const { locale } = await params;
   const { order: orderId } = await searchParams;
   setRequestLocale(locale);

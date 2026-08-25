@@ -43,7 +43,11 @@ export const orderSchema = z
     /// Промокод (Фаза 2); скидка пересчитывается на сервере
     promoCode: z.string().trim().max(40).optional(),
     // Freedom Pay не подключён: картой платят через ForteBank
-    provider: z.enum(["kaspi", "forte"]).optional(),
+    /// `mock` — демо-оплата для проверки цепочки целиком. Схема его принимает,
+    /// но маршрут заказа пускает туда только администратора: иначе любой
+    /// посетитель получал бы бесплатный сертификат, а он выпускается в Altegio
+    /// по-настоящему.
+    provider: z.enum(["kaspi", "forte", "mock"]).optional(),
     locale: z.enum(["ru", "kk", "en"]).default("ru"),
     /// Без явного согласия заказ не создаётся (PRD §5.2)
     consentAccepted: z.literal(true),

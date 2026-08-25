@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, afterEach } from "vitest";
 import { buildKaspiPayLink } from "@/lib/payments/kaspi";
 import { MockPayProvider, mockSignature } from "@/lib/payments/mock";
 
@@ -114,5 +114,36 @@ describe("оповещение о сбоях", () => {
     expect(shouldEmail("сбой-Б", t0 + 60_000)).toBe(true);
     // после остывания снова пишем
     expect(shouldEmail("сбой-А", t0 + 16 * 60_000)).toBe(true);
+  });
+});
+
+describe("выбор платёжного провайдера", () => {
+  const saved = process.env.PAYMENT_MOCK;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.PAYMENT_MOCK;
+    else process.env.PAYMENT_MOCK = saved;
+  });
+
+  // Раньше флаг подменял ЛЮБОЙ выбор покупателя на демо-оплату. Удобно в
+  // разработке, но на доступном извне стенде это означало бы бесплатные
+  // сертификаты каждому, кто нашёл адрес.
+  it("демо-режим не подменяет собой обычный выбор", async () => {
+    process.env.PAYMENT_MOCK = "1";
+    const { getProvider } = await import("@/lib/payments");
+    expect(getProvider("kaspi")?.id).toBe("kaspi");
+    expect(getProvider("forte")?.id).toBe("forte");
+  });
+
+  it("демо-оплата доступна только по явному выбору и только при флаге", async () => {
+    const { getProvider } = await import("@/lib/payments");
+    process.env.PAYMENT_MOCK = "1";
+    expect(getProvider("mock")?.id).toBe("mock");
+    process.env.PAYMENT_MOCK = "0";
+    expect(getProvider("mock")).toBeNull();
+  });
+
+  it("выдуманный способ не проходит", async () => {
+    const { getProvider } = await import("@/lib/payments");
+    expect(getProvider("halyk")).toBeNull();
   });
 });

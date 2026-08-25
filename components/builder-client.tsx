@@ -34,6 +34,8 @@ type Props = Readonly<{
    * упирается в ошибку вместо оплаты.
    */
   cardEnabled: boolean;
+  /** Показать демо-оплату — только администратору */
+  demoEnabled?: boolean;
 }>;
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -105,6 +107,7 @@ export function BuilderClient({
   initialType,
   resume,
   cardEnabled,
+  demoEnabled = false,
 }: Props) {
   const t = useTranslations("Builder");
   const tCommon = useTranslations("Common");
@@ -153,7 +156,7 @@ export function BuilderClient({
   const [when, setWhen] = useState<"now" | "scheduled">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [buyerEmail, setBuyerEmail] = useState(resume?.buyerEmail ?? "");
-  const [provider, setProvider] = useState<"kaspi" | "forte">("kaspi");
+  const [provider, setProvider] = useState<"kaspi" | "forte" | "mock">("kaspi");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
@@ -268,7 +271,9 @@ export function BuilderClient({
       when,
       scheduledAt,
       buyerEmail,
-      provider,
+      // Демо-оплату в черновик не кладём: он переживает выход из админки, и
+      // вернувшийся обычным посетителем упёрся бы в способ, которого больше нет
+      provider: provider === "mock" ? "kaspi" : provider,
     };
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
@@ -1032,6 +1037,23 @@ export function BuilderClient({
                     {t("s5Card")}
                     <small className="font-medium text-brand-purple-950/55">
                       {t("s5CardSub")}
+                    </small>
+                  </button>
+                )}
+                {/* Демо-оплата: видна только вошедшему администратору, сервер
+                    проверяет это ещё раз. Нужна, чтобы пройти покупку целиком,
+                    пока настоящая оплата не подключена. */}
+                {demoEnabled && (
+                  <button
+                    type="button"
+                    className={segBtn(provider === "mock")}
+                    onClick={() => setProvider("mock")}
+                  >
+                    <span className="rounded-lg bg-brand-purple px-3.5 py-1 text-sm font-extrabold text-white">
+                      Демо-оплата
+                    </span>
+                    <small className="font-medium text-brand-purple-950/55">
+                      без списания денег · видно только вам
                     </small>
                   </button>
                 )}

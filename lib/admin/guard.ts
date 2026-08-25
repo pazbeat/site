@@ -30,6 +30,18 @@ export async function loadActiveAdmin(
   return { id: String(user.id), email: user.email, role: user.role };
 }
 
+/**
+ * Есть ли за этим запросом живой администратор — без переадресации.
+ *
+ * Нужна там, где админ-права не обязательны, но что-то показывается только
+ * ему: демо-оплата на публичном сайте. `requireAdmin` для этого не подходит —
+ * он уводит обычного посетителя на страницу входа.
+ */
+export async function currentAdmin(): Promise<AdminSession | null> {
+  const session = await auth();
+  return loadActiveAdmin(session?.user?.id);
+}
+
 /** Требует любую админ-сессию; иначе — на логин (дублирует proxy на уровне страницы). */
 export async function requireAdmin(): Promise<AdminSession> {
   const session = await auth();
