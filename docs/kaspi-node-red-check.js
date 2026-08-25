@@ -9,22 +9,28 @@ const BRIDGE_TIMEOUT_MS = 3000;
 
 async function askNewSite(orderId) {
     try {
-        const res = await fetch(BRIDGE_URL + encodeURIComponent(orderId), {
-            headers: { 'X-Bridge-Token': BRIDGE_TOKEN },
-            signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS)
-        });
+        const controller = new globalThis.AbortController();
+        const timer = setTimeout(function () { controller.abort(); }, BRIDGE_TIMEOUT_MS);
+        let res;
+        try {
+            res = await globalThis.fetch(BRIDGE_URL + encodeURIComponent(orderId), {
+                headers: { 'X-Bridge-Token': BRIDGE_TOKEN },
+                signal: controller.signal
+            });
+        } finally {
+            clearTimeout(timer);
+        }
         if (!res.ok) return null;
         const data = await res.json();
-        return (data && data.found) ? data : null;
+        if (data && data.found) return data;
+        return null;
     } catch (err) {
         node.warn('kaspi bridge: ' + err.message);
         return null;
     }
 }
 
-return (async () => {
-
-if(id=='001AA01'||id=='001AA02'){
+if (id == '001AA01' || id == '001AA02') {
     payload = {
         "sum": 10,
         "fields": {
@@ -34,7 +40,7 @@ if(id=='001AA01'||id=='001AA02'){
             }
         }
     }
-} else if (id == '002AA01'){
+} else if (id == '002AA01') {
     payload = {
         "sum": 0,
         result: 3, //Уже использован
@@ -45,8 +51,7 @@ if(id=='001AA01'||id=='001AA02'){
             }
         }
     }
-}
-else if (id == 'NOTFOUND' || id == '003AA01'){
+} else if (id == 'NOTFOUND' || id == '003AA01') {
     payload = {
         "sum": 0,
         result: 2,
@@ -58,7 +63,7 @@ else if (id == 'NOTFOUND' || id == '003AA01'){
             }
         }
     }
-} else if (id == 'UNAVAIL' || id == '004AA01'){
+} else if (id == 'UNAVAIL' || id == '004AA01') {
     payload = {
         "sum": 0,
         result: 1, // Билинг недоступен
@@ -70,7 +75,7 @@ else if (id == 'NOTFOUND' || id == '003AA01'){
             }
         }
     }
-} else  {
+} else {
     try {
         const order = $.getOrder(id);
         payload = {
@@ -83,7 +88,7 @@ else if (id == 'NOTFOUND' || id == '003AA01'){
                 }
             }
         };
-    } catch(e){
+    } catch (e) {
         let bridged = null;
         if (e.code == 'not_found') {
             bridged = await askNewSite(id);
@@ -91,7 +96,7 @@ else if (id == 'NOTFOUND' || id == '003AA01'){
 
         if (bridged && bridged.status === 'paid') {
             payload = {
-                sum: 0,
+                "sum": 0,
                 result: 3,
                 "fields": {
                     "field1": {
@@ -114,14 +119,14 @@ else if (id == 'NOTFOUND' || id == '003AA01'){
         } else {
             payload = {
                 ...msg.payload,
-                result: e.code=='not_found'?2:1,
+                result: e.code == 'not_found' ? 2 : 1,
                 comment: e.message
             }
         }
     }
 }
 
-msg.payload = {result:0, ...msg.payload, ...payload}
+msg.payload = { result: 0, ...msg.payload, ...payload }
 
 // 001AA01 - 10тг ( сертификат на сумму 10тг )
 // 002AA01 - 0тг ( сертификат использован )
@@ -129,5 +134,3 @@ msg.payload = {result:0, ...msg.payload, ...payload}
 // 004AA01 - 0тг ( система недоступна )
 
 return msg;
-
-})();
