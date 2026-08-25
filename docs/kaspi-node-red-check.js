@@ -3,7 +3,8 @@ let id = msg.payload.account;
 let payload = {}
 const $ = flow.get('$');
 
-const BRIDGE_URL = 'https://new.imbir.kz/api/kaspi/order/';
+const BRIDGE_HOST = 'new.imbir.kz';
+const BRIDGE_PATH = '/api/kaspi/order/';
 const BRIDGE_TOKEN = 'ВСТАВИТЬ_СЕКРЕТ';
 const BRIDGE_TIMEOUT_MS = 3000;
 
@@ -11,49 +12,47 @@ const BRIDGE_TIMEOUT_MS = 3000;
 // Номера этого сайта начинаются с единицы, пересечься не могут.
 const IS_NEW_SITE_ORDER = /^9[0-9]{19}$/;
 
-// Таймаут без AbortController: в песочнице Node-RED его нет.
-// Запрос не прерываем, просто перестаём ждать — для нашей задачи достаточно.
-function withTimeout(promise, ms) {
-    let timer;
-    const guard = new Promise(function (_resolve, reject) {
-        timer = setTimeout(function () { reject(new Error('таймаут ' + ms + ' мс')); }, ms);
-    });
-    return Promise.race([promise, guard]).finally(function () { clearTimeout(timer); });
-}
-
-// fetch берём только через globalThis: голое имя редактор Node-RED считает
-// необъявленной переменной и помечает узел негодным при развёртывании.
-function getFetch() {
-    if (typeof globalThis === 'undefined') return null;
-    if (typeof globalThis.fetch !== 'function') return null;
-    return globalThis.fetch;
-}
-
-async function askNewSite(orderId) {
-    const doFetch = getFetch();
-    if (!doFetch) {
-        node.warn('kaspi bridge: fetch в этой версии Node-RED недоступен');
-        return null;
-    }
-    try {
-        const res = await withTimeout(
-            doFetch(BRIDGE_URL + encodeURIComponent(orderId), {
-                headers: { 'X-Bridge-Token': BRIDGE_TOKEN }
-            }),
-            BRIDGE_TIMEOUT_MS
-        );
-        if (!res.ok) {
-            node.warn('kaspi bridge: HTTP ' + res.status);
-            return null;
+function askNewSite(orderId) {
+    return new Promise(function (resolve) {
+        let req;
+        try {
+            req = https.request({
+                hostname: BRIDGE_HOST,
+                path: BRIDGE_PATH + encodeURIComponent(orderId),
+                method: 'GET',
+                headers: { 'X-Bridge-Token': BRIDGE_TOKEN },
+                timeout: BRIDGE_TIMEOUT_MS
+            }, function (res) {
+                let body = '';
+                res.setEncoding('utf8');
+                res.on('data', function (chunk) { body += chunk; });
+                res.on('end', function () {
+                    if (res.statusCode !== 200) {
+                        node.warn('kaspi bridge: HTTP ' + res.statusCode);
+                        return resolve(null);
+                    }
+                    try {
+                        const data = JSON.parse(body);
+                        if (data && data.found) return resolve(data);
+                        node.warn('kaspi bridge: заказ не найден и на новом сайте');
+                        resolve(null);
+                    } catch (err) {
+                        node.warn('kaspi bridge: ответ не разобран');
+                        resolve(null);
+                    }
+                });
+            });
+        } catch (err) {
+            node.warn('kaspi bridge: ' + err.message);
+            return resolve(null);
         }
-        const data = await res.json();
-        if (data && data.found) return data;
-        node.warn('kaspi bridge: заказ не найден и на новом сайте');
-        return null;
-    } catch (err) {
-        node.warn('kaspi bridge: ' + err.message);
-        return null;
-    }
+        req.on('timeout', function () { req.destroy(new Error('таймаут')); });
+        req.on('error', function (err) {
+            node.warn('kaspi bridge: ' + err.message);
+            resolve(null);
+        });
+        req.end();
+    });
 }
 
 if (id == '001AA01' || id == '001AA02') {

@@ -3,7 +3,8 @@ let id = msg.payload.account;
 let payload = {};
 const $ = flow.get('$')
 
-const BRIDGE_URL = 'https://new.imbir.kz/api/kaspi/order/';
+const BRIDGE_HOST = 'new.imbir.kz';
+const BRIDGE_PATH = '/api/kaspi/order/';
 const BRIDGE_TOKEN = 'ВСТАВИТЬ_СЕКРЕТ';
 const BRIDGE_TIMEOUT_MS = 5000;
 
@@ -11,53 +12,45 @@ const BRIDGE_TIMEOUT_MS = 5000;
 // Номера этого сайта начинаются с единицы, пересечься не могут.
 const IS_NEW_SITE_ORDER = /^9[0-9]{19}$/;
 
-// Таймаут без AbortController: в песочнице Node-RED его нет.
-// Запрос не прерываем, просто перестаём ждать — для нашей задачи достаточно.
-function withTimeout(promise, ms) {
-    let timer;
-    const guard = new Promise(function (_resolve, reject) {
-        timer = setTimeout(function () { reject(new Error('таймаут ' + ms + ' мс')); }, ms);
+function tellNewSite(orderId) {
+    const body = JSON.stringify({
+        amountKzt: Math.round(Number(msg.payload.sum)),
+        txnId: msg.payload.txn_id
     });
-    return Promise.race([promise, guard]).finally(function () { clearTimeout(timer); });
-}
-
-// fetch берём только через globalThis: голое имя редактор Node-RED считает
-// необъявленной переменной и помечает узел негодным при развёртывании.
-function getFetch() {
-    if (typeof globalThis === 'undefined') return null;
-    if (typeof globalThis.fetch !== 'function') return null;
-    return globalThis.fetch;
-}
-
-async function tellNewSite(orderId) {
-    const doFetch = getFetch();
-    if (!doFetch) {
-        node.warn('kaspi bridge pay: fetch в этой версии Node-RED недоступен');
-        return 'error';
-    }
-    try {
-        const res = await withTimeout(
-            doFetch(BRIDGE_URL + encodeURIComponent(orderId) + '/paid', {
+    return new Promise(function (resolve) {
+        let req;
+        try {
+            req = https.request({
+                hostname: BRIDGE_HOST,
+                path: BRIDGE_PATH + encodeURIComponent(orderId) + '/paid',
                 method: 'POST',
                 headers: {
                     'X-Bridge-Token': BRIDGE_TOKEN,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(body)
                 },
-                body: JSON.stringify({
-                    amountKzt: Math.round(Number(msg.payload.sum)),
-                    txnId: msg.payload.txn_id
-                })
-            }),
-            BRIDGE_TIMEOUT_MS
-        );
-        if (res.status === 404) return 'not_found';
-        if (res.ok) return 'ok';
-        node.warn('kaspi bridge pay: HTTP ' + res.status + ' по заказу ' + orderId);
-        return 'error';
-    } catch (err) {
-        node.warn('kaspi bridge pay: ' + err.message + ' по заказу ' + orderId);
-        return 'error';
-    }
+                timeout: BRIDGE_TIMEOUT_MS
+            }, function (res) {
+                res.resume();
+                res.on('end', function () {
+                    if (res.statusCode === 404) return resolve('not_found');
+                    if (res.statusCode >= 200 && res.statusCode < 300) return resolve('ok');
+                    node.warn('kaspi bridge pay: HTTP ' + res.statusCode + ' по заказу ' + orderId);
+                    resolve('error');
+                });
+            });
+        } catch (err) {
+            node.warn('kaspi bridge pay: ' + err.message);
+            return resolve('error');
+        }
+        req.on('timeout', function () { req.destroy(new Error('таймаут')); });
+        req.on('error', function (err) {
+            node.warn('kaspi bridge pay: ' + err.message + ' по заказу ' + orderId);
+            resolve('error');
+        });
+        req.write(body);
+        req.end();
+    });
 }
 
 if (id == '001AA01' || id == '001AA02') {
