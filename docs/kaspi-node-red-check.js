@@ -11,22 +11,45 @@ const BRIDGE_TIMEOUT_MS = 3000;
 // Номера этого сайта начинаются с единицы, пересечься не могут.
 const IS_NEW_SITE_ORDER = /^9[0-9]{19}$/;
 
+// Таймаут без AbortController: в песочнице Node-RED его нет.
+// Запрос не прерываем, просто перестаём ждать — для нашей задачи достаточно.
+function withTimeout(promise, ms) {
+    let timer;
+    const guard = new Promise(function (_resolve, reject) {
+        timer = setTimeout(function () { reject(new Error('таймаут ' + ms + ' мс')); }, ms);
+    });
+    return Promise.race([promise, guard]).finally(function () { clearTimeout(timer); });
+}
+
+// fetch может быть не проброшен в песочницу — проверяем, не падая
+function getFetch() {
+    if (typeof fetch === 'function') return fetch;
+    if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
+        return globalThis.fetch;
+    }
+    return null;
+}
+
 async function askNewSite(orderId) {
+    const doFetch = getFetch();
+    if (!doFetch) {
+        node.warn('kaspi bridge: fetch в этой версии Node-RED недоступен');
+        return null;
+    }
     try {
-        const controller = new globalThis.AbortController();
-        const timer = setTimeout(function () { controller.abort(); }, BRIDGE_TIMEOUT_MS);
-        let res;
-        try {
-            res = await globalThis.fetch(BRIDGE_URL + encodeURIComponent(orderId), {
-                headers: { 'X-Bridge-Token': BRIDGE_TOKEN },
-                signal: controller.signal
-            });
-        } finally {
-            clearTimeout(timer);
+        const res = await withTimeout(
+            doFetch(BRIDGE_URL + encodeURIComponent(orderId), {
+                headers: { 'X-Bridge-Token': BRIDGE_TOKEN }
+            }),
+            BRIDGE_TIMEOUT_MS
+        );
+        if (!res.ok) {
+            node.warn('kaspi bridge: HTTP ' + res.status);
+            return null;
         }
-        if (!res.ok) return null;
         const data = await res.json();
         if (data && data.found) return data;
+        node.warn('kaspi bridge: заказ не найден и на новом сайте');
         return null;
     } catch (err) {
         node.warn('kaspi bridge: ' + err.message);

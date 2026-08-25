@@ -11,13 +11,34 @@ const BRIDGE_TIMEOUT_MS = 5000;
 // Номера этого сайта начинаются с единицы, пересечься не могут.
 const IS_NEW_SITE_ORDER = /^9[0-9]{19}$/;
 
+// Таймаут без AbortController: в песочнице Node-RED его нет.
+// Запрос не прерываем, просто перестаём ждать — для нашей задачи достаточно.
+function withTimeout(promise, ms) {
+    let timer;
+    const guard = new Promise(function (_resolve, reject) {
+        timer = setTimeout(function () { reject(new Error('таймаут ' + ms + ' мс')); }, ms);
+    });
+    return Promise.race([promise, guard]).finally(function () { clearTimeout(timer); });
+}
+
+// fetch может быть не проброшен в песочницу — проверяем, не падая
+function getFetch() {
+    if (typeof fetch === 'function') return fetch;
+    if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
+        return globalThis.fetch;
+    }
+    return null;
+}
+
 async function tellNewSite(orderId) {
+    const doFetch = getFetch();
+    if (!doFetch) {
+        node.warn('kaspi bridge pay: fetch в этой версии Node-RED недоступен');
+        return 'error';
+    }
     try {
-        const controller = new globalThis.AbortController();
-        const timer = setTimeout(function () { controller.abort(); }, BRIDGE_TIMEOUT_MS);
-        let res;
-        try {
-            res = await globalThis.fetch(BRIDGE_URL + encodeURIComponent(orderId) + '/paid', {
+        const res = await withTimeout(
+            doFetch(BRIDGE_URL + encodeURIComponent(orderId) + '/paid', {
                 method: 'POST',
                 headers: {
                     'X-Bridge-Token': BRIDGE_TOKEN,
@@ -26,12 +47,10 @@ async function tellNewSite(orderId) {
                 body: JSON.stringify({
                     amountKzt: Math.round(Number(msg.payload.sum)),
                     txnId: msg.payload.txn_id
-                }),
-                signal: controller.signal
-            });
-        } finally {
-            clearTimeout(timer);
-        }
+                })
+            }),
+            BRIDGE_TIMEOUT_MS
+        );
         if (res.status === 404) return 'not_found';
         if (res.ok) return 'ok';
         node.warn('kaspi bridge pay: HTTP ' + res.status + ' по заказу ' + orderId);
