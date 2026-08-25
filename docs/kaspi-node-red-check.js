@@ -1,23 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════════
-//  Узел «check» на вкладке Kaspi (red.imbir.kz)
-//  Полная замена содержимого. Изменён ТОЛЬКО блок catch в самом низу —
-//  всё остальное оставлено дословно как было.
-//
-//  Что добавлено: не найдя заказ у себя, спрашиваем новый сайт new.imbir.kz.
-//  Любая неудача (нет сети, таймаут, неверный ответ) = поведение ровно
-//  такое же, как до правки. Сломать приём денег на действующем сайте эта
-//  вставка не может.
-// ═══════════════════════════════════════════════════════════════════════
-
 // kaspi data1 = machid
 let id = msg.payload.account;
 let payload = {}
 const $ = flow.get('$');
 
-// ── мост на новый сайт ────────────────────────────────────────────────
 const BRIDGE_URL = 'https://new.imbir.kz/api/kaspi/order/';
-const BRIDGE_TOKEN = 'ВСТАВИТЬ_СЕКРЕТ';   // выдаётся отдельно, не хранить в гите
-const BRIDGE_TIMEOUT_MS = 3000;           // Kaspi ждёт ответа недолго
+const BRIDGE_TOKEN = 'ВСТАВИТЬ_СЕКРЕТ';
+const BRIDGE_TIMEOUT_MS = 3000;
 
 async function askNewSite(orderId) {
     try {
@@ -29,12 +17,10 @@ async function askNewSite(orderId) {
         const data = await res.json();
         return (data && data.found) ? data : null;
     } catch (err) {
-        // мост недоступен — ведём себя так, будто его нет
         node.warn('kaspi bridge: ' + err.message);
         return null;
     }
 }
-// ──────────────────────────────────────────────────────────────────────
 
 return (async () => {
 
@@ -98,18 +84,12 @@ else if (id == 'NOTFOUND' || id == '003AA01'){
             }
         };
     } catch(e){
-
-        // ── НАЧАЛО ВСТАВКИ ────────────────────────────────────────────
-        // Заказа нет у нас — возможно, он с нового сайта. Спрашиваем его.
-        // Только при 'not_found': если своя база просто недоступна, мост
-        // не поможет и ответ должен остаться прежним.
         let bridged = null;
         if (e.code == 'not_found') {
             bridged = await askNewSite(id);
         }
 
         if (bridged && bridged.status === 'paid') {
-            // Уже оплачен — тот же ответ, что и для использованного
             payload = {
                 sum: 0,
                 result: 3,
@@ -132,15 +112,12 @@ else if (id == 'NOTFOUND' || id == '003AA01'){
                 }
             };
         } else {
-        // ── КОНЕЦ ВСТАВКИ; ниже — прежний код без изменений ───────────
-
             payload = {
                 ...msg.payload,
                 result: e.code=='not_found'?2:1,
                 comment: e.message
             }
-
-        }   // ← закрывающая скобка добавленного else
+        }
     }
 }
 
