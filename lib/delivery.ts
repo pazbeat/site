@@ -95,7 +95,7 @@ export async function buildCertificatePdf(certificateId: string): Promise<{
       : labels.nominal;
 
   const qrDataUrl = await QRCode.toDataURL(
-    `${siteUrl()}/${locale}/check?code=${encodeURIComponent(code)}`,
+    `${siteUrl()}/${locale}/check?code=${encodeURIComponent(code)}&utm_source=imbir&utm_medium=email`,
     { margin: 1, width: 300, color: { dark: "#4D295D" } },
   );
 

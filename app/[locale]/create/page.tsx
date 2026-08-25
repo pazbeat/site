@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -8,6 +8,7 @@ import { BuilderClient } from "@/components/builder-client";
 import { ForteBankProvider } from "@/lib/payments/forte";
 import { prisma } from "@/lib/db";
 import { AB_COOKIE, filterByVariant, isAbVariant } from "@/lib/ab";
+import { countVisit } from "@/lib/visits";
 import type { BuilderResume, NominalDto, DesignDto } from "@/lib/types";
 import {
   getActiveDesigns,
@@ -47,6 +48,12 @@ export default async function CreatePage({
   const { locale } = await params;
   const query = await searchParams;
   setRequestLocale(locale);
+
+  // Вторая стадия воронки: канал привёл не просто зеваку, а человека, который
+  // открыл конструктор. Разница между этими двумя числами и показывает,
+  // приводит канал покупателей или случайных посетителей.
+  const builderChannel = (await headers()).get("x-imbir-builder");
+  if (builderChannel) void countVisit(builderChannel, "builder");
   const t = await getTranslations("Builder");
   const tNav = await getTranslations("Nav");
 

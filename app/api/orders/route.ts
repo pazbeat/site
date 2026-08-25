@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AB_COOKIE, isAbVariant } from "@/lib/ab";
+import { SRC_COOKIE, parseSourceCookie } from "@/lib/source";
 import { prisma } from "@/lib/db";
 import { buildConsentRecord } from "@/lib/consent";
 import { resolveOrderAmount } from "@/lib/pricing";
@@ -81,6 +82,11 @@ export async function POST(request: NextRequest) {
   // Группа A/B-теста цен, в которой покупатель видел номиналы (PRD §10)
   const abRaw = request.cookies.get(AB_COOKIE)?.value;
 
+  // Откуда пришёл покупатель — переносим из куки в сам заказ. С клиента эти
+  // значения не приходят и в orderSchema их нет: подделать источник продажи
+  // из браузера нельзя.
+  const src = parseSourceCookie(request.cookies.get(SRC_COOKIE)?.value);
+
   const order = await prisma.order.create({
     data: {
       salonId: input.salonId,
@@ -91,6 +97,11 @@ export async function POST(request: NextRequest) {
       promoId,
       paymentProvider: input.provider ?? null,
       abVariant: isAbVariant(abRaw) ? abRaw : null,
+      srcFirst: src?.first ?? null,
+      srcLast: src?.last ?? null,
+      srcCampaign: src?.campaign || null,
+      clickIdType: src?.clickIdType || null,
+      clickId: src?.clickId || null,
       consent,
       item: {
         ...itemSnapshot,

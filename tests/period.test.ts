@@ -7,6 +7,7 @@ import {
   recentMonths,
   resolvePeriod,
   shiftMonth,
+  dayRangeFilter,
 } from "@/lib/admin/period";
 
 describe("границы месяца по Алматы", () => {
@@ -93,5 +94,23 @@ describe("навигация по месяцам", () => {
   it("подписи месяцев по-русски", () => {
     expect(monthLabel("2026-01")).toBe("Январь 2026");
     expect(monthLabel("2026-12")).toBe("Декабрь 2026");
+  });
+});
+
+describe("границы суток для колонок с датой", () => {
+  it("первый и последний день месяца попадают в диапазон, соседние — нет", () => {
+    const period = resolvePeriod({ month: "2026-08" });
+    const range = dayRangeFilter(period)!;
+    const day = (key: string) => new Date(`${key}T00:00:00Z`);
+
+    // Календарный день хранится как дата без времени — сравниваем так же
+    expect(day("2026-08-01") >= range.gte!).toBe(true);
+    expect(day("2026-08-31") < range.lt!).toBe(true);
+    expect(day("2026-07-31") >= range.gte!).toBe(false);
+    expect(day("2026-09-01") < range.lt!).toBe(false);
+  });
+
+  it("без периода фильтра нет", () => {
+    expect(dayRangeFilter({ from: null, to: null } as never)).toBeUndefined();
   });
 });

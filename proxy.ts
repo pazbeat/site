@@ -4,6 +4,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { routing } from "./i18n/routing";
 import { buildCsp } from "./lib/security";
 import { AB_COOKIE, pickVariant } from "./lib/ab";
+import { almatyDayKey } from "./lib/admin/period";
+import {
+  SRC_COOKIE,
+  detectTouch,
+  formatSourceCookie,
+  isBuilderPath,
+  isCountableVisit,
+  nextSource,
+  parseSourceCookie,
+  type SourceDecision,
+} from "./lib/source";
 
 const intl = createIntlMiddleware(routing);
 
@@ -57,6 +68,18 @@ export default async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("content-security-policy", csp);
+
+  // Откуда пришёл посетитель. Решение принимается здесь, а страница узнаёт
+  // его из заголовка и засчитывает в дневной счётчик (см. lib/visits.ts).
+  //
+  // Удалить перед установкой обязательно: заголовки склонированы из входящего
+  // запроса, и без этого клиент прислал бы свой x-imbir-visit и накрутил
+  // счётчик заходов.
+  requestHeaders.delete("x-imbir-visit");
+  requestHeaders.delete("x-imbir-builder");
+  const source = resolveSource(request, pathname);
+  if (source.countVisit) requestHeaders.set("x-imbir-visit", source.next.last);
+  if (source.countBuilder) requestHeaders.set("x-imbir-builder", source.next.last);
   const patched = new NextRequest(request.nextUrl, {
     headers: requestHeaders,
   });
@@ -71,7 +94,48 @@ export default async function proxy(request: NextRequest) {
   response.headers.set("Content-Security-Policy", csp);
   applySecurityHeaders(response.headers);
   assignAbVariant(request, response, pathname);
+  assignSource(response, pathname, source);
   return response;
+}
+
+/**
+ * Решение о канале посетителя. Чистая логика живёт в lib/source.ts, здесь
+ * только сбор входных данных: строка запроса, откуда пришёл, кука, заголовки.
+ */
+function resolveSource(request: NextRequest, pathname: string): SourceDecision {
+  const prev = parseSourceCookie(request.cookies.get(SRC_COOKIE)?.value);
+  return nextSource({
+    prev,
+    touch: detectTouch(request.nextUrl, request.headers.get("referer"), pathname),
+    today: almatyDayKey(new Date()),
+    countable: isCountableVisit(request.headers),
+    isBuilderPath: isBuilderPath(pathname),
+  });
+}
+
+/**
+ * Липкая кука источника — по образцу A/B выше.
+ *
+ * Отличий два. Во-первых `httpOnly: true`: клиенту эта кука не нужна, читает
+ * её только сервер при создании заказа. Во-вторых метки посчитанных дней
+ * двигаются лишь на успешном ответе: заход на голый домен даёт редирект на
+ * язык, рендера там нет — проштамповав день на редиректе, мы потеряли бы визит.
+ */
+function assignSource(
+  response: NextResponse,
+  pathname: string,
+  decision: SourceDecision,
+) {
+  if (pathname.startsWith("/admin") || pathname.startsWith("/api")) return;
+  if (!decision.changed) return;
+  if (response.status >= 300 && (decision.countVisit || decision.countBuilder)) return;
+
+  response.cookies.set(SRC_COOKIE, formatSourceCookie(decision.next), {
+    maxAge: 180 * 24 * 60 * 60,
+    sameSite: "lax",
+    path: "/",
+    httpOnly: true,
+  });
 }
 
 /**

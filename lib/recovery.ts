@@ -79,7 +79,7 @@ export async function sendAbandonedRecovery(
     const mail = recoveryEmail({
       locale,
       toName: item.toName ?? "",
-      resumeUrl: `${siteUrl()}/${locale}/create?resume=${order.successToken}`,
+      resumeUrl: `${siteUrl()}/${locale}/create?resume=${order.successToken}&utm_source=imbir&utm_medium=email&utm_campaign=recovery`,
     });
 
     try {

@@ -169,6 +169,32 @@ export function periodFilter(period: Period) {
   };
 }
 
+/**
+ * Фильтр для колонок типа DATE (без времени) — `VisitStat.day`, `AbStat.day`.
+ *
+ * `periodFilter` отдаёт моменты времени: алматинская полночь — это 19:00
+ * предыдущих суток по UTC. На колонке DATE такая граница съезжает на сутки в
+ * обе стороны: слева цепляется лишний день, справа теряется последний.
+ * Поэтому границы приводим к календарным дням по Алматы.
+ */
+export function dayRangeFilter(period: Period) {
+  if (!period.from && !period.to) return undefined;
+  const utcDay = (key: string) => new Date(`${key}T00:00:00Z`);
+  return {
+    ...(period.from ? { gte: utcDay(almatyDayKey(period.from)) } : {}),
+    ...(period.to
+      ? {
+          // period.to — исключающая граница (начало следующего дня), поэтому
+          // берём день на миллисекунду раньше и прибавляем сутки.
+          lt: new Date(
+            utcDay(almatyDayKey(new Date(period.to.getTime() - 1))).getTime() +
+              24 * 60 * 60 * 1000,
+          ),
+        }
+      : {}),
+  };
+}
+
 /** Соседний месяц (шаг ±1) — для стрелок «предыдущий/следующий». */
 export function shiftMonth(key: string, step: number): string {
   const [year, month] = key.split("-").map(Number);

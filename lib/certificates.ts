@@ -62,7 +62,10 @@ export async function fulfillOrder(
 > {
   const claimed = await prisma.order.updateMany({
     where: { id: orderId, status: { in: ["pending", "expired"] } },
-    data: { status: "paid", paymentId: externalPaymentId },
+    // paidAt отдельно от createdAt: вебхуков у Kaspi и Forte нет, статус
+    // узнаём опросом или подтверждают руками — деньги приходят много позже
+    // создания заказа, а иногда и после его протухания.
+    data: { status: "paid", paymentId: externalPaymentId, paidAt: new Date() },
   });
 
   if (claimed.count === 0) {

@@ -7,6 +7,7 @@ import type { AdminRole } from "@/lib/admin/guard";
 const NAV: Array<{ href: string; label: string; roles: AdminRole[] }> = [
   { href: "/admin", label: "Дашборд", roles: ["superadmin", "manager"] },
   { href: "/admin/sales", label: "Продажи", roles: ["superadmin", "manager"] },
+  { href: "/admin/sources", label: "Источники", roles: ["superadmin", "manager"] },
   { href: "/admin/orders", label: "Заказы", roles: ["superadmin", "manager"] },
   {
     href: "/admin/certificates",

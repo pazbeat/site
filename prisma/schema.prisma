@@ -232,6 +232,23 @@ model LegalVersion {
   @@map("legal_versions")
 }
 
+/// Заходы по каналам — знаменатель конверсии в отчёте «Источники».
+/// Один посетитель считается один раз в сутки: метка дня лежит в его куке.
+/// Следа посетителя НЕ храним — ни IP, ни браузера, ни идентификатора:
+/// только счётчик «день × канал × стадия». Потолок роста — 15 каналов на две
+/// стадии, то есть не больше 30 строк в сутки; чистка не понадобится никогда.
+model VisitStat {
+  id     Int      @id @default(autoincrement())
+  day    DateTime @db.Date
+  source String   @db.VarChar(16)
+  /// "visit" — зашёл на сайт, "builder" — открыл конструктор
+  stage  String   @db.VarChar(8)
+  visits Int      @default(0)
+
+  @@unique([day, source, stage])
+  @@map("visit_stats")
+}
+
 model Order {
   id              String           @id @default(cuid())
   status          OrderStatus      @default(pending)
@@ -255,6 +272,19 @@ model Order {
   successToken    String           @unique @default(cuid()) @map("success_token")
   /// Группа A/B-теста цен, в которой покупатель видел номиналы
   abVariant       String?          @db.VarChar(1) @map("ab_variant")
+  /// Откуда пришёл покупатель (словарь в lib/source.ts). Скалярами, а не Json:
+  /// отчёт строится через groupBy, а по Json Prisma группировать не умеет.
+  /// Канал первого касания — «кто привёл»
+  srcFirst        String?          @db.VarChar(16) @map("src_first")
+  /// Канал последнего касания перед покупкой — «кто закрыл», им и атрибутируем
+  srcLast         String?          @db.VarChar(16) @map("src_last")
+  srcCampaign     String?          @db.VarChar(32) @map("src_campaign")
+  /// gclid / yclid / fbclid — понадобится для выгрузки продаж в рекламный кабинет
+  clickIdType     String?          @db.VarChar(8)  @map("click_id_type")
+  clickId         String?          @db.VarChar(512) @map("click_id")
+  /// Когда пришли деньги. Не равно createdAt: оплата бывает много позже
+  /// создания заказа, fulfillOrder принимает даже протухшие.
+  paidAt          DateTime?        @map("paid_at")
   /// Когда отправлено письмо «дожима» брошенного (неоплаченного) заказа —
   /// шлётся один раз (Фаза 2, дожим). null = ещё не отправляли.
   recoveryEmailSentAt DateTime?    @map("recovery_email_sent_at")
@@ -370,6 +400,9 @@ model CorporateRequest {
   /// ({versions, hashes, ip, ua, locale, ts}, см. lib/consent.ts).
   /// Пусто у заявок, оставленных до появления галочки в форме.
   consent   Json?
+  /// Канал, приведший заявку (словарь lib/source.ts)
+  srcLast     String?       @db.VarChar(16) @map("src_last")
+  srcCampaign String?       @db.VarChar(32) @map("src_campaign")
   createdAt DateTime        @default(now()) @map("created_at")
 
   @@map("corporate_requests")

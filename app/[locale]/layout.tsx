@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Montserrat } from "next/font/google";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
@@ -7,6 +8,7 @@ import { routing } from "@/i18n/routing";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { SITE_URL } from "@/lib/seo";
+import { countVisit } from "@/lib/visits";
 import "../globals.css";
 
 // Контент управляется из админки — рендерим на каждый запрос,
@@ -54,6 +56,13 @@ export default async function LocaleLayout({
     notFound();
   }
   setRequestLocale(locale);
+
+  // Заход в дневной счётчик по каналам. Канал определил proxy.ts и передал
+  // заголовком; заголовок он же предварительно вычищает из входящего запроса,
+  // так что подделать счётчик снаружи нельзя. Не ждём: страница не должна
+  // задерживаться из-за аналитики.
+  const visitChannel = (await headers()).get("x-imbir-visit");
+  if (visitChannel) void countVisit(visitChannel, "visit");
 
   return (
     <html

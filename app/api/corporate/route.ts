@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { buildConsentRecord } from "@/lib/consent";
+import { SRC_COOKIE, parseSourceCookie } from "@/lib/source";
 import { prisma } from "@/lib/db";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { corporateSchema } from "@/lib/validation";
 
 /** Корпоративная заявка (PRD §5.1.7): запись в БД; письмо менеджеру — на этапе email-доставки. */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const ip = clientIp(request);
   const limited = rateLimit(`corporate:${ip}`);
   if (!limited.ok) {
@@ -39,8 +40,16 @@ export async function POST(request: Request) {
     locale,
   });
 
+  // Откуда пришла заявка — тем же способом, что и у заказа
+  const src = parseSourceCookie(request.cookies.get(SRC_COOKIE)?.value);
+
   const created = await prisma.corporateRequest.create({
-    data: { ...fields, consent },
+    data: {
+      ...fields,
+      consent,
+      srcLast: src?.last ?? null,
+      srcCampaign: src?.campaign || null,
+    },
   });
 
   return NextResponse.json({ id: created.id }, { status: 201 });

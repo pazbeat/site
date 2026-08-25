@@ -4,6 +4,8 @@ import { AdminChrome } from "@/components/admin/chrome";
 import { prisma } from "@/lib/db";
 import { hashCode, isValidCodeFormat } from "@/lib/certificate-code";
 import { formatKzt } from "@/lib/format";
+import { CHANNELS, CHANNEL_LABELS } from "@/lib/source";
+import { channelLabel } from "@/lib/sources";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -41,6 +43,7 @@ export default async function AdminOrdersPage({
     q?: string;
     status?: string;
     salon?: string;
+    source?: string;
     from?: string;
     to?: string;
   }>;
@@ -55,6 +58,9 @@ export default async function AdminOrdersPage({
   }
   const salonId = sp.salon ? Number(sp.salon) : NaN;
   if (Number.isFinite(salonId)) where.salonId = salonId;
+  // Канал: сюда ведёт ссылка из отчёта «Источники». Без этого фильтра
+  // страница молча игнорировала бы параметр и показывала все заказы подряд.
+  if (sp.source) where.srcLast = sp.source === "unknown" ? null : sp.source;
 
   if (sp.from || sp.to) {
     const createdAt: Prisma.DateTimeFilter = {};
@@ -131,6 +137,15 @@ export default async function AdminOrdersPage({
             </option>
           ))}
         </select>
+        <select name="source" defaultValue={sp.source ?? ""} className={inputCls}>
+          <option value="">Все источники</option>
+          {CHANNELS.map((c) => (
+            <option key={c} value={c}>
+              {CHANNEL_LABELS[c]}
+            </option>
+          ))}
+          <option value="unknown">Без метки</option>
+        </select>
         <label className="flex items-center gap-1 text-xs text-brand-purple-950/55">
           с
           <input type="date" name="from" defaultValue={sp.from ?? ""} className={inputCls} />
@@ -162,6 +177,7 @@ export default async function AdminOrdersPage({
               <th className="px-4 py-3 font-semibold">Сумма</th>
               <th className="px-4 py-3 font-semibold">Оплата</th>
               <th className="px-4 py-3 font-semibold">Филиал</th>
+              <th className="px-4 py-3 font-semibold">Источник</th>
               <th className="px-4 py-3 font-semibold">Покупатель</th>
               <th className="px-4 py-3 font-semibold">Сертификат</th>
             </tr>
@@ -202,6 +218,20 @@ export default async function AdminOrdersPage({
                       : "—"}
                   </td>
                   <td className="px-4 py-3">{order.salon.city}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {order.srcLast ? (
+                      <>
+                        {channelLabel(order.srcLast)}
+                        {order.srcCampaign && (
+                          <span className="block text-[11px] text-brand-purple-950/45">
+                            {order.srcCampaign}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-brand-purple-950/40">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">{order.buyerEmail}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {cert ? (
