@@ -128,9 +128,17 @@ function assignSource(
 ) {
   if (pathname.startsWith("/admin") || pathname.startsWith("/api")) return;
   if (!decision.changed) return;
-  if (response.status >= 300 && (decision.countVisit || decision.countBuilder)) return;
 
-  response.cookies.set(SRC_COOKIE, formatSourceCookie(decision.next), {
+  // На переадресации (заход на голый домен уводит на язык) рендера страницы
+  // нет, а значит заход некому засчитать. Канал запоминаем сразу — иначе
+  // рекламная метка держалась бы только на том, что переадресация сохраняет
+  // строку запроса, — но метки дня не ставим: их проставит уже та страница,
+  // которая действительно откроется.
+  const value = formatSourceCookie(
+    response.status >= 300 ? decision.nextUnstamped : decision.next,
+  );
+
+  response.cookies.set(SRC_COOKIE, value, {
     maxAge: 180 * 24 * 60 * 60,
     sameSite: "lax",
     path: "/",

@@ -3,6 +3,9 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
+import { JsonLd } from "@/components/json-ld";
+import { salonsSchema } from "@/lib/schema-org";
+import { publicOrigin } from "@/lib/site-url";
 import { HeroShowcase, type HeroSlide } from "@/components/home/hero-showcase";
 import { AtmosphereStrip, type AtmoClip } from "@/components/home/atmosphere-strip";
 import { ProgramsStrip, type StripProgram } from "@/components/home/programs-strip";
@@ -132,6 +135,11 @@ export default async function HomePage({
 
   return (
     <main className="rd flex-1">
+      {/* Филиалы как отдельные заведения — главный сигнал для локального
+          поиска «тайский массаж Астана»: восемь реальных точек с адресами. */}
+      {salonsSchema(publicOrigin(), locale).map((s) => (
+        <JsonLd key={String(s["@id"])} data={s} />
+      ))}
       {/* Плавное появление .reveal-секций при прокрутке (как в макете) */}
       <RevealInit />
       {/* HERO */}

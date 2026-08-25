@@ -9,10 +9,17 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { SITE_URL } from "@/lib/seo";
 import { countVisit } from "@/lib/visits";
+import { JsonLd } from "@/components/json-ld";
+import { organizationSchema, webSiteSchema } from "@/lib/schema-org";
+import { publicOrigin } from "@/lib/site-url";
 import "../globals.css";
 
 // Контент управляется из админки — рендерим на каждый запрос,
 // а build не требует подключения к БД. Оптимизация (ISR) — позже.
+//
+// ВНИМАНИЕ при такой оптимизации: снятие force-dynamic или включение кеша
+// HTML на Cloudflare молча остановит счётчик заходов (он считается здесь, на
+// рендере) и начнёт раздавать разным людям одну и ту же куку с источником.
 export const dynamic = "force-dynamic";
 
 const cormorant = Cormorant_Garamond({
@@ -70,6 +77,10 @@ export default async function LocaleLayout({
       className={`${cormorant.variable} ${montserrat.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
+        {/* Микроразметка для поисковиков: кто мы и что это за сайт. Адрес
+            берём в момент запроса — на этапе сборки образа SITE_URL ещё нет. */}
+        <JsonLd data={organizationSchema(publicOrigin())} />
+        <JsonLd data={webSiteSchema(publicOrigin(), locale)} />
         <NextIntlClientProvider>
           <SiteHeader />
           {children}

@@ -206,3 +206,30 @@ describe("путь конструктора", () => {
     expect(isBuilderPath("/ru")).toBe(false);
   });
 });
+
+describe("переадресация", () => {
+  const today = "2026-08-25";
+
+  // Заход на голый домен уводит на язык — рендера страницы там нет, засчитать
+  // заход некому. Канал запомнить надо, а метку дня ставить рано.
+  it("канал запоминается, метка дня — нет", () => {
+    const r = nextSource({
+      prev: null,
+      touch: { channel: "instagram-ads", campaign: "march8", clickIdType: "", clickId: "" },
+      today,
+      countable: true,
+      isBuilderPath: false,
+    });
+    expect(r.next.dayVisit).toBe(today);
+    expect(r.nextUnstamped.last).toBe("instagram-ads");
+    expect(r.nextUnstamped.campaign).toBe("march8");
+    expect(r.nextUnstamped.dayVisit).toBe("");
+  });
+
+  // Иначе вернувшегося сегодня посетителя посчитали бы второй раз
+  it("прежняя метка дня сохраняется, а не обнуляется", () => {
+    const prev = { ...EMPTY_SOURCE, first: "google" as const, last: "google" as const, dayVisit: today };
+    const r = nextSource({ prev, touch: null, today, countable: true, isBuilderPath: false });
+    expect(r.nextUnstamped.dayVisit).toBe(today);
+  });
+});

@@ -280,6 +280,15 @@ export function isCountableVisit(headers: {
 
 export type SourceDecision = {
   next: SourceCookie;
+  /**
+   * То же состояние, но БЕЗ проставленных сегодня меток дня.
+   *
+   * Нужно для переадресации: канал там запомнить надо, а заход засчитать
+   * некому — страницы не будет. Просто обнулить метки нельзя, иначе
+   * вернувшегося сегодня посетителя посчитали бы второй раз, поэтому здесь
+   * лежат прежние значения.
+   */
+  nextUnstamped: SourceCookie;
   /** Кука изменилась — надо отдать Set-Cookie */
   changed: boolean;
   /** Засчитать заход в дневной счётчик */
@@ -320,11 +329,13 @@ export function nextSource(input: {
 
   const countVisit = countable && next.dayVisit !== today;
   const countBuilder = countable && isBuilderPath && next.dayBuilder !== today;
+  // Состояние без сегодняшних меток — прежние значения сохраняем как есть
+  const nextUnstamped: SourceCookie = { ...next };
   if (countVisit) next.dayVisit = today;
   if (countBuilder) next.dayBuilder = today;
 
   const changed = !prev || formatSourceCookie(next) !== formatSourceCookie(base);
-  return { next, changed, countVisit, countBuilder };
+  return { next, nextUnstamped, changed, countVisit, countBuilder };
 }
 
 /** Путь конструктора на любой из локалей. */
