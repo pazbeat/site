@@ -14,22 +14,42 @@ type Version = {
   isCurrent: boolean;
 };
 
+type Lang = "ru" | "kk" | "en";
+const LANGS: Lang[] = ["ru", "kk", "en"];
+
 export function LegalEditor({
   type,
   label,
-  currentHtml,
-  currentLang,
+  byLang,
   history,
 }: Readonly<{
   type: string;
   label: string;
-  currentHtml: string;
-  currentLang: string;
+  byLang: Record<Lang, string>;
   history: Version[];
 }>) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [content, setContent] = useState(currentHtml);
+  const [lang, setLang] = useState<Lang>("ru");
+  const [content, setContent] = useState(byLang.ru);
+
+  /**
+   * Смена языка подменяет и текст в поле.
+   *
+   * Раньше переключатель менял только метку, с которой уйдёт форма, а текст
+   * оставался прежним: выбрав KK, редактор показывал русский документ, и
+   * сохранение записывало русское содержимое как казахскую редакцию — ту, на
+   * которую ссылаются согласия казахских покупателей.
+   */
+  const switchLang = (next: Lang) => {
+    if (next === lang) return;
+    const edited = content !== byLang[lang];
+    if (edited && !confirm("Несохранённые правки текущего языка пропадут. Продолжить?")) {
+      return;
+    }
+    setLang(next);
+    setContent(byLang[next]);
+  };
 
   return (
     <details className="rounded-2xl border border-brand-purple-100 bg-white p-5">
@@ -54,19 +74,37 @@ export function LegalEditor({
       >
         <input type="hidden" name="type" value={type} />
         <div className="mb-2 flex items-center gap-2">
-          <label className="text-xs font-bold">Язык</label>
+          <label className="text-xs font-bold" htmlFor={`lang-${type}`}>
+            Язык
+          </label>
           <select
+            id={`lang-${type}`}
             name="lang"
-            defaultValue={currentLang}
+            value={lang}
+            onChange={(e) => switchLang(e.target.value as Lang)}
             className="rounded-lg border-[1.5px] border-brand-purple-100 px-2 py-1 text-sm outline-none focus:border-brand-gold"
           >
-            <option value="ru">RU</option>
-            <option value="kk">KK</option>
-            <option value="en">EN</option>
+            {LANGS.map((l) => (
+              <option key={l} value={l}>
+                {l.toUpperCase()}
+              </option>
+            ))}
           </select>
+          {byLang[lang] === "" && (
+            <span className="text-xs font-bold text-brand-red">
+              на этом языке редакции ещё нет — сохранение создаст первую
+            </span>
+          )}
+          {lang !== "ru" && (
+            <span className="text-xs text-brand-purple-950/50">
+              перевод; действующей редакцией управляет русский текст
+            </span>
+          )}
         </div>
         <input type="hidden" name="content" value={content} />
-        <RichText value={content} onChange={setContent} />
+        {/* key: редактор берёт текст только при монтировании, без этого
+            смена языка не перерисовала бы содержимое поля. */}
+        <RichText key={lang} value={content} onChange={setContent} />
         <div className="mt-3 flex items-center gap-3">
           <button
             type="submit"

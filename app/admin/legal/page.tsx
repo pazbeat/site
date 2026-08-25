@@ -10,6 +10,14 @@ const TYPE_LABEL: Record<string, string> = {
   rules: "Правила использования",
 };
 
+/** Последняя редакция на данном языке — так же её выбирает и публичная часть. */
+function latestByLang(
+  versions: Array<{ lang: string; contentHtmlSanitized: string }> | undefined,
+  lang: string,
+): string {
+  return versions?.find((v) => v.lang === lang)?.contentHtmlSanitized ?? "";
+}
+
 export default async function AdminLegalPage() {
   const admin = await requireSuperadmin();
 
@@ -39,8 +47,17 @@ export default async function AdminLegalPage() {
               key={type}
               type={type}
               label={TYPE_LABEL[type]}
-              currentHtml={doc?.currentVersion?.contentHtmlSanitized ?? ""}
-              currentLang={doc?.currentVersion?.lang ?? "ru"}
+              // Текст КАЖДОГО языка: переключатель раньше менял только метку
+              // формы, а в поле оставался русский текст. Сохранение в таком
+              // виде записывало русское содержимое как казахскую редакцию —
+              // ту самую, которую видят и принимают казахские покупатели.
+              // RU берём из опубликованной редакции, остальные — из последней
+              // на этом языке, ровно как их отдаёт сайт.
+              byLang={{
+                ru: doc?.currentVersion?.contentHtmlSanitized ?? "",
+                kk: latestByLang(doc?.versions, "kk"),
+                en: latestByLang(doc?.versions, "en"),
+              }}
               history={
                 doc?.versions.map((v) => ({
                   id: v.id,
