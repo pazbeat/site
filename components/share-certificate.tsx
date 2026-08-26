@@ -17,6 +17,21 @@ type Props = Readonly<{
 }>;
 
 /**
+ * Умеет ли браузер делиться файлами. Проверяем пустышкой в один байт: сам
+ * сертификат для этого качать незачем, а ответ нужен ещё до нажатия.
+ */
+function canShareFiles(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (typeof navigator.canShare !== "function") return false;
+  try {
+    const probe = new File(["1"], "probe.pdf", { type: "application/pdf" });
+    return navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Отправка сертификата в WhatsApp.
  *
  * Ссылка `wa.me?text=` умеет только текст — файл к ней не прикрепить, поэтому
@@ -40,7 +55,12 @@ export function ShareCertificate({
 
   // Файл готовим заранее: Safari отдаёт «Поделиться» только в том же кадре,
   // где случилось нажатие, и ожидание загрузки внутри обработчика его теряет.
+  //
+  // Но только там, где файлами вообще можно поделиться. Иначе каждое открытие
+  // страницы успеха дёргало бы отрисовку PDF на сервере впустую — а она не
+  // из дешёвых. Поддержку проверяем пустышкой, ничего не скачивая.
   useEffect(() => {
+    if (!canShareFiles()) return;
     let cancelled = false;
     (async () => {
       try {
@@ -70,20 +90,13 @@ export function ShareCertificate({
 
   const share = () => {
     const file = fileRef.current;
-    const canShareFile =
-      ready &&
-      file !== null &&
-      typeof navigator !== "undefined" &&
-      typeof navigator.canShare === "function" &&
-      navigator.canShare({ files: [file] });
-
-    if (!canShareFile) {
+    if (!ready || file === null || !canShareFiles()) {
       openWhatsApp();
       return;
     }
 
     navigator
-      .share({ files: [file!], text: message })
+      .share({ files: [file], text: message })
       .catch((error: unknown) => {
         // Пользователь закрыл окно выбора — это не ошибка, второй раз не лезем.
         if (error instanceof DOMException && error.name === "AbortError") return;
