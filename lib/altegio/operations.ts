@@ -48,6 +48,12 @@ export type IssueParams = {
   code: string;
   /** Номинал/баланс в тенге. */
   amountKzt: number;
+  /**
+   * Сколько покупатель реально заплатил. Отличается от номинала при промокоде:
+   * скидка уменьшает оплату, а баланс сертификата остаётся полным. В кассу
+   * Altegio должна попасть уплаченная сумма, иначе касса разойдётся с банком.
+   */
+  paidKzt?: number;
   /** Филиал заказа (Altegio company_id). Нет → фолбэк на тест-филиал. */
   companyId?: number | null;
   /** Точное название программы Altegio (если это программный сертификат). */
@@ -467,7 +473,7 @@ export async function issueCertificateOperation(
       await markSaleAsPaid(
         ctx.companyId,
         documentId,
-        params.amountKzt,
+        params.paidKzt ?? params.amountKzt,
         ctx.accountId,
       );
       paid = true;

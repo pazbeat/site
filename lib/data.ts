@@ -109,6 +109,26 @@ export const getSetting = cache(async (key: string) => {
   return row?.value ?? null;
 });
 
+/**
+ * Суммы «своей суммы», доступные покупателю на выбранном филиале: пересечение
+ * настроенного диапазона и того, что реально выпускается в Altegio. Пустой
+ * список — филиал не привязан к CRM, ограничивать нечем.
+ */
+export async function getAvailableAmounts(salonId: number): Promise<number[]> {
+  const [salon, bounds] = await Promise.all([
+    prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { altegioLocationId: true },
+    }),
+    getCustomAmountBounds(),
+  ]);
+  if (!salon?.altegioLocationId) return [];
+  const { availableNominalAmounts } = await import("./altegio/catalog");
+  return availableNominalAmounts(salon.altegioLocationId).filter(
+    (a) => a >= bounds.min && a <= bounds.max,
+  );
+}
+
 export async function getCustomAmountBounds() {
   const [min, max] = await Promise.all([
     getSetting("custom_amount_min_kzt"),

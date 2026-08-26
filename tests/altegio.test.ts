@@ -6,6 +6,7 @@ import {
 } from "../lib/altegio/operations";
 import { SALON_PREFIX_TO_ALTEGIO } from "../lib/altegio/mapping";
 import {
+  availableNominalAmounts,
   resolveGoodId,
   resolveProgramTitle,
   branchParams,
@@ -203,8 +204,79 @@ describe("altegio resolveProgramTitle", () => {
   });
 
   it("возвращает null для варианта без товара в CRM (фолбэк на номинал)", () => {
+    // Товара «Suay 38000» в Altegio нет ни на одном филиале — сверено
+    // выгрузкой каталога 2026-08-26 (максимум по Suay — 37000).
     expect(resolveProgramTitle("Suay", 38000)).toBeNull();
-    expect(resolveProgramTitle("Маленький Будда", 16000)).toBeNull();
+    expect(resolveProgramTitle("Sakda", 38000)).toBeNull();
+    expect(resolveProgramTitle("Foot релакс", 22000)).toBeNull();
+  });
+
+  it("знает варианты, добавленные по итогам сверки каталога", () => {
+    // Раньше эти три варианта не выпускались вовсе (49 позиций «нет
+    // маппинга» по семи филиалам), хотя товары в CRM были.
+    expect(resolveProgramTitle("Sabai Sabai", 72000)).toBe(
+      "Сабай Сабай 2 персоны сайт 72000",
+    );
+    expect(resolveProgramTitle("Чудесное ожидание", 24000)).toBe(
+      "Чудесное ожидание 1 час ( 24000)",
+    );
+    expect(resolveProgramTitle("Маленький Будда", 16000)).toBe(
+      "Маленький Будда (16000 тг)",
+    );
+  });
+
+  it("новые названия есть в каталоге товаров всех продаваемых филиалов", () => {
+    const sellable = [225022, 1257161, 271994, 271997, 375262, 375266, 1355056];
+    const titles = [
+      "Сабай Сабай 2 персоны сайт 72000",
+      "Чудесное ожидание 1 час ( 24000)",
+      "Маленький Будда (16000 тг)",
+    ];
+    for (const companyId of sellable) {
+      for (const title of titles) {
+        expect(
+          resolveGoodId(companyId, { nominalKzt: 0, programTitle: title }),
+          `company ${companyId} / ${title}`,
+        ).not.toBeNull();
+      }
+      // Суммы «своей суммы» — под каждую должен быть товар.
+      for (const amount of [15000, 18000, 39000, 55000, 200000]) {
+        expect(
+          resolveGoodId(companyId, { nominalKzt: amount }),
+          `company ${companyId} / номинал ${amount}`,
+        ).not.toBeNull();
+      }
+    }
+  });
+});
+
+describe("altegio availableNominalAmounts", () => {
+  it("суммы «своей суммы» одинаковы на всех продаваемых филиалах", () => {
+    const sellable = [225022, 1257161, 271994, 271997, 375262, 375266, 1355056];
+    const real = (companyId: number) =>
+      availableNominalAmounts(companyId).filter((a) => a >= 15000);
+    const ref = JSON.stringify(real(225022));
+    for (const companyId of sellable) {
+      expect(JSON.stringify(real(companyId)), `company ${companyId}`).toBe(ref);
+    }
+  });
+
+  it("промежуточных сумм в списке нет — под них нет товара", () => {
+    // Поле «своя сумма» шагает по 500 ₸, а товары заведены под два десятка
+    // значений: сумма вне списка = сертификат, которого не будет в CRM.
+    const amounts = availableNominalAmounts(225022);
+    for (const gap of [19000, 22500, 47300, 65000, 250000]) {
+      expect(amounts, `сумма ${gap}`).not.toContain(gap);
+      expect(resolveGoodId(225022, { nominalKzt: gap })).toBeNull();
+    }
+    for (const ok of [18000, 30000, 39000, 50000, 100000]) {
+      expect(amounts, `сумма ${ok}`).toContain(ok);
+    }
+  });
+
+  it("список отсортирован по возрастанию", () => {
+    const a = availableNominalAmounts(225022);
+    expect([...a].sort((x, y) => x - y)).toEqual(a);
   });
 });
 

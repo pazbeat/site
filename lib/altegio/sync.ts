@@ -106,12 +106,20 @@ export async function syncCertificateToAltegio(
   const programNameRu = cert.programOption
     ? ((cert.programOption.program.names as { ru?: string }).ru ?? null)
     : null;
-  const programTitle = programNameRu
-    ? resolveProgramTitle(programNameRu, cert.programOption!.priceKzt)
-    : null;
+  // Товар берём из снапшота заказа, а не из живого варианта программы: цену
+  // варианта в админке можно поменять после оплаты, и резолв по текущей цене
+  // увёл бы выпуск на товар другого варианта — с другим балансом. Сумма и так
+  // снята в момент покупки (cert.amountKzt), название должно быть оттуда же.
+  const snapshotTitle =
+    (cert.order.item as { altegioProgramTitle?: string | null } | null)
+      ?.altegioProgramTitle ?? null;
+  const faceKzt = cert.amountKzt ?? cert.balanceKzt;
+  const programTitle =
+    snapshotTitle ??
+    (programNameRu ? resolveProgramTitle(programNameRu, faceKzt) : null);
   if (programNameRu && !programTitle) {
     console.warn(
-      `[altegio] программа «${programNameRu}» (${cert.programOption!.priceKzt}₸) ` +
+      `[altegio] программа «${programNameRu}» (${faceKzt}₸) ` +
         `не смапплена на товар Altegio — попробуем номинал по сумме`,
     );
   }
@@ -120,7 +128,7 @@ export async function syncCertificateToAltegio(
     companyId,
     number: code,
     serial: cert.serial,
-    balanceKzt: cert.amountKzt ?? cert.balanceKzt,
+    balanceKzt: faceKzt,
     comment: buildCertComment({
       test: isAltegioTest(),
       serial: cert.serial,
@@ -171,6 +179,9 @@ export async function syncCertificateToAltegio(
           cert.order.buyerPhone ?? undefined,
         orderId: cert.orderId,
         comment,
+        // В кассу проводим то, что покупатель реально заплатил: промокод
+        // уменьшает оплату, номинал сертификата остаётся полным.
+        paidKzt: cert.order.amountKzt,
       });
     } catch (error) {
       // Помечаем провал синка, чтобы он был виден в админке.

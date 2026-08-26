@@ -21,6 +21,13 @@ type Props = Readonly<{
   nominals: NominalDto[];
   designs: DesignDto[];
   bounds: { min: number; max: number };
+  /**
+   * Филиал → суммы, под которые в Altegio есть товар-сертификат. Свободного
+   * ввода суммы там нет: баланс задаёт тип товара. Предлагать покупателю
+   * сумму, которой нет в списке, значит продать сертификат, который кассир
+   * не найдёт в CRM.
+   */
+  amountsBySalon: Record<number, number[]>;
   consentHtml: string;
   /** Предвыбор из query: ?option= / ?nominal= / ?type=nominal */
   initialOptionId?: number;
@@ -101,6 +108,7 @@ export function BuilderClient({
   nominals,
   designs,
   bounds,
+  amountsBySalon,
   consentHtml,
   initialOptionId,
   initialNominalId,
@@ -331,12 +339,15 @@ export function BuilderClient({
   const nominal = nominals.find((n) => n.id === nominalId) ?? null;
   const design = designs[designIdx];
 
+  const availableAmounts = salonId ? (amountsBySalon[salonId] ?? []) : [];
   const custom = customAmount ? Number(customAmount) : null;
   const customValid =
     custom !== null &&
     Number.isInteger(custom) &&
     custom >= bounds.min &&
-    custom <= bounds.max;
+    custom <= bounds.max &&
+    // Пустой список — филиал не привязан к CRM, ограничивать нечем.
+    (availableAmounts.length === 0 || availableAmounts.includes(custom));
 
   // Отображаемая цена; источник истины — сервер (пересчёт в /api/orders)
   const price =
@@ -794,6 +805,7 @@ export function BuilderClient({
                   <input
                     id="b-custom"
                     type="number"
+                    list="b-amounts"
                     min={bounds.min}
                     max={bounds.max}
                     step={500}
@@ -801,11 +813,27 @@ export function BuilderClient({
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
                   />
+                  <datalist id="b-amounts">
+                    {availableAmounts.map((a) => (
+                      <option key={a} value={a} />
+                    ))}
+                  </datalist>
                   {customAmount && !customValid && (
                     <p className="mt-1.5 text-xs font-semibold text-brand-red">
-                      {t("errAmount", {
-                        min: formatKzt(bounds.min),
-                        max: formatKzt(bounds.max),
+                      {custom !== null &&
+                      custom >= bounds.min &&
+                      custom <= bounds.max
+                        ? t("errAmountUnavailable")
+                        : t("errAmount", {
+                            min: formatKzt(bounds.min),
+                            max: formatKzt(bounds.max),
+                          })}
+                    </p>
+                  )}
+                  {availableAmounts.length > 0 && (
+                    <p className="mt-1.5 text-xs text-brand-purple/60">
+                      {t("amountsHint", {
+                        list: availableAmounts.map(formatKzt).join(", "),
                       })}
                     </p>
                   )}

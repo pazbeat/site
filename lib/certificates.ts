@@ -22,7 +22,7 @@ import { reportFailure } from "./alerts";
  * отверг продажу («Gift card with such number already exists»), и сертификат
  * в CRM не появился вовсе. Занятые номера встречаются вразнобой, поэтому
  * одной высокой базы мало: номер ещё и подтверждается в Altegio до отправки
- * письма (reserveCertificateNumber), а на занятый берётся следующий.
+ * письма (см. syncCertificateToAltegio), а на занятый берётся следующий.
  */
 export async function nextSalonSerial(salonId: number): Promise<string | null> {
   const salon = await prisma.salon.update({

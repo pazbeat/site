@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "./db";
 import { getCustomAmountBounds } from "./data";
+import { resolveGoodId, resolveProgramTitle } from "./altegio/catalog";
 
 /**
  * Серверное ценообразование заказа (PRD §5.3): цена — ТОЛЬКО из БД.
@@ -17,7 +18,9 @@ export type PricingError =
   | "option_not_found"
   | "program_unavailable_in_city"
   | "nominal_not_found"
-  | "amount_out_of_bounds";
+  | "amount_out_of_bounds"
+  /** Сумма/вариант допустимы, но выпустить сертификат в CRM нечем. */
+  | "amount_not_available";
 
 export type PricingResult =
   | { ok: true; amountKzt: number; itemSnapshot: Record<string, unknown> }
@@ -28,6 +31,28 @@ export type PricingResult =
  * покупателя. Проверяет активность салона/программы/номинала и доступность
  * программы в городе филиала.
  */
+/**
+ * Можно ли вообще выпустить такой сертификат в Altegio.
+ *
+ * Баланс сертификата задаётся ТИПОМ товара, а не суммой, которую мы передаём,
+ * поэтому под каждую сумму нужен свой товар — свободного ввода в Altegio нет.
+ * Поле «своя сумма» принимает любое число в диапазоне, а товары заведены под
+ * два десятка конкретных значений: заказ на 19 000 ₸ оплачивался бы, письмо
+ * уходило бы, а в CRM сертификата не появлялось — кассиру нечего погашать.
+ * Поймано сверкой каталога 2026-08-26.
+ *
+ * Пропускаем только то, что реально выпускается. Салон без привязки к Altegio
+ * не проверяем: там выпуск и так идёт запасным путём.
+ */
+function issuable(
+  altegioLocationId: number | null,
+  nominalKzt: number,
+  programTitle: string | null,
+): boolean {
+  if (!altegioLocationId) return true;
+  return resolveGoodId(altegioLocationId, { nominalKzt, programTitle }) !== null;
+}
+
 export async function resolveOrderAmount(
   salonId: number,
   item: PricingItem,
@@ -55,6 +80,13 @@ export async function resolveOrderAmount(
     ) {
       return { ok: false, error: "program_unavailable_in_city" };
     }
+    const nameRu = (option.program.names as { ru?: string }).ru ?? "";
+    const programTitle = nameRu
+      ? resolveProgramTitle(nameRu, option.priceKzt)
+      : null;
+    if (!issuable(salon.altegioLocationId, option.priceKzt, programTitle)) {
+      return { ok: false, error: "amount_not_available" };
+    }
     return {
       ok: true,
       amountKzt: option.priceKzt,
@@ -62,6 +94,9 @@ export async function resolveOrderAmount(
         type: "program",
         programOptionId: option.id,
         programId: option.programId,
+        // Товар фиксируем в момент заказа: цена варианта в админке может
+        // измениться, а выпустить надо ровно то, что купили.
+        altegioProgramTitle: programTitle,
       },
     };
   }
@@ -71,6 +106,9 @@ export async function resolveOrderAmount(
       where: { id: item.nominalId, active: true },
     });
     if (!nominal) return { ok: false, error: "nominal_not_found" };
+    if (!issuable(salon.altegioLocationId, nominal.amountKzt, null)) {
+      return { ok: false, error: "amount_not_available" };
+    }
     return {
       ok: true,
       amountKzt: nominal.amountKzt,
@@ -85,6 +123,9 @@ export async function resolveOrderAmount(
   const bounds = await getCustomAmountBounds();
   if (custom < bounds.min || custom > bounds.max) {
     return { ok: false, error: "amount_out_of_bounds" };
+  }
+  if (!issuable(salon.altegioLocationId, custom, null)) {
+    return { ok: false, error: "amount_not_available" };
   }
   return { ok: true, amountKzt: custom, itemSnapshot: { type: "nominal" } };
 }

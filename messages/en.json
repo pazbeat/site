@@ -240,6 +240,8 @@
     "resumeNew": "Start over",
     "errRequired": "Please fill in the required fields",
     "errAmount": "Amount must be between {min} and {max}",
+    "amountsHint": "Available amounts: {list}",
+    "errAmountUnavailable": "That amount is unavailable — pick one from the list below",
     "errGeneric": "Could not create the order. Please try again.",
     "errRateLimited": "Too many attempts. Please wait a minute and retry.",
     "promoLabel": "Promo code",

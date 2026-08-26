@@ -16,6 +16,7 @@ import {
   getActiveNominals,
   getActivePrograms,
   getActiveSalons,
+  getAvailableAmounts,
   getCustomAmountBounds,
   getLegalVersionForLocale,
 } from "@/lib/data";
@@ -90,6 +91,19 @@ export default async function CreatePage({
     ? await buildResume(query.resume, programDtos, nominalDtos, designDtos)
     : null;
 
+  // Суммы «своей суммы» по филиалам: в Altegio под каждую сумму нужен свой
+  // товар-сертификат, свободного ввода там нет. Показываем ровно то, что
+  // реально выпустится, — иначе покупатель заплатит за сертификат, которого
+  // кассир в CRM не найдёт.
+  const orderableSalons = salons.filter((s) => s.orderable);
+  const amountsBySalon = Object.fromEntries(
+    await Promise.all(
+      orderableSalons.map(
+        async (s) => [s.id, await getAvailableAmounts(s.id)] as const,
+      ),
+    ),
+  );
+
   return (
     <main className="flex-1">
       {/* Тёмная полоса-заголовок */}
@@ -108,13 +122,12 @@ export default async function CreatePage({
 
       <div className="mx-auto max-w-6xl px-5 py-14 sm:py-16">
         <BuilderClient
-          salons={salons
-            .filter((s) => s.orderable)
-            .map((s) => toSalonDto(s, locale))}
+          salons={orderableSalons.map((s) => toSalonDto(s, locale))}
           programs={programDtos}
           nominals={nominalDtos}
           designs={designDtos}
           bounds={bounds}
+          amountsBySalon={amountsBySalon}
           consentHtml={consentDoc?.contentHtmlSanitized ?? ""}
           initialOptionId={initialOptionId}
           initialNominalId={initialNominalId}
