@@ -137,3 +137,21 @@ describe("журнал погашений: отбор строк", () => {
     expect(selectFreshRedemptions([], 42)).toEqual([]);
   });
 });
+
+describe("журнал: закладка не застревает навсегда", () => {
+  it("после трёх неудач строка перешагивается, а не блокирует сверку", async () => {
+    // Строка, которая не разбирается никогда (визит удалён, нет прав),
+    // не должна останавливать сверку всех последующих погашений.
+    const { selectFreshRedemptions } = await import(
+      "@/lib/altegio/redemptions"
+    );
+    const rows = [
+      { id: 10, created_date: "", visit_id: 1, amount: 1, type_id: 8, certificate_id: 1 },
+      { id: 20, created_date: "", visit_id: 2, amount: 1, type_id: 8, certificate_id: 2 },
+    ];
+    // Сам порядок разбора — от старых к новым: перешагнув 10, доходим до 20.
+    expect(selectFreshRedemptions(rows, 0).map((r) => r.id)).toEqual([10, 20]);
+    // А если закладка уже прошла 10 — сверка продолжается с 20.
+    expect(selectFreshRedemptions(rows, 10).map((r) => r.id)).toEqual([20]);
+  });
+});

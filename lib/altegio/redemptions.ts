@@ -11,6 +11,7 @@ import {
   type LoyaltyTransaction,
 } from "./client";
 import { hashCode } from "../certificate-code";
+import { reportFailure } from "../alerts";
 import { isAltegioTest } from "./sync";
 import { refreshPassesForCertificate } from "../wallet/notify";
 import type { CertificateStatus } from "../generated/prisma/client";
@@ -343,6 +344,15 @@ export async function syncOneCertificate(
  * наши — меньшинство, и лишние запросы к чужим сертификатам стоит экономить.
  */
 const CURSOR_KEY = "altegio_loyalty_cursor";
+/**
+ * Строка, на которой сверка спотыкается. Закладка не двигается через
+ * неразобранную строку — иначе погашение потерялось бы молча. Но если строка
+ * не разбирается НИКОГДА (визит удалён, прав не хватает), закладка застряла
+ * бы навсегда и остановила сверку целиком. Поэтому считаем попытки и после
+ * трёх зовём человека, а строку перешагиваем.
+ */
+const STUCK_KEY = "altegio_loyalty_stuck";
+const STUCK_LIMIT = 3;
 /** Погашение сертификата в журнале лояльности. */
 const TX_GIFT_CARD = 8;
 /** Сколько страниц журнала листаем за прогон (≈6 дней сети на страницу). */
@@ -374,6 +384,15 @@ function almatyDay(offsetDays = 0): string {
  * Строки журнала, которые нам интересны: погашения сертификатов новее
  * закладки, от старых к новым. Чистая — её же проверяют тесты.
  */
+/** Счётчик неудач по конкретной строке журнала из настроек. */
+function readStuck(value: unknown): { id: number; count: number } | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as { id?: unknown; count?: unknown };
+  return typeof v.id === "number" && typeof v.count === "number"
+    ? { id: v.id, count: v.count }
+    : null;
+}
+
 export function selectFreshRedemptions(
   rows: LoyaltyTransaction[],
   cursor: number,
@@ -451,6 +470,8 @@ export async function syncRedemptionsFromFeed(
     ? null
     : await prisma.setting.findUnique({ where: { key: CURSOR_KEY } });
   const cursor = typeof cursorRow?.value === "number" ? cursorRow.value : 0;
+  const stuckRow = await prisma.setting.findUnique({ where: { key: STUCK_KEY } });
+  let stuck = readStuck(stuckRow?.value);
   const days = options.days ?? 2;
   const from = almatyDay(-(days - 1));
   const to = almatyDay(0);
@@ -463,7 +484,10 @@ export async function syncRedemptionsFromFeed(
       rows = await listLoyaltyTransactions(cfg.chainId, { from, to, page });
     } catch (error) {
       stats.failed++;
-      console.error("[altegio] журнал лояльности недоступен", error);
+      void reportFailure("Altegio: журнал погашений недоступен", error, {
+        страница: page,
+        период: `${from}…${to}`,
+      });
       break;
     }
     stats.rows += rows.length;
@@ -529,9 +553,27 @@ export async function syncRedemptionsFromFeed(
         }
       }
       lastDone = Math.max(lastDone, tx.id);
+      if (stuck) stuck = null;
     } catch (error) {
       stats.failed++;
-      console.error(`[altegio] журнал: строка ${tx.id}`, error);
+      const attempts = stuck?.id === tx.id ? stuck.count + 1 : 1;
+      if (attempts >= STUCK_LIMIT) {
+        // Строка не разбирается раз за разом — перешагиваем, но громко.
+        void reportFailure("Altegio: строка журнала не разбирается", error, {
+          строка: tx.id,
+          сертификатCRM: tx.certificate_id,
+          визит: tx.visit_id,
+          попыток: attempts,
+        });
+        stuck = null;
+        lastDone = Math.max(lastDone, tx.id);
+        continue;
+      }
+      stuck = { id: tx.id, count: attempts };
+      console.error(
+        `[altegio] журнал: строка ${tx.id} не разобрана (попытка ${attempts})`,
+        error,
+      );
       // Дальше не двигаемся: закладка за сбойной строкой потеряла бы её.
       break;
     }
@@ -544,6 +586,11 @@ export async function syncRedemptionsFromFeed(
       update: { value: lastDone },
     });
   }
+  await prisma.setting.upsert({
+    where: { key: STUCK_KEY },
+    create: { key: STUCK_KEY, value: stuck ?? {} },
+    update: { value: stuck ?? {} },
+  });
 
   if (stats.ours || stats.failed) {
     console.log(
