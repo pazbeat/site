@@ -4,6 +4,11 @@ import type {
   PaymentProvider,
   WebhookVerification,
 } from "./types";
+import {
+  checkLegacyStatus,
+  legacyPayBase,
+  registerLegacyOrder,
+} from "./kaspi-legacy";
 
 /**
  * Kaspi. Два способа выдать покупателю платёжную ссылку:
@@ -96,7 +101,11 @@ function readTerminalConfig(): TerminalConfig | null {
   return { machid, terNumber };
 }
 
-export type KaspiInvoice = { payUrl: string; source: "link" | "payqr" };
+export type KaspiInvoice = {
+  payUrl: string;
+  /** legacy — бэкенд действующего сайта, link — ссылка на сервис, payqr — шлюз */
+  source: "legacy" | "link" | "payqr";
+};
 export type KaspiStatus = "paid" | "pending";
 
 /**
@@ -117,12 +126,20 @@ export class KaspiPayProvider implements PaymentProvider {
   readonly id = "kaspi" as const;
 
   isConfigured(): boolean {
-    return readLinkConfig() !== null || readTerminalConfig() !== null;
+    return (
+      legacyPayBase() !== null ||
+      readLinkConfig() !== null ||
+      readTerminalConfig() !== null
+    );
   }
 
-  /** Есть ли источник, подтверждающий оплату без участия человека. */
+  /**
+   * Есть ли источник, подтверждающий оплату без участия человека.
+   * Бэкенд действующего сайта такой источник даёт: он узнаёт об оплате от
+   * самого Kaspi и отвечает нам на опрос.
+   */
   hasAutomaticConfirmation(): boolean {
-    return readTerminalConfig() !== null;
+    return legacyPayBase() !== null || readTerminalConfig() !== null;
   }
 
   /**
@@ -149,6 +166,18 @@ export class KaspiPayProvider implements PaymentProvider {
     amountKzt: number;
     name: string;
   }): Promise<KaspiInvoice> {
+    // Основной путь: заводим заказ у действующего сайта и берём его ссылку.
+    // Так Kaspi находит заказ в их базе обычным путём — менять что-либо в их
+    // системе не требуется (схема Тимура, 2026-08-26).
+    if (legacyPayBase()) {
+      const invoice = await registerLegacyOrder({
+        orderRef: input.publicRef ?? input.payqrOrderId,
+        name: input.name,
+        amountKzt: input.amountKzt,
+      });
+      return { payUrl: invoice.payUrl, source: "legacy" };
+    }
+
     const link = readLinkConfig();
     if (link) {
       return {
@@ -191,7 +220,31 @@ export class KaspiPayProvider implements PaymentProvider {
    * "2" — ждём. Без терминала PayQR автоматического источника нет: отвечаем
    * «ждём», подтверждение придёт из админки.
    */
-  async checkStatus(payqrOrderId: string): Promise<KaspiStatus> {
+  async checkStatus(
+    payqrOrderId: string,
+    expectedKzt?: number,
+  ): Promise<KaspiStatus> {
+    if (legacyPayBase()) {
+      const status = await checkLegacyStatus(payqrOrderId);
+      if (!status.paid) return "pending";
+      // Сверка суммы: точка регистрации заказа у них ничем не закрыта, и
+      // теоретически кто-то мог завести наш номер с меньшей ценой. Выпускать
+      // полный сертификат за неполную оплату нельзя.
+      if (
+        expectedKzt != null &&
+        status.paidKzt != null &&
+        status.paidKzt !== expectedKzt
+      ) {
+        console.error("kaspi legacy: сумма не сошлась", {
+          заказ: payqrOrderId,
+          ожидали: expectedKzt,
+          заплачено: status.paidKzt,
+        });
+        return "pending";
+      }
+      return "paid";
+    }
+
     const cfg = readTerminalConfig();
     if (!cfg) return "pending";
     if (breakerIsOpen()) return "pending";

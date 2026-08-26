@@ -38,7 +38,7 @@ export async function pollPendingKaspiOrders(): Promise<{
       paymentId: { not: null },
       createdAt: { gte: new Date(Date.now() - POLL_WINDOW_MS) },
     },
-    select: { id: true, paymentId: true },
+    select: { id: true, paymentId: true, kaspiRef: true, amountKzt: true },
     take: 100,
   });
 
@@ -46,7 +46,10 @@ export async function pollPendingKaspiOrders(): Promise<{
   for (const order of orders) {
     if (!order.paymentId) continue;
     try {
-      const paid = (await kaspi.checkStatus(order.paymentId)) === "paid";
+      // Спрашиваем по короткому номеру — под ним заказ заведён у них
+      const ref = order.kaspiRef ?? order.paymentId;
+      const paid =
+        (await kaspi.checkStatus(ref, order.amountKzt)) === "paid";
       if (!paid) continue;
       const result = await fulfillOrder(order.id, order.paymentId);
       if (result.status !== "not_found" && result.status !== "not_payable") {
@@ -80,7 +83,7 @@ export async function pollPendingForteOrders(): Promise<{
       paymentId: { not: null },
       createdAt: { gte: new Date(Date.now() - POLL_WINDOW_MS) },
     },
-    select: { id: true, paymentId: true },
+    select: { id: true, paymentId: true, kaspiRef: true, amountKzt: true },
     take: 100,
   });
 

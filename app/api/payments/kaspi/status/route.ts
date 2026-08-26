@@ -29,7 +29,14 @@ export async function POST(request: Request) {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, status: true, paymentId: true, successToken: true },
+    select: {
+      id: true,
+      status: true,
+      paymentId: true,
+      successToken: true,
+      kaspiRef: true,
+      amountKzt: true,
+    },
   });
   if (!order) {
     return NextResponse.json({ error: "order_not_found" }, { status: 404 });
@@ -46,7 +53,10 @@ export async function POST(request: Request) {
   const kaspi = new KaspiPayProvider();
   let paid = false;
   try {
-    paid = (await kaspi.checkStatus(order.paymentId)) === "paid";
+    // Спрашиваем по короткому номеру: под ним заказ заведён у действующего
+    // сайта. Сумму передаём, чтобы неполная оплата не выпустила сертификат.
+    const ref = order.kaspiRef ?? order.paymentId;
+    paid = (await kaspi.checkStatus(ref, order.amountKzt)) === "paid";
   } catch (error) {
     console.error("kaspi status check failed", {
       orderId: order.id,
