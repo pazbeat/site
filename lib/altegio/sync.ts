@@ -151,6 +151,11 @@ export async function syncCertificateToAltegio(
   // кассир нашёл бы чужой сертификат. Поэтому: занят — берём следующий номер.
   let result: IssueResult | null = null;
   let number = code;
+  // Комментарий несёт номер сертификата, и при замене номера его надо
+  // пересобирать: иначе в кассе документ подписан номером, которого у
+  // сертификата уже нет, и найти его по подписи невозможно (поймано
+  // 2026-08-26 — продажа WM9001 осталась подписана «WM0006»).
+  let comment = payload.comment;
   for (let attempt = 1; attempt <= MAX_NUMBER_ATTEMPTS; attempt++) {
     let outcome: IssueResult;
     try {
@@ -165,7 +170,7 @@ export async function syncCertificateToAltegio(
           // Доставка теперь только на почту, телефон берём у покупателя
           cert.order.buyerPhone ?? undefined,
         orderId: cert.orderId,
-        comment: payload.comment,
+        comment,
       });
     } catch (error) {
       // Помечаем провал синка, чтобы он был виден в админке.
@@ -210,6 +215,11 @@ export async function syncCertificateToAltegio(
       },
     });
     number = next;
+    comment = buildCertComment({
+      test: isAltegioTest(),
+      serial: next,
+      orderId: cert.orderId,
+    });
   }
 
   if (!result) {

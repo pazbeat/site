@@ -94,6 +94,11 @@ describe("занятый номер сертификата в Altegio", () => {
 
     expect(issue).toHaveBeenCalledTimes(2);
     expect(issue.mock.calls[1][0].code).toBe("WM9002");
+    // Комментарий подписывает документ в кассе — он обязан нести НОВЫЙ номер,
+    // иначе продажу не найти по подписи (поймано живьём 2026-08-26).
+    expect(issue.mock.calls[0][0].comment).toContain("WM9001");
+    expect(issue.mock.calls[1][0].comment).toContain("WM9002");
+    expect(issue.mock.calls[1][0].comment).not.toContain("WM9001");
     // Номер сертификата переписан вместе с хэшем — иначе проверка по коду
     // искала бы старое значение.
     const renumber = updates.find((u) => u.serial === "WM9002");
