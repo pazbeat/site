@@ -14,6 +14,10 @@ import {
   recipientEmail,
 } from "./mail/templates";
 import { renderCertificatePdf } from "./pdf/certificate";
+import {
+  renderReceiptPdf,
+  type ReceiptLabels,
+} from "./pdf/receipt";
 import type { DesignBgStyle } from "./types";
 
 const PDF_LABELS = {
@@ -53,6 +57,74 @@ const PDF_LABELS = {
 } as const;
 
 type PdfLocale = keyof typeof PDF_LABELS;
+
+/** Подписи товарного чека. Фискальным он не является — см. lib/pdf/receipt. */
+const RECEIPT_LABELS: Record<PdfLocale, ReceiptLabels> = {
+  ru: {
+    title: "Товарный чек",
+    seller: "Продавец",
+    bin: "БИН",
+    address: "Адрес",
+    phone: "Телефон",
+    orderNo: "Номер заказа",
+    date: "Дата оплаты",
+    method: "Способ оплаты",
+    item: "Наименование",
+    amount: "Сумма",
+    discount: "Скидка по промокоду",
+    total: "Итого оплачено",
+    certificate: "Номер сертификата",
+    validUntil: "Действует до",
+    note: "Электронный подарочный сертификат. Погашается в салоне сети Imbir Thai Spa.",
+    filename: "Чек Imbir Thai Spa.pdf",
+  },
+  kk: {
+    title: "Тауар чегі",
+    seller: "Сатушы",
+    bin: "БСН",
+    address: "Мекенжай",
+    phone: "Телефон",
+    orderNo: "Тапсырыс нөмірі",
+    date: "Төлем күні",
+    method: "Төлем тәсілі",
+    item: "Атауы",
+    amount: "Сомасы",
+    discount: "Промокод бойынша жеңілдік",
+    total: "Барлығы төленді",
+    certificate: "Сертификат нөмірі",
+    validUntil: "Жарамдылық мерзімі",
+    note: "Электрондық сыйлық сертификаты. Imbir Thai Spa желісінің салонында өтеледі.",
+    filename: "Imbir Thai Spa chek.pdf",
+  },
+  en: {
+    title: "Sales receipt",
+    seller: "Seller",
+    bin: "BIN",
+    address: "Address",
+    phone: "Phone",
+    orderNo: "Order number",
+    date: "Payment date",
+    method: "Payment method",
+    item: "Item",
+    amount: "Amount",
+    discount: "Promo code discount",
+    total: "Total paid",
+    certificate: "Certificate number",
+    validUntil: "Valid until",
+    note: "Electronic gift certificate. Redeemed at any Imbir Thai Spa location.",
+    filename: "Imbir Thai Spa receipt.pdf",
+  },
+};
+
+const PAYMENT_LABELS: Record<string, Record<PdfLocale, string>> = {
+  kaspi: { ru: "Kaspi", kk: "Kaspi", en: "Kaspi" },
+  forte: {
+    ru: "Банковская карта",
+    kk: "Банк картасы",
+    en: "Bank card",
+  },
+  freedom: { ru: "Freedom Pay", kk: "Freedom Pay", en: "Freedom Pay" },
+};
 
 function siteUrl(): string {
   return process.env.SITE_URL ?? "http://localhost:3000";
@@ -166,6 +238,62 @@ function loadCertificate(id: string) {
 }
 
 /**
+ * Товарный чек к оплаченному заказу. Возвращает null, если заказ не оплачен:
+ * чек без пришедших денег — бумага ни о чём.
+ */
+export async function buildReceiptPdf(certificateId: string): Promise<{
+  pdf: Buffer;
+  filename: string;
+} | null> {
+  const certificate = await loadCertificate(certificateId);
+  if (!certificate || certificate.order.status !== "paid") return null;
+
+  const item = certificate.order.item as { locale?: string };
+  const locale: PdfLocale =
+    item.locale && item.locale in PDF_LABELS
+      ? (item.locale as PdfLocale)
+      : "ru";
+  const labels = RECEIPT_LABELS[locale];
+
+  const option = certificate.programOption;
+  const itemTitle =
+    certificate.type === "program" && option
+      ? pickL10n(option.program.names, locale)
+      : `${PDF_LABELS[locale].gift} · ${formatKzt(certificate.amountKzt ?? 0)}`;
+
+  // Дата оплаты — по времени салона, а не сервера: покупатель сверяет её
+  // с выпиской банка, и расхождение в пять часов выглядит ошибкой.
+  const paidAt = certificate.order.paidAt ?? certificate.order.createdAt;
+  const dateLabel = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Asia/Almaty",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(paidAt);
+
+  const provider = certificate.order.paymentProvider ?? "";
+  const methodLabel = PAYMENT_LABELS[provider]?.[locale] ?? "—";
+
+  const pdf = await renderReceiptPdf({
+    labels,
+    // Покупателю показываем тот же номер, что он видел при оплате.
+    orderRef: certificate.order.kaspiRef ?? certificate.order.id,
+    dateLabel,
+    methodLabel,
+    itemTitle,
+    faceKzt: certificate.amountKzt ?? certificate.balanceKzt,
+    paidKzt: certificate.order.amountKzt,
+    certificateCode: certificate.serial ?? certificate.codeDisplay,
+    validUntil: certificate.validUntil.toISOString().slice(0, 10),
+    salonLine: salonLine(certificate.salon, locale),
+  });
+
+  return { pdf, filename: labels.filename };
+}
+
+/**
  * Доставка сертификата (PRD §5.3): получателю — PDF письмом (email) или
  * текст со ссылкой + PDF в WhatsApp (ChatApp); копия покупателю на email;
  * уведомление менеджеру. Идемпотентна по sentAt.
@@ -218,13 +346,26 @@ export async function deliverCertificate(certificateId: string): Promise<void> {
     });
   }
 
-  // Копия покупателю (PRD §5.3)
+  // Покупателю — сертификат и товарный чек. Чек best-effort: сбой его
+  // сборки не должен лишать человека сертификата, за который он заплатил.
   const buyer = buyerEmail(mailData, { self: giftingSelf });
+  const buyerAttachments = [attachment];
+  try {
+    const receipt = await buildReceiptPdf(certificateId);
+    if (receipt) {
+      buyerAttachments.push({
+        filename: receipt.filename,
+        content: receipt.pdf,
+      });
+    }
+  } catch (error) {
+    console.error("receipt build failed (non-fatal)", error);
+  }
   await mailer.send({
     to: certificate.order.buyerEmail,
     subject: buyer.subject,
     html: buyer.html,
-    attachments: [attachment],
+    attachments: buyerAttachments,
   });
 
   // Уведомление менеджеру — без PDF и без открытого кода. Не критично:

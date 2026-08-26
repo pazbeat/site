@@ -277,6 +277,7 @@
     "waMessage": "A gift for you from Imbir Thai Spa 🌿\n\nCertificate no. {code}\nShow it at the front desk of any of our spas and pick whatever you like — a massage, a spa ritual or the hammam.\n\nValid until {date}. Bookings: +7 708 111 8098.",
     "pdfFileName": "Imbir Thai Spa gift certificate {code}.pdf",
     "downloadPdf": "Download PDF",
+    "downloadReceipt": "Download receipt",
     "addToWallet": "Add to wallet",
     "createMore": "Create another",
     "termValidUntil": "Valid for 3 months from purchase, until {date}.",

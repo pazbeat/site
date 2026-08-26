@@ -70,6 +70,44 @@ describe("письмо покупателю", () => {
   });
 });
 
+describe("товарный чек", () => {
+  it("рендерится с реквизитами, скидкой и знаком тенге", async () => {
+    const { renderReceiptPdf, kzt } = await import("@/lib/pdf/receipt");
+    // Знак тенге в чеке в каждой строке — шрифт один, Montserrat.
+    expect(kzt(35000)).toContain("₸");
+    const pdf = await renderReceiptPdf({
+      labels: {
+        title: "Товарный чек",
+        seller: "Продавец",
+        bin: "БИН",
+        address: "Адрес",
+        phone: "Телефон",
+        orderNo: "Номер заказа",
+        date: "Дата оплаты",
+        method: "Способ оплаты",
+        item: "Наименование",
+        amount: "Сумма",
+        discount: "Скидка по промокоду",
+        total: "Итого оплачено",
+        certificate: "Номер сертификата",
+        validUntil: "Действует до",
+        note: "Электронный подарочный сертификат.",
+        filename: "Чек Imbir Thai Spa.pdf",
+      },
+      orderRef: "98876697629009667314",
+      dateLabel: "26.08.2026, 12:41",
+      methodLabel: "Банковская карта",
+      itemTitle: "Сет: KARUNA (2 часа)",
+      faceKzt: 36000,
+      paidKzt: 32400,
+      certificateCode: "WM9001",
+      validUntil: "2026-11-26",
+      salonLine: "Астана, пр. Мәңгілік Ел 29/2",
+    });
+    expect(pdf.length).toBeGreaterThan(5_000);
+  });
+});
+
 describe("PDF сертификата", () => {
   it("рендерится с кириллицей и казахскими глифами", async () => {
     const { renderCertificatePdf } = await import("@/lib/pdf/certificate");

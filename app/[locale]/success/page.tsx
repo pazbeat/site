@@ -147,6 +147,12 @@ export default async function SuccessPage({
                 {t("addToWallet")}
               </a>
             )}
+            <a
+              href={`/api/certificates/receipt?token=${encodeURIComponent(token)}`}
+              className="rounded-full border-[1.5px] border-brand-purple-100 px-7 py-3 text-center text-sm font-bold text-brand-purple transition-colors hover:border-brand-purple"
+            >
+              {t("downloadReceipt")}
+            </a>
             {/* Файл, а не строка с номером: wa.me умеет только текст, сам
                 сертификат уходит через системное «Поделиться». */}
             <ShareCertificate
