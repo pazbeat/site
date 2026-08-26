@@ -82,12 +82,35 @@ export async function createLegacyForteOrder(input: {
 }
 
 /**
- * Статусы банка. `Preparing` — заказ заведён, покупатель ещё не заплатил.
- * Незнакомый статус не считаем оплатой и пишем в журнал: список значений у
- * банка может пополниться, и молча выпустить сертификат на этом нельзя.
+ * Статусы банка — выверены по настоящему платежу 2026-08-26.
+ *
+ * Оплаченный заказ приходит как `FullyPaid` (до оплаты — `Preparing`).
+ * Названия я сначала угадывал, и `FullyPaid` в список не попал: покупатель
+ * заплатил, а страница осталась ждать. Предохранитель сработал верно —
+ * сертификат на незнакомом статусе не выпустился, — но угадывать было
+ * неправильно, здесь только проверенные значения плюс синонимы про запас.
+ *
+ * `PartiallyPaid` намеренно НЕ считаем оплатой: сертификат выдаётся за полную
+ * сумму, частичный платёж этого не покрывает.
  */
-const PAID = new Set(["completed", "approved", "paid", "success", "successful"]);
-const FAILED = new Set(["declined", "cancelled", "canceled", "expired", "failed", "reversed"]);
+const PAID = new Set([
+  "fullypaid",
+  "completed",
+  "approved",
+  "paid",
+  "success",
+  "successful",
+]);
+const FAILED = new Set([
+  "declined",
+  "cancelled",
+  "canceled",
+  "expired",
+  "failed",
+  "reversed",
+  "refunded",
+  "voided",
+]);
 
 export type LegacyForteStatus = {
   state: "paid" | "pending" | "failed";
@@ -122,7 +145,7 @@ export async function checkLegacyForteStatus(
 
   if (PAID.has(status)) return { state: "paid", amountKzt };
   if (FAILED.has(status)) return { state: "failed", amountKzt };
-  if (status !== "preparing" && status !== "pending") {
+  if (status !== "preparing" && status !== "pending" && status !== "partiallypaid") {
     console.warn(`[forte] незнакомый статус «${status}» по заказу ${forteOrderId}`);
   }
   return { state: "pending", amountKzt };
