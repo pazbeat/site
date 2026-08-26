@@ -165,13 +165,45 @@ const ACTION_LABEL: Record<string, string> = {
 export async function syncAltegioAction(formData: FormData) {
   const admin = await requireAdmin();
   const certificateId = String(formData.get("certificateId") ?? "");
-  const { syncOneCertificate } = await import("@/lib/altegio/redemptions");
+  const { syncOneCertificate, syncRedemptionsFromFeed } = await import(
+    "@/lib/altegio/redemptions"
+  );
   const result = await syncOneCertificate(certificateId);
+
+  // Карточки клиента у сертификата нет — значит прочитать его напрямую
+  // нельзя, и единственный источник о погашении это журнал лояльности сети.
+  // Разбираем его поглубже: ручную сверку жмут ровно тогда, когда кажется,
+  // что кроновая что-то пропустила.
+  if (!result.ok && result.error === "not_issued_in_altegio") {
+    const feed = await syncRedemptionsFromFeed({ days: 30, fromScratch: true });
+    const cert = await prisma.certificate.findUnique({
+      where: { id: certificateId },
+      select: { balanceKzt: true, amountKzt: true, status: true },
+    });
+    await auditLog({
+      actor: admin.email,
+      action: "certificate.altegio_feed_sync",
+      entity: "certificate",
+      entityId: certificateId,
+      diff: { ...feed },
+    });
+    revalidatePath("/admin/orders");
+    const state = cert
+      ? `Сейчас: остаток ${cert.balanceKzt} ₸ из ${cert.amountKzt ?? cert.balanceKzt} ₸, статус «${cert.status}».`
+      : "";
+    return {
+      ok: true,
+      message:
+        `Журнал погашений Altegio за 30 дней: разобрано ${feed.fresh} операций, ` +
+        `наших ${feed.ours}, обновлено ${feed.updated}. ${state}`.trim(),
+    };
+  }
 
   if (!result.ok) {
     const human: Record<string, string> = {
       altegio_not_configured: "Altegio не настроен (нет токенов в env).",
-      not_issued_in_altegio: "Сертификат не выпускался в Altegio — сверять нечего.",
+      not_issued_in_altegio:
+        "Сертификат выпущен без карточки клиента — читаем его через журнал погашений сети.",
       code_unavailable: "Код сертификата недоступен.",
       not_found: "Сертификат не найден.",
     };

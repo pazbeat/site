@@ -1,7 +1,16 @@
 import "server-only";
 import { prisma } from "../db";
 import { decryptSecret } from "../crypto";
-import { isAltegioConfigured, listClientCertificates } from "./client";
+import {
+  getSaleDocument,
+  getVisit,
+  isAltegioConfigured,
+  listClientCertificates,
+  listLoyaltyTransactions,
+  readAltegioConfig,
+  type LoyaltyTransaction,
+} from "./client";
+import { hashCode } from "../certificate-code";
 import { isAltegioTest } from "./sync";
 import { refreshPassesForCertificate } from "../wallet/notify";
 import type { CertificateStatus } from "../generated/prisma/client";
@@ -314,4 +323,235 @@ export async function syncOneCertificate(
   const action = reconcileCertificate(cert, remote);
   const applied = await applyAction(cert.id, cert.salonId, action, remote, dryRun);
   return { ok: true, action, applied: applied !== "dry" };
+}
+
+// ── Сверка через журнал лояльности сети ──────────────────────────────────
+
+/**
+ * Погашения приходят из журнала лояльности всей сети, а не из карточки
+ * клиента: наши сертификаты продаются без клиента (покупатель телефона не
+ * оставляет — он дарит, и гасить придёт другой человек), а прочитать
+ * сертификат по номеру Altegio не даёт.
+ *
+ * Путь, выверенный живьём 2026-08-26 на погашении WM9001:
+ *   chain/{chain}/loyalty/transactions  → строка type_id=8 с certificate_id
+ *   visits/{visit_id}                   → филиал и номер документа визита
+ *   company/{c}/sale/{document_id}      → номер сертификата и его ОСТАТОК
+ *
+ * Позиция в журнале запоминается (`altegio_loyalty_cursor`), поэтому одна и
+ * та же строка не разбирается дважды: за сутки по сети ~60 погашений, из них
+ * наши — меньшинство, и лишние запросы к чужим сертификатам стоит экономить.
+ */
+const CURSOR_KEY = "altegio_loyalty_cursor";
+/** Погашение сертификата в журнале лояльности. */
+const TX_GIFT_CARD = 8;
+/** Сколько страниц журнала листаем за прогон (≈6 дней сети на страницу). */
+const MAX_FEED_PAGES = 6;
+
+export type FeedStats = {
+  rows: number;
+  gift: number;
+  fresh: number;
+  ours: number;
+  updated: number;
+  redeemedKzt: number;
+  failed: number;
+  dryRun: number;
+};
+
+/** Дата в Asia/Almaty как YYYY-MM-DD: журнал понимает только такой формат. */
+function almatyDay(offsetDays = 0): string {
+  const d = new Date(Date.now() + offsetDays * 86_400_000);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Almaty",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+/**
+ * Строки журнала, которые нам интересны: погашения сертификатов новее
+ * закладки, от старых к новым. Чистая — её же проверяют тесты.
+ */
+export function selectFreshRedemptions(
+  rows: LoyaltyTransaction[],
+  cursor: number,
+): LoyaltyTransaction[] {
+  return rows
+    .filter(
+      (r) => r.type_id === TX_GIFT_CARD && !!r.certificate_id && r.id > cursor,
+    )
+    .sort((a, b) => a.id - b.id);
+}
+
+type Resolved = { companyId: number; number: string; balance: number; statusSlug: string };
+
+/**
+ * Строка журнала → номер сертификата и остаток. Визиты кэшируются: одно
+ * посещение нередко гасит сертификат несколькими строками.
+ */
+async function resolveTransaction(
+  tx: LoyaltyTransaction,
+  visitCache: Map<number, { companyId: number; documentId: number } | null>,
+): Promise<Resolved | null> {
+  let visit = visitCache.get(tx.visit_id);
+  if (visit === undefined) {
+    const data = await getVisit(tx.visit_id);
+    const record = data.records?.[0];
+    const documentId = record?.documents?.[0]?.id;
+    visit =
+      record && documentId
+        ? { companyId: record.company_id, documentId }
+        : null;
+    visitCache.set(tx.visit_id, visit);
+  }
+  if (!visit) return null;
+
+  const doc = await getSaleDocument(visit.companyId, visit.documentId);
+  const entry = doc.state?.loyalty_transactions?.find(
+    (t) =>
+      t.loyalty_certificate?.id === tx.certificate_id ||
+      t.loyalty_certificate_id === tx.certificate_id,
+  );
+  const cert = entry?.loyalty_certificate;
+  if (!cert?.number) return null;
+  return {
+    companyId: visit.companyId,
+    number: cert.number,
+    balance: cert.balance,
+    statusSlug: cert.status_slug,
+  };
+}
+
+/**
+ * Разбирает журнал погашений и подтягивает наши сертификаты.
+ * `days` — глубина окна в сутках, `fromScratch` — не смотреть на закладку
+ * (для ручной глубокой сверки из админки).
+ */
+export async function syncRedemptionsFromFeed(
+  options: { days?: number; fromScratch?: boolean } = {},
+): Promise<FeedStats> {
+  const stats: FeedStats = {
+    rows: 0,
+    gift: 0,
+    fresh: 0,
+    ours: 0,
+    updated: 0,
+    redeemedKzt: 0,
+    failed: 0,
+    dryRun: 0,
+  };
+  const cfg = readAltegioConfig();
+  if (!cfg) return stats;
+
+  // Закладку читаем напрямую, минуя getSetting: тот кэширует значение на
+  // время запроса, а прогон крона обязан видеть свежую.
+  const cursorRow = options.fromScratch
+    ? null
+    : await prisma.setting.findUnique({ where: { key: CURSOR_KEY } });
+  const cursor = typeof cursorRow?.value === "number" ? cursorRow.value : 0;
+  const days = options.days ?? 2;
+  const from = almatyDay(-(days - 1));
+  const to = almatyDay(0);
+
+  // Журнал отдаёт от новых к старым — листаем, пока не упрёмся в закладку.
+  const gift: LoyaltyTransaction[] = [];
+  for (let page = 1; page <= MAX_FEED_PAGES; page++) {
+    let rows: LoyaltyTransaction[];
+    try {
+      rows = await listLoyaltyTransactions(cfg.chainId, { from, to, page });
+    } catch (error) {
+      stats.failed++;
+      console.error("[altegio] журнал лояльности недоступен", error);
+      break;
+    }
+    stats.rows += rows.length;
+    stats.gift += rows.filter(
+      (r) => r.type_id === TX_GIFT_CARD && !!r.certificate_id,
+    ).length;
+    gift.push(...selectFreshRedemptions(rows, cursor));
+    // Страница целиком старше закладки или журнал кончился — дальше не идём.
+    if (rows.length === 0 || rows.every((r) => r.id <= cursor)) break;
+  }
+
+  stats.fresh = gift.length;
+  if (gift.length === 0) return stats;
+
+  // От старых к новым: закладку двигаем только по разобранным строкам.
+  gift.sort((a, b) => a.id - b.id);
+  const dryRun = isAltegioTest();
+  const visitCache = new Map<number, { companyId: number; documentId: number } | null>();
+  let lastDone = cursor;
+
+  for (const tx of gift) {
+    try {
+      const resolved = await resolveTransaction(tx, visitCache);
+      if (resolved) {
+        const cert = await prisma.certificate.findFirst({
+          where: {
+            OR: [
+              { serial: resolved.number },
+              { codeHash: hashCode(resolved.number) },
+            ],
+          },
+        });
+        if (cert) {
+          stats.ours++;
+          // Запоминаем id сертификата в CRM и филиал: пригодится и для
+          // ручной сверки, и чтобы отличать своё от чужого без запросов.
+          await prisma.certificate.update({
+            where: { id: cert.id },
+            data: {
+              altegioNumberId: tx.certificate_id,
+              altegioCompanyId: cert.altegioCompanyId ?? resolved.companyId,
+            },
+          });
+          const remote: RemoteCert = {
+            id: tx.certificate_id,
+            balance: resolved.balance,
+            statusSlug: resolved.statusSlug,
+          };
+          const action = reconcileCertificate(cert, remote);
+          const applied = await applyAction(
+            cert.id,
+            cert.salonId,
+            action,
+            remote,
+            dryRun,
+          );
+          if (applied === "updated") {
+            stats.updated++;
+            if (action.kind === "sync") stats.redeemedKzt += action.redeemedKzt;
+            await refreshPassesForCertificate(cert.id);
+          }
+          if (applied === "dry") stats.dryRun++;
+        }
+      }
+      lastDone = Math.max(lastDone, tx.id);
+    } catch (error) {
+      stats.failed++;
+      console.error(`[altegio] журнал: строка ${tx.id}`, error);
+      // Дальше не двигаемся: закладка за сбойной строкой потеряла бы её.
+      break;
+    }
+  }
+
+  if (lastDone > cursor) {
+    await prisma.setting.upsert({
+      where: { key: CURSOR_KEY },
+      create: { key: CURSOR_KEY, value: lastDone },
+      update: { value: lastDone },
+    });
+  }
+
+  if (stats.ours || stats.failed) {
+    console.log(
+      `[altegio] журнал погашений${dryRun ? " (ТЕСТ: только смотрим)" : ""}: ` +
+        `строк ${stats.rows}, погашений ${stats.gift}, новых ${stats.fresh}, ` +
+        `наших ${stats.ours}, обновлено ${stats.updated} (${stats.redeemedKzt}₸), ` +
+        `ошибок ${stats.failed}`,
+    );
+  }
+  return stats;
 }

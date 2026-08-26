@@ -94,14 +94,19 @@ async function createBoss(): Promise<PgBoss> {
     await pollPendingPayments();
   });
 
-  // Сверка погашений с Altegio (CRM — источник истины по погашениям) — раз в
-  // 15 минут: запросов немного, они сгруппированы по клиентам (лимит 200/мин).
+  // Сверка погашений с Altegio (CRM — источник истины по погашениям) —
+  // каждые 5 минут. Основной путь — журнал лояльности сети: он видит
+  // погашение любого нашего сертификата, даже проданного без клиента.
+  // Следом идёт старая сверка по клиентам: она ловит то, чего в журнале нет
+  // (ручную правку остатка в CRM), и стоит один запрос на клиента.
   await boss.createQueue(ALTEGIO_REDEMPTIONS);
-  await boss.schedule(ALTEGIO_REDEMPTIONS, "*/15 * * * *", undefined, {
+  await boss.schedule(ALTEGIO_REDEMPTIONS, "*/5 * * * *", undefined, {
     tz: "Asia/Almaty",
   });
   await boss.work(ALTEGIO_REDEMPTIONS, async () => {
-    const { syncRedemptionsFromAltegio } = await import("./altegio/redemptions");
+    const { syncRedemptionsFromFeed, syncRedemptionsFromAltegio } =
+      await import("./altegio/redemptions");
+    await syncRedemptionsFromFeed();
     await syncRedemptionsFromAltegio();
   });
 

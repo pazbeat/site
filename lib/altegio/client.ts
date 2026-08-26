@@ -140,3 +140,86 @@ export function listClientCertificates(
   });
   return altegioRequest<AltegioCertificate[]>(`loyalty/certificates/?${q}`);
 }
+
+// ── Фид погашений сети ───────────────────────────────────────────────────
+
+/**
+ * Строка журнала лояльности сети. Погашение сертификата — `type_id === 8`
+ * («Gift card») с непустым `certificate_id`.
+ */
+export type LoyaltyTransaction = {
+  id: number;
+  created_date: string;
+  visit_id: number;
+  amount: number;
+  type_id: number;
+  certificate_id: number;
+};
+
+/**
+ * Журнал операций лояльности всей сети за период.
+ *
+ * Единственный найденный способ узнать о погашении сертификата, НЕ зная
+ * телефона клиента: чтение самого сертификата (`loyalty/certificates`)
+ * требует телефон, а наши сертификаты продаются без карточки клиента.
+ * Выверено живьём 2026-08-26 на погашении WM9001.
+ *
+ * Особенности, выясненные перебором (ручка недокументирована):
+ *  - обе даты обязательны, строго `YYYY-MM-DD`; со временем — 422;
+ *  - `company_id` и `type_id` как фильтры ИГНОРИРУЮТСЯ, отбираем у себя;
+ *  - выдача от новых к старым, `count` до 1000, `page` работает
+ *    (≈6 дней сети на страницу).
+ */
+export function listLoyaltyTransactions(
+  chainId: number,
+  params: { from: string; to: string; page?: number; count?: number },
+): Promise<LoyaltyTransaction[]> {
+  const q = new URLSearchParams({
+    created_after: params.from,
+    created_before: params.to,
+    count: String(params.count ?? 1000),
+    page: String(params.page ?? 1),
+  });
+  return altegioRequest<LoyaltyTransaction[]>(
+    `chain/${chainId}/loyalty/transactions?${q}`,
+  );
+}
+
+export type AltegioVisit = {
+  records?: Array<{
+    company_id: number;
+    documents?: Array<{ id: number }>;
+  }>;
+};
+
+/** Визит: из него узнаём филиал и номер документа. */
+export function getVisit(visitId: number): Promise<AltegioVisit> {
+  return altegioRequest<AltegioVisit>(`visits/${visitId}`);
+}
+
+export type SaleDocument = {
+  state?: {
+    loyalty_transactions?: Array<{
+      id: number;
+      amount: number;
+      loyalty_certificate_id?: number;
+      loyalty_certificate?: {
+        id: number;
+        number: string;
+        balance: number;
+        status_slug: string;
+      };
+    }>;
+  };
+};
+
+/**
+ * Документ визита. Здесь и лежит то, ради чего всё затевалось: номер
+ * сертификата и его ОСТАТОК после погашения — без всякого телефона.
+ */
+export function getSaleDocument(
+  companyId: number,
+  documentId: number,
+): Promise<SaleDocument> {
+  return altegioRequest<SaleDocument>(`company/${companyId}/sale/${documentId}`);
+}

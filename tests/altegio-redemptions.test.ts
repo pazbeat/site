@@ -93,3 +93,47 @@ describe("сверка с Altegio", () => {
     });
   });
 });
+
+describe("журнал погашений: отбор строк", () => {
+  const row = (id: number, typeId: number, certId: number) => ({
+    id,
+    created_date: "2026-08-26T15:08:48+04:00",
+    visit_id: 1,
+    amount: 100,
+    type_id: typeId,
+    certificate_id: certId,
+  });
+
+  it("берёт только погашения сертификатов новее закладки", async () => {
+    const { selectFreshRedemptions } = await import(
+      "@/lib/altegio/redemptions"
+    );
+    const rows = [
+      row(100, 8, 555), // старее закладки
+      row(300, 8, 777),
+      row(200, 8, 0), // сертификата нет — не погашение
+      row(250, 1, 888), // другой тип операции
+      row(150, 8, 666),
+    ];
+    const fresh = selectFreshRedemptions(rows, 120);
+    expect(fresh.map((r) => r.id)).toEqual([150, 300]);
+  });
+
+  it("сортирует от старых к новым — закладка двигается вперёд", async () => {
+    const { selectFreshRedemptions } = await import(
+      "@/lib/altegio/redemptions"
+    );
+    const fresh = selectFreshRedemptions(
+      [row(900, 8, 1), row(100, 8, 2), row(500, 8, 3)],
+      0,
+    );
+    expect(fresh.map((r) => r.id)).toEqual([100, 500, 900]);
+  });
+
+  it("пустой журнал не двигает закладку", async () => {
+    const { selectFreshRedemptions } = await import(
+      "@/lib/altegio/redemptions"
+    );
+    expect(selectFreshRedemptions([], 42)).toEqual([]);
+  });
+});
