@@ -7,12 +7,12 @@ type Props = Readonly<{
   pdfUrl: string;
   /** Страница сертификата — уходит в текст, если файл отправить нельзя. */
   pageUrl: string;
-  /** Текст сообщения без кода. */
-  text: string;
-  /** Номер сертификата. */
-  code: string;
+  /** Готовое поздравление на языке покупателя. */
+  message: string;
   /** Подпись кнопки. */
   label: string;
+  /** Подпись запасной ссылки «отправить текстом». */
+  textLabel: string;
   fileName: string;
 }>;
 
@@ -41,13 +41,19 @@ function canShareFiles(): boolean {
  *
  * Где файлами делиться нельзя (десктопные браузеры, старый Safari) — уходим на
  * wa.me со ссылкой на страницу сертификата: по ней получатель скачает PDF сам.
+ * Там поздравление уходит текстом полностью.
+ *
+ * Подпись к документу WhatsApp не показывает — это его поведение, не наше:
+ * для картинок подпись принимается, для файлов отбрасывается. Поэтому
+ * поздравление продублировано в ИМЕНИ файла («Подарок от Imbir Thai Spa
+ * WM9001.pdf») — оно видно в переписке всегда.
  */
 export function ShareCertificate({
   pdfUrl,
   pageUrl,
-  text,
-  code,
+  message,
   label,
+  textLabel,
   fileName,
 }: Props) {
   const fileRef = useRef<File | null>(null);
@@ -81,8 +87,6 @@ export function ShareCertificate({
     };
   }, [pdfUrl, fileName]);
 
-  const message = `${text} ${code}`;
-
   const openWhatsApp = () => {
     const url = `https://wa.me/?text=${encodeURIComponent(`${message}\n${pageUrl}`)}`;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -96,7 +100,10 @@ export function ShareCertificate({
     }
 
     navigator
-      .share({ files: [file], text: message })
+      // title передаём вместе с text: часть приложений читает одно, часть
+      // другое. WhatsApp для документов подпись игнорирует вовсе — там
+      // поздравление доносит имя файла.
+      .share({ files: [file], text: message, title: message })
       .catch((error: unknown) => {
         // Пользователь закрыл окно выбора — это не ошибка, второй раз не лезем.
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -105,12 +112,27 @@ export function ShareCertificate({
   };
 
   return (
-    <button
-      type="button"
-      onClick={share}
-      className="bg-gold-gradient rounded-full px-7 py-3 text-center text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
-    >
-      {label}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={share}
+        className="bg-gold-gradient rounded-full px-7 py-3 text-center text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
+      >
+        {label}
+      </button>
+      {/* Второй путь — на случай, когда нужно именно сообщение: WhatsApp
+          подпись к документу не показывает, а текстом поздравление уходит
+          целиком, со ссылкой на сертификат. На десктопе кнопка выше делает
+          ровно то же, поэтому там ссылку не показываем. */}
+      {ready && (
+        <button
+          type="button"
+          onClick={openWhatsApp}
+          className="-mt-1 text-center text-sm font-semibold text-brand-purple/70 underline decoration-brand-gold/40 underline-offset-4 transition-colors hover:text-brand-purple"
+        >
+          {textLabel}
+        </button>
+      )}
+    </>
   );
 }

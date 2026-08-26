@@ -152,10 +152,13 @@ export default async function SuccessPage({
             <ShareCertificate
               pdfUrl={`/api/certificates/pdf?token=${encodeURIComponent(token)}`}
               pageUrl={`${publicOrigin()}/${locale}/success?token=${encodeURIComponent(token)}`}
-              text={t("waMessage")}
-              code={certificate.codeDisplay}
+              message={t("waMessage", {
+                code: certificate.codeDisplay,
+                date: validUntilLabel,
+              })}
               label={t("waShare")}
-              fileName={t("pdfFileName")}
+              textLabel={t("waShareText")}
+              fileName={t("pdfFileName", { code: certificate.codeDisplay })}
             />
             <Link
               href="/create"
