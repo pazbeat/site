@@ -46,6 +46,8 @@ export async function POST(request: Request) {
       amountKzt: order.amountKzt,
       description: "Подарочный сертификат Imbir Thai Spa",
       returnUrl,
+      // Короткий номер: под ним заказ заводится у действующего сайта
+      orderRef: order.kaspiRef ?? order.id,
     });
     await prisma.order.update({
       where: { id: order.id },

@@ -28,7 +28,13 @@ export async function POST(request: Request) {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, status: true, paymentId: true, successToken: true },
+    select: {
+      id: true,
+      status: true,
+      paymentId: true,
+      successToken: true,
+      amountKzt: true,
+    },
   });
   if (!order) {
     return NextResponse.json({ error: "order_not_found" }, { status: 404 });
@@ -43,7 +49,8 @@ export async function POST(request: Request) {
   const forte = new ForteBankProvider();
   let status: "paid" | "pending" | "failed";
   try {
-    status = await forte.checkStatus(order.paymentId);
+    // Сумму передаём: неполная оплата не должна выпускать сертификат
+    status = await forte.checkStatus(order.paymentId, order.amountKzt);
   } catch (error) {
     console.error("forte status check failed", {
       orderId: order.id,

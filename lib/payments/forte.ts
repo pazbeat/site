@@ -21,6 +21,12 @@ import type {
  * создаёт заказ в банке. Креды — Basic из env (FORTE_USERNAME/FORTE_PASSWORD).
  */
 
+import {
+  checkLegacyForteStatus,
+  createLegacyForteOrder,
+  forteLegacyAvailable,
+} from "./forte-legacy";
+
 const BASE_URL = process.env.FORTE_API_URL ?? "https://api.fortebank.com";
 
 /**
@@ -97,7 +103,9 @@ export class ForteBankProvider implements PaymentProvider {
   readonly id = "forte" as const;
 
   isConfigured(): boolean {
-    return readConfig() !== null;
+    // Путь через бэкенд действующего сайта не требует наших кредов банка:
+    // пароль Forte у нас так и не появился, а у них доступ рабочий.
+    return forteLegacyAvailable() || readConfig() !== null;
   }
 
   async createPayment(
@@ -114,7 +122,18 @@ export class ForteBankProvider implements PaymentProvider {
     amountKzt: number;
     description: string;
     returnUrl: string;
+    /** Наш короткий номер — под ним заказ заводится у действующего сайта */
+    orderRef?: string;
   }): Promise<ForteOrder> {
+    if (forteLegacyAvailable() && input.orderRef) {
+      return createLegacyForteOrder({
+        orderRef: input.orderRef,
+        amountKzt: input.amountKzt,
+        description: input.description,
+        returnUrl: input.returnUrl,
+      });
+    }
+
     const cfg = readConfig();
     if (!cfg) throw new Error("forte_not_configured");
 
@@ -161,7 +180,30 @@ export class ForteBankProvider implements PaymentProvider {
   }
 
   /** Опрос статуса заказа Forte. */
-  async checkStatus(forteOrderId: string): Promise<ForteStatus> {
+  async checkStatus(
+    forteOrderId: string,
+    expectedKzt?: number,
+  ): Promise<ForteStatus> {
+    if (forteLegacyAvailable()) {
+      const status = await checkLegacyForteStatus(forteOrderId);
+      if (status.state !== "paid") return status.state;
+      // Сверка суммы: заплатить меньше номинала и получить полный сертификат
+      // не должно получаться.
+      if (
+        expectedKzt != null &&
+        status.amountKzt != null &&
+        status.amountKzt !== expectedKzt
+      ) {
+        console.error("forte legacy: сумма не сошлась", {
+          заказ: forteOrderId,
+          ожидали: expectedKzt,
+          заплачено: status.amountKzt,
+        });
+        return "pending";
+      }
+      return "paid";
+    }
+
     const cfg = readConfig();
     if (!cfg) throw new Error("forte_not_configured");
 

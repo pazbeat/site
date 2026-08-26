@@ -91,7 +91,8 @@ export async function pollPendingForteOrders(): Promise<{
   for (const order of orders) {
     if (!order.paymentId) continue;
     try {
-      const paid = (await forte.checkStatus(order.paymentId)) === "paid";
+      const paid =
+        (await forte.checkStatus(order.paymentId, order.amountKzt)) === "paid";
       if (!paid) continue;
       const result = await fulfillOrder(order.id, order.paymentId);
       if (result.status !== "not_found" && result.status !== "not_payable") {
