@@ -11,12 +11,20 @@ import { getSetting } from "./data";
 import { reportFailure } from "./alerts";
 
 /**
- * Следующий номер сертификата по салону: WM0001, WM0002… Атомарно
+ * Следующий номер сертификата по салону: WM9001, WM9002… Атомарно
  * инкрементит счётчик салона (single UPDATE … RETURNING — без гонок).
  * Если у салона не задан codePrefix, номер не присваивается (null) и код
  * выдаётся случайный.
+ *
+ * Счётчик начинается с 9001, а не с единицы: в Altegio нумерация филиала
+ * общая с действующим сайтом, и низкие номера там местами уже заняты его
+ * историей. Поймано живьём 2026-08-26 — WM0006 оказался чужим, Altegio
+ * отверг продажу («Gift card with such number already exists»), и сертификат
+ * в CRM не появился вовсе. Занятые номера встречаются вразнобой, поэтому
+ * одной высокой базы мало: номер ещё и подтверждается в Altegio до отправки
+ * письма (reserveCertificateNumber), а на занятый берётся следующий.
  */
-async function nextSalonSerial(salonId: number): Promise<string | null> {
+export async function nextSalonSerial(salonId: number): Promise<string | null> {
   const salon = await prisma.salon.update({
     where: { id: salonId },
     data: { lastCertSerial: { increment: 1 } },
@@ -121,6 +129,24 @@ export async function fulfillOrder(
     },
   });
 
+  // Запись в Altegio — ДО доставки, и её ждём. Номер сертификата уникален в
+  // филиале, а нумерация там общая с действующим сайтом: часть номеров уже
+  // занята его историей. На занятом номере выпуск подбирает следующий
+  // свободный (см. syncCertificateToAltegio), поэтому письмо должно уходить
+  // после — иначе покупатель получит один номер, а в CRM ляжет другой.
+  // Сбой синка доставку не отменяет: деньги приняты, сертификат обязан уйти,
+  // а провал виден в админке (altegioSyncStatus: failed) и в оповещении.
+  try {
+    const { syncCertificateToAltegio } = await import("./altegio/sync");
+    await syncCertificateToAltegio(certificate.id);
+  } catch (error) {
+    void reportFailure("Altegio: сертификат не записан в CRM", error, {
+      сертификат: certificate.id,
+      заказ: orderId,
+      серийник: certificate.serial,
+    });
+  }
+
   // Доставка: сразу или к назначенной дате. Сбой постановки в очередь
   // не блокирует подтверждение оплаты (вебхук должен ответить 200) —
   // резервный путь: немедленная доставка в фоне.
@@ -141,20 +167,6 @@ export async function fulfillOrder(
         }),
       );
   }
-
-  // Синк в Altegio (Фаза 3) — best-effort, не блокирует оплату/доставку.
-  // Сейчас dry-run-лог; боевая запись за флагом ALTEGIO_SYNC.
-  void import("./altegio/sync")
-    .then(({ syncCertificateToAltegio }) =>
-      syncCertificateToAltegio(certificate.id),
-    )
-    .catch((error) =>
-      reportFailure("Altegio: сертификат не записан в CRM", error, {
-        сертификат: certificate.id,
-        заказ: orderId,
-        серийник: certificate.serial,
-      }),
-    );
 
   // Уведомление админу о продаже (Telegram) — тоже best-effort.
   void import("./notify")

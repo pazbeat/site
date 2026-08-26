@@ -14,6 +14,13 @@ import "server-only";
 // Боевой хост записи/чтения (совпадает с рабочим Node-RED заказчика).
 const BASE_URL = process.env.ALTEGIO_BASE_URL ?? "https://app.alteg.io/api/v1";
 
+/**
+ * Ограничение ожидания. Выпуск сертификата теперь стоит на пути оплаты
+ * (номер резервируется до отправки письма), и молчащий CRM не должен держать
+ * покупателя: лучше выдать сертификат без записи в Altegio и починить руками.
+ */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export type AltegioConfig = {
   partnerToken: string;
   userToken: string;
@@ -45,6 +52,7 @@ export async function altegioRequest<T>(
   cfg: AltegioConfig = requireConfig(),
 ): Promise<T> {
   const response = await fetch(`${BASE_URL}/${path}`, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     ...init,
     headers: {
       Accept: "application/vnd.api.v2+json",

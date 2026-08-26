@@ -1,9 +1,20 @@
 import "server-only";
 import { prisma } from "../db";
-import { decryptSecret } from "../crypto";
+import { decryptSecret, encryptSecret } from "../crypto";
+import { hashCode, maskCode } from "../certificate-code";
+import { nextSalonSerial } from "../certificates";
 import { isAltegioConfigured } from "./client";
 import { resolveProgramTitle } from "./catalog";
-import { issueCertificateOperation } from "./operations";
+import { issueCertificateOperation, type IssueResult } from "./operations";
+
+/**
+ * Сколько номеров подряд пробуем, наткнувшись на чужой. Нумерация филиала в
+ * Altegio общая с действующим сайтом, и занятые номера попадаются вразнобой,
+ * а не сплошным куском — десяти попыток с запасом хватает, чтобы перешагнуть
+ * занятый. Упёрлись в предел — значит дело не в отдельном номере, и лучше
+ * пометить синк провалившимся, чем молотить по чужому диапазону.
+ */
+const MAX_NUMBER_ATTEMPTS = 10;
 
 /**
  * Синхронизация выпущенного сертификата в Altegio (Фаза 3). Наша БД — источник
@@ -125,30 +136,88 @@ export async function syncCertificateToAltegio(
     return;
   }
 
-  let result;
-  try {
-    result = await issueCertificateOperation({
-      code,
-      amountKzt: payload.balanceKzt,
-      companyId,
-      programTitle,
-      buyerName: cert.fromName,
-      buyerEmail: cert.order.buyerEmail,
-      buyerPhone:
-        // Доставка теперь только на почту, телефон берём у покупателя
-        cert.order.buyerPhone ?? undefined,
-      orderId: cert.orderId,
-      comment: payload.comment,
-    });
-  } catch (error) {
-    // Помечаем провал синка, чтобы он был виден в админке.
-    await prisma.certificate
+  const markFailed = () =>
+    prisma.certificate
       .update({
         where: { id: certificateId },
         data: { altegioSyncStatus: "failed" },
       })
       .catch(() => {});
-    throw error;
+
+  // Номер может оказаться занятым чужим сертификатом: в Altegio нумерация
+  // филиала общая с действующим сайтом. Продажа тогда НЕ создаётся вовсе —
+  // раньше мы принимали такой отказ за идемпотентный повтор и записывали
+  // «синхронизировано», хотя в CRM не появлялось ничего, а по этому номеру
+  // кассир нашёл бы чужой сертификат. Поэтому: занят — берём следующий номер.
+  let result: IssueResult | null = null;
+  let number = code;
+  for (let attempt = 1; attempt <= MAX_NUMBER_ATTEMPTS; attempt++) {
+    let outcome: IssueResult;
+    try {
+      outcome = await issueCertificateOperation({
+        code: number,
+        amountKzt: payload.balanceKzt,
+        companyId,
+        programTitle,
+        buyerName: cert.fromName,
+        buyerEmail: cert.order.buyerEmail,
+        buyerPhone:
+          // Доставка теперь только на почту, телефон берём у покупателя
+          cert.order.buyerPhone ?? undefined,
+        orderId: cert.orderId,
+        comment: payload.comment,
+      });
+    } catch (error) {
+      // Помечаем провал синка, чтобы он был виден в админке.
+      await markFailed();
+      throw error;
+    }
+
+    if (outcome.status !== "already_exists") {
+      result = outcome;
+      break;
+    }
+
+    // Наш собственный повтор: документ продажи уже записан за этим
+    // сертификатом — значит номер занят нами же, это идемпотентный успех.
+    if (cert.altegioCertId) {
+      result = outcome;
+      break;
+    }
+
+    // Чужой номер. Салонного счётчика нет (случайный код IMB-…) — повторять
+    // нечем: такой код уникален по построению, и «уже существует» означало бы
+    // что-то другое, чего мы не понимаем.
+    const next = cert.serial ? await nextSalonSerial(cert.salonId) : null;
+    if (!next) {
+      await markFailed();
+      throw new Error(
+        `altegio: номер ${number} занят («${outcome.message}»), ` +
+          `заменить нечем — у салона ${cert.salonId} нет счётчика номеров`,
+      );
+    }
+    console.warn(
+      `[altegio] номер ${number} занят чужим сертификатом — ` +
+        `сертификат ${certificateId} получает ${next} (попытка ${attempt})`,
+    );
+    await prisma.certificate.update({
+      where: { id: certificateId },
+      data: {
+        serial: next,
+        codeHash: hashCode(next),
+        codeDisplay: maskCode(next),
+        codeEncrypted: encryptSecret(next),
+      },
+    });
+    number = next;
+  }
+
+  if (!result) {
+    await markFailed();
+    throw new Error(
+      `altegio: не удалось подобрать свободный номер за ${MAX_NUMBER_ATTEMPTS} ` +
+        `попыток (последний — ${number}, салон ${cert.salonId})`,
+    );
   }
 
   // Филиал и телефон клиента — ключ, по которому потом читаем состояние
@@ -180,13 +249,21 @@ export async function syncCertificateToAltegio(
   }
 
   if (result.status === "already_exists") {
-    console.log(`[altegio] сертификат ${code} уже существует — идемпотентно ок`);
+    console.log(
+      `[altegio] сертификат ${number} уже записан нами — идемпотентно ок`,
+    );
   } else {
     console.log(
-      `[altegio] выпущен сертификат ${code} → document ${result.documentId} ` +
+      `[altegio] выпущен сертификат ${number} → document ${result.documentId} ` +
         `(филиал ${result.companyId}, клиент ${result.clientId}, ` +
         `оплачен=${result.paid}, фолбэк=${result.fallback}; ` +
         `выбранный салон company ${companyId})`,
     );
+    if (!result.paid && !isAltegioTest()) {
+      console.warn(
+        `[altegio] продажа ${result.documentId} осталась неоплаченной — ` +
+          `в кассу она не попадёт, нужно провести вручную`,
+      );
+    }
   }
 }

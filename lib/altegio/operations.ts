@@ -305,7 +305,7 @@ export function buildStorageOperation(p: IssueParams, ctx: IssueContext) {
 }
 
 /** Помечает продажу оплаченной (метод «account»). Best-effort. */
-async function markSaleAsPaid(
+export async function markSaleAsPaid(
   companyId: number,
   documentId: number,
   amountKzt: number,
@@ -335,7 +335,13 @@ export type IssueResult =
       paid: boolean;
       fallback: boolean;
     }
-  | { status: "already_exists"; companyId: number; number: string };
+  | {
+      status: "already_exists";
+      companyId: number;
+      number: string;
+      /** Дословный ответ Altegio — чтобы не гадать, чем именно занят номер. */
+      message: string;
+    };
 
 /** Строит контекст выпуска: прод (по каталогу) или фолбэк на тест-товар. */
 async function resolveContext(params: IssueParams): Promise<IssueContext> {
@@ -449,6 +455,7 @@ export async function issueCertificateOperation(
         status: "already_exists",
         companyId: ctx.companyId,
         number: params.code,
+        message: msg,
       };
     }
     throw error;

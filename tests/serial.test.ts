@@ -1,26 +1,30 @@
 import { describe, expect, it } from "vitest";
+import { formatSalonCode, isSalonCode } from "../lib/certificate-code";
 
 /**
- * Формат внутреннего серийного номера салона (WM001…). Логика падинга
- * дублирует lib/certificates.nextSalonSerial — держим в синхроне.
+ * Салонный номер сертификата (WM9001…). Он же публичный код: один номер в
+ * письме, в PDF, на странице проверки и в Altegio.
  */
-function formatSerial(prefix: string, n: number): string {
-  return `${prefix}${String(n).padStart(3, "0")}`;
-}
-
 describe("серийный номер сертификата по салону", () => {
-  it("паддинг до 3 цифр, префикс салона", () => {
-    expect(formatSerial("WM", 1)).toBe("WM001");
-    expect(formatSerial("WM", 2)).toBe("WM002");
-    expect(formatSerial("WR", 47)).toBe("WR047");
-    expect(formatSerial("WK", 100)).toBe("WK100");
+  it("паддинг до 4 цифр, префикс салона", () => {
+    expect(formatSalonCode("WM", 1)).toBe("WM0001");
+    expect(formatSalonCode("WR", 47)).toBe("WR0047");
+    expect(formatSalonCode("WK", 100)).toBe("WK0100");
   });
 
-  it("после 999 не обрезается", () => {
-    expect(formatSerial("WP", 1000)).toBe("WP1000");
+  it("рабочий диапазон начинается с 9001", () => {
+    // База счётчика — 9000 (миграция 20260826080000_serial_base_9001):
+    // низкие номера в Altegio местами заняты историей действующего сайта.
+    expect(formatSalonCode("WM", 9001)).toBe("WM9001");
+    expect(isSalonCode(formatSalonCode("WM", 9001))).toBe(true);
+  });
+
+  it("после 9999 не обрезается и остаётся салонным номером", () => {
+    expect(formatSalonCode("WP", 10000)).toBe("WP10000");
+    expect(isSalonCode("WP10000")).toBe(true);
   });
 
   it("не пересекается с публичным кодом IMB-… (разные пространства)", () => {
-    expect(formatSerial("WM", 1)).not.toMatch(/^IMB-/);
+    expect(formatSalonCode("WM", 9001)).not.toMatch(/^IMB-/);
   });
 });

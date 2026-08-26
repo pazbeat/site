@@ -108,8 +108,10 @@ model Salon {
   altegioLocationId Int?          @map("altegio_location_id")
   /// Префикс серийного номера сертификата (WM, WT, WR…), уникален по салону
   codePrefix        String?       @unique @map("code_prefix")
-  /// Счётчик выданных серийных номеров этого салона (атомарный инкремент)
-  lastCertSerial    Int           @default(0) @map("last_cert_serial")
+  /// Счётчик выданных серийных номеров этого салона (атомарный инкремент).
+  /// База 9000 → первый номер WM9001: низкие номера в Altegio местами заняты
+  /// историей действующего сайта, нумерация филиала там общая.
+  lastCertSerial    Int           @default(9000) @map("last_cert_serial")
   active            Boolean       @default(true)
   /// Доступен ли салон для выбора при покупке сертификата (конструктор).
   /// false — салон показывается на витрине (футер, «Где нас найти», /salons),
