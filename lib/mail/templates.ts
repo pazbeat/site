@@ -16,6 +16,9 @@ const STRINGS = {
     buyerTitle: "Спасибо за покупку!",
     buyerBody: (to: string) =>
       `Оплата прошла успешно. Копия сертификата для «${to}» — в приложенном PDF.`,
+    buyerBodySelf: (to: string) =>
+      `Оплата прошла успешно. Сертификат для «${to}» — в приложенном PDF. ` +
+      `Перешлите его получателю или распечатайте — можно подарить лично.`,
     reminderSubject: (days: number) =>
       `Ваш сертификат Imbir Thai Spa истекает через ${days} дн.`,
     reminderTitle: "Не забудьте про подарок 🌿",
@@ -39,6 +42,9 @@ const STRINGS = {
     buyerTitle: "Сатып алғаныңызға рахмет!",
     buyerBody: (to: string) =>
       `Төлем сәтті өтті. «${to}» үшін сертификат көшірмесі — тіркелген PDF-те.`,
+    buyerBodySelf: (to: string) =>
+      `Төлем сәтті өтті. «${to}» үшін сертификат — тіркелген PDF-те. ` +
+      `Оны алушыға жіберіңіз немесе басып шығарыңыз — жеке де сыйлауға болады.`,
     reminderSubject: (days: number) =>
       `Сіздің Imbir Thai Spa сертификатыңыз ${days} күннен кейін бітеді`,
     reminderTitle: "Сыйлықты ұмытпаңыз 🌿",
@@ -62,6 +68,9 @@ const STRINGS = {
     buyerTitle: "Thank you for your purchase!",
     buyerBody: (to: string) =>
       `Payment was successful. A copy of the certificate for “${to}” is in the attached PDF.`,
+    buyerBodySelf: (to: string) =>
+      `Payment was successful. The certificate for “${to}” is in the attached PDF. ` +
+      `Forward it to the recipient or print it out — you can hand it over in person.`,
     reminderSubject: (days: number) =>
       `Your Imbir Thai Spa certificate expires in ${days} days`,
     reminderTitle: "Don't forget your gift 🌿",
@@ -122,16 +131,25 @@ export function recipientEmail(data: CertificateMailData): {
   };
 }
 
-export function buyerEmail(data: CertificateMailData): {
+/**
+ * Письмо покупателю. `self` — получатель не указан, и это письмо
+ * единственное: сертификат никуда больше не уходит, покупатель дарит сам.
+ * Слово «копия» там было бы враньём — копия чего, если оригинала нет.
+ */
+export function buyerEmail(
+  data: CertificateMailData,
+  options: { self?: boolean } = {},
+): {
   subject: string;
   html: string;
 } {
   const s = pick(data.locale);
+  const body = options.self ? s.buyerBodySelf : s.buyerBody;
   return {
     subject: s.buyerSubject,
     html: layout(
       s.buyerTitle,
-      `${s.buyerBody(data.toName)}<br/><br/><b>${s.validUntil}: ${data.validUntil}</b>`,
+      `${body(data.toName)}<br/><br/><b>${s.validUntil}: ${data.validUntil}</b>`,
       s.footer,
     ),
   };

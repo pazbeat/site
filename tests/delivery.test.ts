@@ -49,6 +49,27 @@ describe("шаблоны писем", () => {
   });
 });
 
+describe("письмо покупателю", () => {
+  it("без получателя не называет сертификат копией", async () => {
+    const { buyerEmail } = await import("@/lib/mail/templates");
+    const data = {
+      locale: "ru",
+      toName: "Галия",
+      fromName: "Алия",
+      code: "WM9001",
+      validUntil: "26.11.2026",
+      salon: "Астана, Мәңгілік Ел 29/2",
+      amountKzt: 35000,
+      title: "35 000 ₸",
+    };
+    const self = buyerEmail(data, { self: true });
+    const withRecipient = buyerEmail(data);
+    expect(self.html).not.toContain("Копия");
+    expect(self.html).toContain("Перешлите");
+    expect(withRecipient.html).toContain("Копия");
+  });
+});
+
 describe("PDF сертификата", () => {
   it("рендерится с кириллицей и казахскими глифами", async () => {
     const { renderCertificatePdf } = await import("@/lib/pdf/certificate");

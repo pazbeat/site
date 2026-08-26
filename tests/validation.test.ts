@@ -18,6 +18,38 @@ describe("orderSchema", () => {
     expect(orderSchema.safeParse(baseOrder).success).toBe(true);
   });
 
+  it("принимает заказ без почты получателя — дарят сами", () => {
+    // Покупатель часто не знает адрес того, кому дарит: сертификат уходит
+    // ему самому, а он передаёт лично или пересылает.
+    for (const delivery of [
+      { method: "email" },
+      { method: "email", contact: "" },
+      { method: "email", contact: "   " },
+    ]) {
+      const parsed = orderSchema.safeParse({ ...baseOrder, delivery });
+      expect(parsed.success, JSON.stringify(delivery)).toBe(true);
+      if (parsed.success) expect(parsed.data.delivery.contact).toBe("");
+    }
+  });
+
+  it("указанную почту получателя всё равно проверяет", () => {
+    // Пустое поле — законно, а опечатка увела бы сертификат в никуда.
+    expect(
+      orderSchema.safeParse({
+        ...baseOrder,
+        delivery: { method: "email", contact: "не-почта" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("почта покупателя обязательна всегда", () => {
+    const { buyerEmail: _omit, ...withoutBuyer } = baseOrder;
+    expect(orderSchema.safeParse(withoutBuyer).success).toBe(false);
+    expect(
+      orderSchema.safeParse({ ...baseOrder, buyerEmail: "не-почта" }).success,
+    ).toBe(false);
+  });
+
   it("принимает номинал с nominalId и с customAmountKzt", () => {
     expect(
       orderSchema.safeParse({

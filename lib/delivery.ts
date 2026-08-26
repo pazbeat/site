@@ -194,22 +194,32 @@ export async function deliverCertificate(certificateId: string): Promise<void> {
   // В БД остаётся старое значение deliveryMethod=whatsapp у ранее
   // выпущенных сертификатов, поэтому шлём письмом в любом случае —
   // молча ничего не отправить было бы хуже.
-  const mail = recipientEmail(mailData);
   // У сертификатов, выпущенных до отключения WhatsApp, в контакте лежит
   // телефон — письмо туда не уйдёт. Для них адресат — почта покупателя.
   const recipient =
     certificate.deliveryMethod === "email"
       ? certificate.deliveryContact
       : certificate.order.buyerEmail;
-  await mailer.send({
-    to: recipient,
-    subject: mail.subject,
-    html: mail.html,
-    attachments: [attachment],
-  });
+
+  // Почту получателя покупатель указывает по желанию: часто он её не знает и
+  // дарит сам. Тогда контакт равен его собственному адресу — и два письма
+  // подряд на один ящик были бы мусором. Шлём одно, покупательское.
+  const giftingSelf =
+    recipient.trim().toLowerCase() ===
+    certificate.order.buyerEmail.trim().toLowerCase();
+
+  if (!giftingSelf) {
+    const mail = recipientEmail(mailData);
+    await mailer.send({
+      to: recipient,
+      subject: mail.subject,
+      html: mail.html,
+      attachments: [attachment],
+    });
+  }
 
   // Копия покупателю (PRD §5.3)
-  const buyer = buyerEmail(mailData);
+  const buyer = buyerEmail(mailData, { self: giftingSelf });
   await mailer.send({
     to: certificate.order.buyerEmail,
     subject: buyer.subject,

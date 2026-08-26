@@ -34,7 +34,10 @@ export const orderSchema = z
       // Только почта: доставка сертификата в WhatsApp отключена —
       // ChatApp у заказчика убрали, канал больше не оплачивается.
       method: z.enum(["email"]),
-      contact: z.string().trim().min(1).max(120),
+      /// Почта получателя — НЕОБЯЗАТЕЛЬНА: покупатель часто не знает её,
+      /// а подарок собирается заранее. Пусто — сертификат уходит покупателю,
+      /// и он дарит сам (маршрут заказа подставляет buyerEmail).
+      contact: z.string().trim().max(120).optional().default(""),
       /// ISO-строка; интерпретируется в Asia/Almaty
       scheduledAt: z.iso.datetime({ offset: true }).optional(),
     }),
@@ -63,22 +66,15 @@ export const orderSchema = z
         });
       }
     }
-    if (data.delivery.method === "email") {
+    // Пустая почта получателя — законный случай (дарим сами). А вот
+    // заполненную проверяем: опечатка отправила бы сертификат в никуда.
+    if (data.delivery.contact) {
       const email = z.email().safeParse(data.delivery.contact);
       if (!email.success) {
         ctx.addIssue({
           code: "custom",
           path: ["delivery", "contact"],
           message: "invalid email",
-        });
-      }
-    } else {
-      const parsed = phone.safeParse(data.delivery.contact);
-      if (!parsed.success) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["delivery", "contact"],
-          message: "invalid phone",
         });
       }
     }

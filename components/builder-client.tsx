@@ -431,8 +431,10 @@ export function BuilderClient({
       case 2:
         return toName.trim().length > 0 && fromName.trim().length > 0;
       case 3:
-        if (!contact.trim() || !/\S+@\S+\.\S+/.test(buyerEmail)) return false;
-        if (!/\S+@\S+\.\S+/.test(contact)) return false;
+        // Обязателен только адрес покупателя: почту получателя он часто не
+        // знает. Указал — проверяем, чтобы опечатка не увела сертификат.
+        if (!/\S+@\S+\.\S+/.test(buyerEmail)) return false;
+        if (contact.trim() && !/\S+@\S+\.\S+/.test(contact)) return false;
         if (when === "scheduled" && !scheduledAt) return false;
         return true;
       default:
@@ -972,19 +974,21 @@ export function BuilderClient({
                 {t("s4Hint")}
               </p>
               <div className="mb-4">
-                <label className={labelCls} htmlFor="b-contact">
-                  {t("s4ContactEmail")}{" "}
-                  <span className="text-brand-red">*</span>
+                <label className={labelCls} htmlFor="b-buyer">
+                  {t("s4BuyerEmail")} <span className="text-brand-red">*</span>
                 </label>
                 <input
-                  id="b-contact"
+                  id="b-buyer"
                   type="email"
                   placeholder="name@mail.kz"
                   className={inputCls}
                   required
-                  value={contact}
-                  onChange={(e) => setContact(e.target.value)}
+                  value={buyerEmail}
+                  onChange={(e) => setBuyerEmail(e.target.value)}
                 />
+                <p className="mt-1.5 text-xs text-brand-purple-950/55">
+                  {t("s4BuyerNote")}
+                </p>
               </div>
               <div className="mb-4 flex flex-wrap gap-2.5">
                 <button
@@ -1017,19 +1021,22 @@ export function BuilderClient({
                 </div>
               )}
               <div>
-                <label className={labelCls} htmlFor="b-buyer">
-                  {t("s4BuyerEmail")} <span className="text-brand-red">*</span>
+                <label className={labelCls} htmlFor="b-contact">
+                  {t("s4ContactEmail")}{" "}
+                  <span className="font-normal text-brand-purple-950/45">
+                    {t("s4Optional")}
+                  </span>
                 </label>
                 <input
-                  id="b-buyer"
+                  id="b-contact"
                   type="email"
+                  placeholder="name@mail.kz"
                   className={inputCls}
-                  required
-                  value={buyerEmail}
-                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
                 />
                 <p className="mt-1.5 text-xs text-brand-purple-950/55">
-                  {t("s4CopyNote")}
+                  {t("s4ContactNote")}
                 </p>
               </div>
             </>

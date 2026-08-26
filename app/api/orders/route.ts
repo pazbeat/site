@@ -132,7 +132,13 @@ export async function POST(request: NextRequest) {
         toName: input.toName,
         fromName: input.fromName,
         message: input.message,
-        delivery: input.delivery,
+        // Получатель не указан — сертификат уходит покупателю, он дарит сам.
+        // Подставляем адрес здесь, а не в доставке: в БД контакт обязателен,
+        // и повторная отправка из админки должна знать, куда слать.
+        delivery: {
+          ...input.delivery,
+          contact: input.delivery.contact || input.buyerEmail,
+        },
         locale: input.locale,
       },
     },
