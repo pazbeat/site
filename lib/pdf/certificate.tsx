@@ -39,6 +39,9 @@ export type CertificatePdfData = {
   subtitle?: string;
   toName: string;
   fromName: string;
+  /** «Кому» / «От кого» — без подписей на сертификате два имени подряд. */
+  toLabel: string;
+  fromLabel: string;
   message?: string;
   validUntilLabel: string;
   validUntil: string;
@@ -152,6 +155,7 @@ const imgStyles = StyleSheet.create({
   title: { fontSize: 20, color: "#FFFFFF", marginTop: 3 },
   subtitle: { fontSize: 9, color: "#FFFFFF", opacity: 0.85, marginTop: 2 },
   names: { fontSize: 10, color: "#FFFFFF", marginTop: 8 },
+  namesFrom: { fontSize: 10, color: "#FFFFFF", opacity: 0.85, marginTop: 1 },
   message: {
     fontSize: 9,
     fontStyle: "italic",
@@ -181,6 +185,10 @@ function CertificatePdfWithImage({
 }: Readonly<{ data: CertificatePdfData }>) {
   // У Cormorant нет казахских глифов (ә, ү…) — для kk заголовки в Montserrat
   const displayFamily = data.locale === "kk" ? "Montserrat" : "Cormorant";
+  // Знака тенге в Cormorant тоже нет: заголовок сертификата на сумму — это
+  // «35 000 ₸», и символ выпадал бы пустотой. Такие заголовки набираем
+  // Montserrat целиком, иначе цифры и знак разъедутся по начертаниям.
+  const titleFamily = data.title.includes("₸") ? "Montserrat" : displayFamily;
 
   return (
     <Document
@@ -193,14 +201,17 @@ function CertificatePdfWithImage({
         <View style={imgStyles.overlay}>
           <View style={imgStyles.left}>
             <Text style={imgStyles.gift}>{data.giftLabel}</Text>
-            <Text style={[imgStyles.title, { fontFamily: displayFamily }]}>
+            <Text style={[imgStyles.title, { fontFamily: titleFamily }]}>
               {data.title}
             </Text>
             {data.subtitle ? (
               <Text style={imgStyles.subtitle}>{data.subtitle}</Text>
             ) : null}
             <Text style={imgStyles.names}>
-              {data.toName} · {data.fromName}
+              {data.toLabel}: {data.toName}
+            </Text>
+            <Text style={imgStyles.namesFrom}>
+              {data.fromLabel}: {data.fromName}
             </Text>
             {data.message ? (
               <Text style={imgStyles.message}>«{data.message}»</Text>
@@ -227,6 +238,10 @@ function CertificatePdf({ data }: Readonly<{ data: CertificatePdfData }>) {
       : (data.bgStyle.color ?? "#4D295D");
   // У Cormorant нет казахских глифов (ә, ү…) — для kk заголовки в Montserrat
   const displayFamily = data.locale === "kk" ? "Montserrat" : "Cormorant";
+  // Знака тенге в Cormorant тоже нет: заголовок сертификата на сумму — это
+  // «35 000 ₸», и символ выпадал бы пустотой. Такие заголовки набираем
+  // Montserrat целиком, иначе цифры и знак разъедутся по начертаниям.
+  const titleFamily = data.title.includes("₸") ? "Montserrat" : displayFamily;
 
   return (
     <Document
@@ -246,7 +261,7 @@ function CertificatePdf({ data }: Readonly<{ data: CertificatePdfData }>) {
               </Text>
             </View>
             <View>
-              <Text style={[styles.title, { fontFamily: displayFamily, color: data.textColor }]}>
+              <Text style={[styles.title, { fontFamily: titleFamily, color: data.textColor }]}>
                 {data.title}
               </Text>
               {data.subtitle ? (
@@ -257,10 +272,10 @@ function CertificatePdf({ data }: Readonly<{ data: CertificatePdfData }>) {
             </View>
             <View>
               <Text style={[styles.names, { color: data.textColor }]}>
-                {data.toName}
+                {data.toLabel}: {data.toName}
               </Text>
               <Text style={[styles.names, { color: data.textColor, opacity: 0.8 }]}>
-                {data.fromName}
+                {data.fromLabel}: {data.fromName}
               </Text>
               {data.message ? (
                 <Text style={[styles.message, { color: data.textColor }]}>

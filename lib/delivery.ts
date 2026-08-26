@@ -19,6 +19,8 @@ import type { DesignBgStyle } from "./types";
 const PDF_LABELS = {
   ru: {
     gift: "Подарочный сертификат",
+    to: "Кому",
+    from: "От кого",
     code: "Код сертификата",
     validUntil: "Действует до",
     hour: "ч",
@@ -28,6 +30,8 @@ const PDF_LABELS = {
   },
   kk: {
     gift: "Сыйлық сертификаты",
+    to: "Кімге",
+    from: "Кімнен",
     code: "Сертификат коды",
     validUntil: "Жарамдылық мерзімі",
     hour: "сағ",
@@ -37,6 +41,8 @@ const PDF_LABELS = {
   },
   en: {
     gift: "Gift certificate",
+    to: "To",
+    from: "From",
     code: "Certificate code",
     validUntil: "Valid until",
     hour: "h",
@@ -106,6 +112,8 @@ export async function buildCertificatePdf(certificateId: string): Promise<{
     subtitle,
     toName: certificate.toName,
     fromName: certificate.fromName,
+    toLabel: labels.to,
+    fromLabel: labels.from,
     message: certificate.message ?? undefined,
     validUntilLabel: labels.validUntil,
     validUntil: certificate.validUntil.toISOString().slice(0, 10),

@@ -4,6 +4,8 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { publicOrigin } from "@/lib/site-url";
+import { ShareCertificate } from "@/components/share-certificate";
 import { CertPreview } from "@/components/cert-preview";
 import { GiftReveal } from "@/components/gift-reveal";
 import { prisma } from "@/lib/db";
@@ -145,16 +147,16 @@ export default async function SuccessPage({
                 {t("addToWallet")}
               </a>
             )}
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(
-                `${t("waMessage")} ${certificate.codeDisplay}`,
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-gold-gradient rounded-full px-7 py-3 text-center text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
-            >
-              {t("waShare")}
-            </a>
+            {/* Файл, а не строка с номером: wa.me умеет только текст, сам
+                сертификат уходит через системное «Поделиться». */}
+            <ShareCertificate
+              pdfUrl={`/api/certificates/pdf?token=${encodeURIComponent(token)}`}
+              pageUrl={`${publicOrigin()}/${locale}/success?token=${encodeURIComponent(token)}`}
+              text={t("waMessage")}
+              code={certificate.codeDisplay}
+              label={t("waShare")}
+              fileName={t("pdfFileName")}
+            />
             <Link
               href="/create"
               className="rounded-full px-7 py-3 text-center text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple-50"

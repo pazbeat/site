@@ -62,6 +62,8 @@ describe("PDF сертификата", () => {
       subtitle: "Программа для пар · 2,5 часа",
       toName: "Айгерим",
       fromName: "Арман",
+      toLabel: "Кімге",
+      fromLabel: "Кімнен",
       message: "С днём рождения!",
       validUntilLabel: "Действует до",
       validUntil: "2027-07-09",
@@ -69,6 +71,32 @@ describe("PDF сертификата", () => {
       giftLabel: "Подарочный сертификат",
       codeLabel: "Код сертификата",
       locale: "kk",
+      bgStyle: { kind: "gradient", from: "#4D295D", to: "#B69244" },
+      textColor: "#FFFFFF",
+    });
+    expect(pdf.length).toBeGreaterThan(10_000);
+  });
+
+  it("сертификат на сумму печатает знак тенге", async () => {
+    // В Cormorant знака ₸ нет, и заголовок «35 000 ₸» терял символ.
+    // Такие заголовки набираются Montserrat — проверяем, что рендер проходит.
+    const { renderCertificatePdf } = await import("@/lib/pdf/certificate");
+    const qrDataUrl = await QRCode.toDataURL("http://localhost:3000/ru/check");
+    const pdf = await renderCertificatePdf({
+      code: "WM9001",
+      qrDataUrl,
+      title: "35 000 ₸",
+      subtitle: "Сертификат на сумму",
+      toName: "Галия",
+      fromName: "Алия",
+      toLabel: "Кому",
+      fromLabel: "От кого",
+      validUntilLabel: "Действует до",
+      validUntil: "2026-11-26",
+      salonLine: "Астана, Мәңгілік Ел 29/2",
+      giftLabel: "Подарочный сертификат",
+      codeLabel: "Код сертификата",
+      locale: "ru",
       bgStyle: { kind: "gradient", from: "#4D295D", to: "#B69244" },
       textColor: "#FFFFFF",
     });
