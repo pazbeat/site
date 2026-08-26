@@ -10,7 +10,6 @@ import { formatDuration, formatKzt } from "./format";
 import { getMailer } from "./mail";
 import {
   buyerEmail,
-  managerEmail,
   recipientEmail,
 } from "./mail/templates";
 import { renderCertificatePdf } from "./pdf/certificate";
@@ -368,28 +367,10 @@ export async function deliverCertificate(certificateId: string): Promise<void> {
     attachments: buyerAttachments,
   });
 
-  // Уведомление менеджеру — без PDF и без открытого кода. Не критично:
-  // сбой (напр. непроверенный домен отправителя) не должен ломать доставку
-  // получателю/покупателю и вызывать ретраи джоба.
-  const managerTo = process.env.MANAGER_EMAIL;
-  if (managerTo) {
-    const manager = managerEmail({
-      orderId: certificate.orderId,
-      certDisplay: certificate.codeDisplay,
-      amountKzt: certificate.order.amountKzt,
-      salon: `${certificate.salon.city}, ${certificate.salon.address}`,
-      buyerEmail: certificate.order.buyerEmail,
-    });
-    try {
-      await mailer.send({
-        to: managerTo,
-        subject: manager.subject,
-        html: manager.html,
-      });
-    } catch (error) {
-      console.error("manager notification failed (non-fatal)", error);
-    }
-  }
+  // Уведомление о продаже (почта и/или Telegram) шлёт lib/notify из
+  // fulfillOrder: там оно привязано к моменту ОПЛАТЫ, а не доставки —
+  // для отложенного подарка это разные дни. Здесь его больше нет, иначе
+  // на одну продажу приходило бы по два письма.
 
   await prisma.certificate.update({
     where: { id: certificateId },

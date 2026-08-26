@@ -15,10 +15,12 @@ const labelCls = "mb-1 block text-xs font-bold text-brand-purple-950/70";
 export function NotifySettings({
   enabled,
   telegramChatId,
+  email,
   telegramTokenSet,
 }: Readonly<{
   enabled: boolean;
   telegramChatId: string;
+  email: string;
   telegramTokenSet: boolean;
 }>) {
   const router = useRouter();
@@ -52,7 +54,22 @@ export function NotifySettings({
       </label>
 
       <div className="mb-4">
-              </div>
+        <label className={labelCls} htmlFor="ns-email">
+          Почта
+        </label>
+        <input
+          id="ns-email"
+          name="email"
+          type="text"
+          defaultValue={email}
+          placeholder="mail@imbir.kz"
+          className={inputCls}
+        />
+        <p className="mt-1.5 text-xs text-brand-purple-950/55">
+          Несколько адресов — через запятую. Пусто — письмо уйдёт на адрес
+          менеджера из настроек сервера.
+        </p>
+      </div>
 
       <div className="mb-2">
         <label className={labelCls} htmlFor="ns-tg">

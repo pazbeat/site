@@ -15,7 +15,18 @@ import { prisma } from "./db";
 export type SaleNotifySettings = {
   enabled?: boolean;
   telegramChatId?: string;
+  /** Куда слать письмо о продаже; несколько адресов — через запятую. */
+  email?: string;
 };
+
+/** Адреса из настройки; пусто — берём MANAGER_EMAIL из env. */
+export function notifyEmails(cfg: SaleNotifySettings): string[] {
+  const raw = cfg.email?.trim() || process.env.MANAGER_EMAIL || "";
+  return raw
+    .split(/[,;\s]+/)
+    .map((a) => a.trim())
+    .filter((a) => a.includes("@"));
+}
 
 export async function getSaleNotifySettings(): Promise<SaleNotifySettings> {
   const row = await prisma.setting.findUnique({
@@ -81,7 +92,32 @@ export async function sendToChannels(
       errors.push(`telegram: ${error instanceof Error ? error.message : error}`);
     }
   }
+
+  const emails = notifyEmails(cfg);
+  if (emails.length > 0) {
+    try {
+      const { getMailer } = await import("./mail");
+      const [first] = text.split(/\r?\n/);
+      await getMailer().send({
+        to: emails.join(", "),
+        subject: first,
+        // Письмо служебное: тот же текст, что уходит в Telegram, только
+        // переносы строк превращены в разметку. Разводить два текста для
+        // одного события — верный способ развести их со временем.
+        html: `<pre style="font:14px/1.6 -apple-system,Segoe UI,Roboto,sans-serif">${escapeHtml(text)}</pre>`,
+      });
+    } catch (error) {
+      errors.push(`email: ${error instanceof Error ? error.message : error}`);
+    }
+  }
   return errors;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 export async function notifySale(
@@ -89,7 +125,10 @@ export async function notifySale(
   opts: { manual?: boolean } = {},
 ): Promise<void> {
   const cfg = await getSaleNotifySettings();
-  if (!cfg.enabled || !cfg.telegramChatId) return;
+  // Раньше выходили, если не задан Telegram, — и почта молчала заодно.
+  // Каналы независимы: достаточно любого настроенного.
+  if (!cfg.enabled) return;
+  if (!cfg.telegramChatId && notifyEmails(cfg).length === 0) return;
 
   const cert = await prisma.certificate.findUnique({
     where: { id: certificateId },

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildSaleMessage } from "@/lib/notify";
 import { isValidBackupName } from "@/lib/backup";
 
@@ -43,5 +43,29 @@ describe("isValidBackupName", () => {
     expect(isValidBackupName("../../etc/passwd")).toBe(false);
     expect(isValidBackupName("imbir-2026-bad")).toBe(false);
     expect(isValidBackupName("")).toBe(false);
+  });
+});
+
+describe("адреса для уведомления о продаже", () => {
+  it("разбирает несколько адресов и отбрасывает мусор", async () => {
+    const { notifyEmails } = await import("@/lib/notify");
+    expect(notifyEmails({ email: "a@b.kz, c@d.kz" })).toEqual([
+      "a@b.kz",
+      "c@d.kz",
+    ]);
+    expect(notifyEmails({ email: "a@b.kz; c@d.kz  e@f.kz" })).toEqual([
+      "a@b.kz",
+      "c@d.kz",
+      "e@f.kz",
+    ]);
+    expect(notifyEmails({ email: "не-адрес" })).toEqual([]);
+  });
+
+  it("без настройки берёт адрес менеджера из окружения", async () => {
+    const { notifyEmails } = await import("@/lib/notify");
+    vi.stubEnv("MANAGER_EMAIL", "manager@imbir.kz");
+    expect(notifyEmails({})).toEqual(["manager@imbir.kz"]);
+    expect(notifyEmails({ email: "  " })).toEqual(["manager@imbir.kz"]);
+    vi.unstubAllEnvs();
   });
 });

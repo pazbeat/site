@@ -19,6 +19,8 @@ const settingsSchema = z.object({
     .trim()
     .regex(/^-?\d*$/, "invalid chat id")
     .max(20),
+  /// Адреса через запятую; пусто — берём MANAGER_EMAIL из env
+  email: z.string().trim().max(200),
 });
 
 export async function saveNotifySettingsAction(formData: FormData) {
@@ -26,19 +28,32 @@ export async function saveNotifySettingsAction(formData: FormData) {
   const parsed = settingsSchema.safeParse({
     enabled: formData.get("enabled") === "on",
     telegramChatId: formData.get("telegramChatId") ?? "",
+    email: formData.get("email") ?? "",
   });
   if (!parsed.success) {
     return {
       error: "Проверьте поле: Telegram — числовой ID чата.",
     };
   }
-  if (parsed.data.enabled && !parsed.data.telegramChatId) {
-    return { error: "Укажите ID чата Telegram — других каналов нет." };
+  const emails = parsed.data.email
+    .split(/[,;\s]+/)
+    .map((a) => a.trim())
+    .filter(Boolean);
+  const badEmail = emails.find((a) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a));
+  if (badEmail) {
+    return { error: `Не похоже на адрес почты: ${badEmail}` };
+  }
+  if (parsed.data.enabled && !parsed.data.telegramChatId && emails.length === 0) {
+    return {
+      error:
+        "Укажите ID чата Telegram или адрес почты — иначе уведомлению некуда идти.",
+    };
   }
 
   const value = {
     enabled: parsed.data.enabled,
     telegramChatId: parsed.data.telegramChatId || undefined,
+    email: emails.join(", ") || undefined,
   };
   await prisma.setting.upsert({
     where: { key: "sale_notifications" },
