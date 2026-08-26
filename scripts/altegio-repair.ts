@@ -10,9 +10,11 @@
  *     где markAsPaid намеренно не вызывается. В кассу такая продажа не
  *     попадает, в карточке стоит «не оплачено». Проводим.
  *
- *   npx tsx scripts/altegio-repair.ts WM0006 WM0005
- *   npx tsx scripts/altegio-repair.ts --all      # все сертификаты по оплаченным заказам
+ * Запуск (условие react-server обязательно — модули помечены `server-only`):
+ *   NODE_OPTIONS=--conditions=react-server npx tsx scripts/altegio-repair.ts WM0006 WM0005
+ *   NODE_OPTIONS=--conditions=react-server npx tsx scripts/altegio-repair.ts --all
  */
+import "dotenv/config";
 import { prisma } from "../lib/db";
 import { altegioRequest } from "../lib/altegio/client";
 import { branchParams } from "../lib/altegio/catalog";
