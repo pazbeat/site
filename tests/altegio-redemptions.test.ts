@@ -138,6 +138,22 @@ describe("журнал погашений: отбор строк", () => {
   });
 });
 
+describe("журнал: строки без визита", () => {
+  it("пропускаются — филиал и документ брать неоткуда", async () => {
+    // В журнале есть операции без визита (например, сама выдача
+    // сертификата). Запрос visits/0 отвечает ошибкой и раньше вставал
+    // поперёк всей сверки — поймано на боевом сервере 2026-08-26.
+    const { selectFreshRedemptions } = await import(
+      "@/lib/altegio/redemptions"
+    );
+    const rows = [
+      { id: 1, created_date: "", visit_id: 0, amount: 1, type_id: 8, certificate_id: 7 },
+      { id: 2, created_date: "", visit_id: 55, amount: 1, type_id: 8, certificate_id: 8 },
+    ];
+    expect(selectFreshRedemptions(rows, 0).map((r) => r.id)).toEqual([2]);
+  });
+});
+
 describe("журнал: закладка не застревает навсегда", () => {
   it("после трёх неудач строка перешагивается, а не блокирует сверку", async () => {
     // Строка, которая не разбирается никогда (визит удалён, нет прав),

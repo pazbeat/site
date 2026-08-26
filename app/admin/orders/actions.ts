@@ -175,7 +175,10 @@ export async function syncAltegioAction(formData: FormData) {
   // Разбираем его поглубже: ручную сверку жмут ровно тогда, когда кажется,
   // что кроновая что-то пропустила.
   if (!result.ok && result.error === "not_issued_in_altegio") {
-    const feed = await syncRedemptionsFromFeed({ days: 30, fromScratch: true });
+    // Обычный прогон, не глубокий: журнал сети за 30 дней — это тысячи
+    // чужих строк по два запроса каждая, и лимит Altegio такого не переживёт.
+    // Кнопка нужна, чтобы не ждать крона, а не чтобы перебирать историю.
+    const feed = await syncRedemptionsFromFeed({ days: 7 });
     const cert = await prisma.certificate.findUnique({
       where: { id: certificateId },
       select: { balanceKzt: true, amountKzt: true, status: true },
@@ -194,7 +197,7 @@ export async function syncAltegioAction(formData: FormData) {
     return {
       ok: true,
       message:
-        `Журнал погашений Altegio за 30 дней: разобрано ${feed.fresh} операций, ` +
+        `Журнал погашений Altegio за 7 дней: разобрано ${feed.fresh} операций, ` +
         `наших ${feed.ours}, обновлено ${feed.updated}. ${state}`.trim(),
     };
   }

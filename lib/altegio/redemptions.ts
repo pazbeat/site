@@ -357,6 +357,13 @@ const STUCK_LIMIT = 3;
 const TX_GIFT_CARD = 8;
 /** Сколько страниц журнала листаем за прогон (≈6 дней сети на страницу). */
 const MAX_FEED_PAGES = 6;
+/**
+ * Сколько строк разбираем за прогон. Каждая стоит двух запросов к Altegio
+ * (визит + документ), а лимит там 200 в минуту. По сети погашений около 60
+ * в сутки, так что в обычной жизни потолок не достигается — он страхует от
+ * разового навала, когда сверка почему-то отстала на дни.
+ */
+const MAX_ROWS_PER_RUN = 60;
 
 export type FeedStats = {
   rows: number;
@@ -399,7 +406,13 @@ export function selectFreshRedemptions(
 ): LoyaltyTransaction[] {
   return rows
     .filter(
-      (r) => r.type_id === TX_GIFT_CARD && !!r.certificate_id && r.id > cursor,
+      (r) =>
+        r.type_id === TX_GIFT_CARD &&
+        !!r.certificate_id &&
+        // Без визита разбирать нечего: филиал и документ берутся из него.
+        // Такие строки в журнале есть — например, сама выдача сертификата.
+        !!r.visit_id &&
+        r.id > cursor,
     )
     .sort((a, b) => a.id - b.id);
 }
@@ -504,11 +517,18 @@ export async function syncRedemptionsFromFeed(
 
   // От старых к новым: закладку двигаем только по разобранным строкам.
   gift.sort((a, b) => a.id - b.id);
+  const batch = gift.slice(0, MAX_ROWS_PER_RUN);
+  if (gift.length > batch.length) {
+    console.log(
+      `[altegio] журнал: ${gift.length} новых строк, берём ${batch.length} — ` +
+        `остальные разберёт следующий прогон`,
+    );
+  }
   const dryRun = isAltegioTest();
   const visitCache = new Map<number, { companyId: number; documentId: number } | null>();
   let lastDone = cursor;
 
-  for (const tx of gift) {
+  for (const tx of batch) {
     try {
       const resolved = await resolveTransaction(tx, visitCache);
       if (resolved) {
@@ -579,7 +599,13 @@ export async function syncRedemptionsFromFeed(
     }
   }
 
-  if (lastDone > cursor) {
+  // Закладку двигаем только ВПЕРЁД и только от сохранённого значения.
+  // Глубокий прогон (fromScratch) разбирает старые строки, и его lastDone
+  // заведомо меньше текущей закладки — записать его значило бы отмотать
+  // сверку назад и заставить её перебирать тысячи чужих строк заново.
+  const stored =
+    typeof cursorRow?.value === "number" ? cursorRow.value : 0;
+  if (lastDone > stored) {
     await prisma.setting.upsert({
       where: { key: CURSOR_KEY },
       create: { key: CURSOR_KEY, value: lastDone },
