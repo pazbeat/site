@@ -1852,7 +1852,9 @@ h3,
      вертикальном телефоне) кнопки уезжали под сгиб. */
   .rd .hero {
     min-height: 0;
-    grid-template-columns: 44% 56%;
+    /* Текстовой колонке отдаём больше: на 44% (364px) описание переносилось
+       на шесть строк, а две кнопки вставали в два ряда — замер по частям. */
+    grid-template-columns: 56% 44%;
   }
   .rd .hero-show {
     order: 0;
@@ -1865,10 +1867,10 @@ h3,
      планшетная — 52-88px съедали половину высоты. */
   .rd .hero h1 {
     font-size: clamp(34px, 4.4vw, 46px);
-    margin: 14px 0 14px;
+    margin: 10px 0 10px;
   }
   .rd .hero-panel p.lead {
-    margin-bottom: 22px;
+    margin-bottom: 16px;
   }
   .rd .hero-stats {
     margin-top: 22px;
