@@ -127,10 +127,10 @@ export function SiteHeader() {
           </button>
         </div>
 
+        {/* Шапка position:fixed, поэтому длинный список в невысоком экране
+            (телефон в альбомной) обрезался нижней кромкой, и нижние пункты
+            были недостижимы — страница под ним не прокручивалась. */}
         {open && (
-          {/* Шапка position:fixed, поэтому длинный список в невысоком экране
-              (телефон в альбомной) обрезался нижней кромкой, и нижние пункты
-              были недостижимы — страница под ним не прокручивалась. */}
           <div className="menu-enter max-h-[calc(100dvh-68px)] overflow-y-auto overscroll-contain border-t border-white/10 bg-[#1c0726]/95 px-5 pt-2 pb-5 sm:max-h-[calc(100dvh-78px)] xl:hidden">
             <nav className="flex flex-col">
               {NAV.map((item) =>
