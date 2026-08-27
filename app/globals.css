@@ -1851,10 +1851,22 @@ h3,
     min-height: 0;
   }
   .rd .hero-show {
-    min-height: 62svh;
+    min-height: 52svh;
   }
   .rd .hero-panel {
-    padding: 76px 24px 40px;
+    padding: 72px 24px 32px;
+  }
+  /* Заголовок считается от ширины экрана, а она у лежащего телефона
+     планшетная — 52-88px съедали половину высоты. */
+  .rd .hero h1 {
+    font-size: clamp(34px, 4.4vw, 46px);
+    margin: 14px 0 14px;
+  }
+  .rd .hero-panel p.lead {
+    margin-bottom: 22px;
+  }
+  .rd .hero-stats {
+    margin-top: 22px;
   }
   .rd .section {
     padding: 56px 0;
@@ -1876,8 +1888,11 @@ h3,
     grid-auto-columns: minmax(260px, 300px);
   }
   .rd .collage-main,
-  .rd .gift-photo {
+  .rd .gift-photo img {
     aspect-ratio: 16 / 9;
+  }
+  .rd .gift-photo {
+    padding: 0 0 20px 20px;
   }
   .rd-foot {
     padding: 36px 0 28px;
