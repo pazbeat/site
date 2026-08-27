@@ -1835,3 +1835,52 @@ h3,
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ─── Телефон лёжа: низкий экран ───────────────────────────────────────
+   Ширина у альбомного телефона планшетная (780-950px), а высота — 320-430px.
+   По ширине он попадал в ветку ≤980 и получал вертикальную вёрстку: hero во
+   весь экран, карточки с пропорцией 9/16 выше экрана, отступы секций по
+   130px. Страница работала, но каждый блок растягивался на два-три экрана и
+   листать приходилось вслепую.
+
+   Правим по ВЫСОТЕ, а не по ширине: то же самое верно для узкого окна на
+   ноутбуке. Пропорции карточек переворачиваем в горизонтальные — вертикальный
+   кадр на низком экране показать негде. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .rd .hero {
+    min-height: 0;
+  }
+  .rd .hero-show {
+    min-height: 62svh;
+  }
+  .rd .hero-panel {
+    padding: 76px 24px 40px;
+  }
+  .rd .section {
+    padding: 56px 0;
+  }
+  .rd .cta-final {
+    padding: 64px 24px;
+  }
+  /* Кадры: вертикальные пропорции меняем на широкие */
+  .rd .acard {
+    aspect-ratio: 4 / 3;
+  }
+  .rd .atmo-strip {
+    grid-auto-columns: minmax(220px, 260px);
+  }
+  .rd .pcard {
+    aspect-ratio: 4 / 3;
+  }
+  .rd .programs-strip {
+    grid-auto-columns: minmax(260px, 300px);
+  }
+  .rd .collage-main,
+  .rd .gift-photo {
+    aspect-ratio: 16 / 9;
+  }
+  .rd-foot {
+    padding: 36px 0 28px;
+  }
+}
+

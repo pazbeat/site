@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { prefersReducedMotion } from "@/lib/reduced-motion";
 
 export type AtmoClip = { src: string; poster: string; caption: string };
 
@@ -24,6 +25,12 @@ export function AtmosphereStrip({
   useEffect(() => {
     const strip = stripRef.current;
     if (!strip) return;
+    // Просили убрать анимацию — ролики не заводим вовсе, остаётся постер.
+    // Правило в CSS сюда не достаёт: воспроизведение начинается из скрипта.
+    if (prefersReducedMotion()) {
+      strip.querySelectorAll("video").forEach((v) => v.pause());
+      return;
+    }
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {

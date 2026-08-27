@@ -1,6 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import {
+  prefersReducedMotion,
+  reducedMotionServerSnapshot,
+  subscribeReducedMotion,
+} from "@/lib/reduced-motion";
 
 export type HeroSlide = {
   src: string;
@@ -35,12 +46,24 @@ export function HeroShowcase({
   const [muted, setMuted] = useState(true);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const userMutedRef = useRef(false);
+  // Человек мог попросить систему убрать анимацию — тогда никакого
+  // самозапуска и никакой автосмены слайдов: показываем постер. Это
+  // требование ТЗ, и правилом в CSS его не закрыть — видео стартует отсюда.
+  const reduced = useSyncExternalStore(
+    subscribeReducedMotion,
+    prefersReducedMotion,
+    reducedMotionServerSnapshot,
+  );
 
   const hasSound = slides[current]?.sound ?? false;
 
   useEffect(() => {
     const v = videoRefs.current[current];
     if (!v) return;
+    if (reduced) {
+      v.pause();
+      return;
+    }
     const withSound = !!slides[current].sound;
 
     v.currentTime = 0;
@@ -69,7 +92,7 @@ export function HeroShowcase({
       if (timer) clearTimeout(timer);
       v.pause();
     };
-  }, [current, slides]);
+  }, [current, slides, reduced]);
 
   useEffect(() => {
     const enable = () => {

@@ -91,3 +91,33 @@ describe("версия сборки", () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe("prefers-reduced-motion", () => {
+  it("на сервере не падает и отвечает «движение можно»", async () => {
+    const { prefersReducedMotion } = await import("@/lib/reduced-motion");
+    // В vitest окружение node: window нет вовсе.
+    expect(prefersReducedMotion()).toBe(false);
+  });
+
+  it("читает системную настройку и следит за её сменой", async () => {
+    const listeners: Array<(e: { matches: boolean }) => void> = [];
+    const mq = {
+      matches: true,
+      addEventListener: (_: string, l: (e: { matches: boolean }) => void) =>
+        listeners.push(l),
+      removeEventListener: () => {},
+    };
+    vi.stubGlobal("window", { matchMedia: () => mq });
+    const { prefersReducedMotion, onReducedMotionChange } = await import(
+      "@/lib/reduced-motion"
+    );
+    expect(prefersReducedMotion()).toBe(true);
+
+    let seen: boolean | null = null;
+    const off = onReducedMotionChange((v) => (seen = v));
+    listeners.forEach((l) => l({ matches: false }));
+    expect(seen).toBe(false);
+    off();
+    vi.unstubAllGlobals();
+  });
+});
