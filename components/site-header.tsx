@@ -64,7 +64,11 @@ export function SiteHeader() {
             : "border-b border-transparent"
         }`}
       >
-        <div className="mx-auto flex h-[68px] max-w-6xl items-center gap-4 px-5 sm:h-[78px] sm:gap-6">
+        {/* Отступы в диапазоне lg…xl уже: с 1024px включается полное меню, и
+            строка шапки переставала помещаться — телефон уезжал за правый край
+            (поймано замером на 1010–1040px). Шапка position:fixed, поэтому
+            страница даже не показывала полосу прокрутки, просто обрезала. */}
+        <div className="mx-auto flex h-[68px] max-w-6xl items-center gap-4 px-5 sm:h-[78px] sm:gap-6 lg:gap-4 xl:gap-6">
           <Link href="/" className="shrink-0" aria-label="Imbir Thai Spa Classic">
             <Image
               src="/brand/logo-white.png"
@@ -76,7 +80,7 @@ export function SiteHeader() {
             />
           </Link>
 
-          <nav className="ml-auto hidden items-center gap-6 lg:flex">
+          <nav className="ml-auto hidden items-center gap-4 lg:flex xl:gap-6">
             {NAV.map((item) =>
               item.anchor ? (
                 <a key={item.href} href={item.href} className={linkCls}>
