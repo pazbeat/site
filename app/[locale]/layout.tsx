@@ -46,7 +46,10 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Imbir Thai Spa",
-    images: [{ url: "/og.jpg", width: 1200, height: 630 }],
+    // ?v= — чтобы мессенджеры показали новую картинку, а не старую из кэша.
+    // Telegram и WhatsApp держат предпросмотр ссылки долго и сами его не
+    // обновляют; менять номер при каждой правке og.jpg (scripts/build-og.js).
+    images: [{ url: "/og.jpg?v=2", width: 1200, height: 630 }],
   },
   twitter: { card: "summary_large_image" },
 };
