@@ -24,8 +24,12 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # Задаются командой деплоя:
-        #   BUILD_SHA=$(git rev-parse --short HEAD) BUILD_TIME=$(date -u +%FT%TZ)         #     docker compose --env-file .env.production up -d --build app
+        # Версия сборки. Задаётся командой деплоя, см. docs/REFERENCE.md:
+        #   BUILD_NUMBER=$(git rev-list --count HEAD)
+        #   BUILD_SHA=$(git rev-parse --short HEAD)
+        #   BUILD_TIME=$(date -u +%FT%TZ)
+        # Не задали — в подвале честное «dev».
+        BUILD_NUMBER: ${BUILD_NUMBER:-}
         BUILD_SHA: ${BUILD_SHA:-}
         BUILD_TIME: ${BUILD_TIME:-}
     restart: unless-stopped

@@ -191,8 +191,11 @@ zcat imbir-*.sql.gz | docker exec -i imbir-pg psql -U imbir -d imbir
 
 ## Версия развёрнутой сборки
 
-В подвале сайта, приглушённой строкой рядом с копирайтом: коммит и время
-сборки. Машиночитаемо — `GET /api/version`.
+В подвале сайта, приглушённой строкой рядом с копирайтом: **«Версия 247 ·
+27.08.26 11:32»**. Номер — количество коммитов в ветке: растёт только вперёд,
+поэтому 248 заведомо свежее 247. Хэш коммита в видимой строке НЕ показываем —
+по двум хэшам не понять, какой новее, а вопрос ровно в этом; он лежит во
+всплывающей подсказке и в `GET /api/version`.
 
 Приложение одно, фронт и бэк деплоятся вместе, поэтому версия общая.
 
@@ -200,9 +203,8 @@ zcat imbir-*.sql.gz | docker exec -i imbir-pg psql -U imbir -d imbir
 аргументами сборки. **Деплоить так:**
 
 ```
-BUILD_SHA=$(git rev-parse --short HEAD) BUILD_TIME=$(date -u +%FT%TZ)   docker compose --env-file .env.production up -d --build app
+BUILD_NUMBER=$(git rev-list --count HEAD) BUILD_SHA=$(git rev-parse --short HEAD) BUILD_TIME=$(date -u +%FT%TZ)   docker compose --env-file .env.production up -d --build app
 ```
 
 Забыли аргументы — в подвале будет «dev». Это не поломка, но и не версия:
 понять по такому сайту, что на нём выкачено, нельзя.
-

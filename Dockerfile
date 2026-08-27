@@ -31,8 +31,10 @@ FROM base AS runner
 ENV NODE_ENV=production
 # Версия сборки: `.git` в .dockerignore, внутрь образа её не видно —
 # коммит и время передаются аргументами из команды деплоя (см. docker-compose).
+ARG BUILD_NUMBER=""
 ARG BUILD_SHA=""
 ARG BUILD_TIME=""
+ENV BUILD_NUMBER=$BUILD_NUMBER
 ENV BUILD_SHA=$BUILD_SHA
 ENV BUILD_TIME=$BUILD_TIME
 # postgresql16-client + tar — pg_dump/pg_restore для панели бэкапов (/admin/backup)
