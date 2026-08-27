@@ -64,11 +64,12 @@ export function SiteHeader() {
             : "border-b border-transparent"
         }`}
       >
-        {/* Отступы в диапазоне lg…xl уже: с 1024px включается полное меню, и
-            строка шапки переставала помещаться — телефон уезжал за правый край
-            (поймано замером на 1010–1040px). Шапка position:fixed, поэтому
-            страница даже не показывала полосу прокрутки, просто обрезала. */}
-        <div className="mx-auto flex h-[68px] max-w-6xl items-center gap-4 px-5 sm:h-[78px] sm:gap-6 lg:gap-4 xl:gap-6">
+        {/* Полное меню — с 1280px, ниже бургер. На 1024px оно включалось, но
+            строка не помещалась: логотип 151 + меню 374 + кнопка 173 + языки
+            129 + телефон 156 = 983 при 969 доступных, и телефон уезжал за
+            правый край. Шапка position:fixed — полосы прокрутки не появлялось,
+            страница выглядела целой, а номер был срезан. Замерено живьём. */}
+        <div className="mx-auto flex h-[68px] max-w-6xl items-center gap-4 px-5 sm:h-[78px] sm:gap-6">
           <Link href="/" className="shrink-0" aria-label="Imbir Thai Spa Classic">
             <Image
               src="/brand/logo-white.png"
@@ -80,7 +81,7 @@ export function SiteHeader() {
             />
           </Link>
 
-          <nav className="ml-auto hidden items-center gap-4 lg:flex xl:gap-6">
+          <nav className="ml-auto hidden items-center gap-6 xl:flex">
             {NAV.map((item) =>
               item.anchor ? (
                 <a key={item.href} href={item.href} className={linkCls}>
@@ -96,7 +97,7 @@ export function SiteHeader() {
 
           <Link
             href="/create"
-            className="bg-gold-gradient ml-auto hidden rounded-full px-5 py-2.5 text-[11px] font-bold whitespace-nowrap text-white shadow-md transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:inline-flex lg:ml-0"
+            className="bg-gold-gradient ml-auto hidden rounded-full px-5 py-2.5 text-[11px] font-bold whitespace-nowrap text-white shadow-md transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:inline-flex xl:ml-0"
           >
             {t("giftCta")}
           </Link>
@@ -120,14 +121,14 @@ export function SiteHeader() {
             onClick={toggleMenu}
             aria-label="Меню"
             aria-expanded={open}
-            className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/30 text-white lg:hidden"
+            className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/30 text-white xl:hidden"
           >
             <span className="text-lg leading-none">{open ? "✕" : "☰"}</span>
           </button>
         </div>
 
         {open && (
-          <div className="menu-enter border-t border-white/10 bg-[#1c0726]/95 px-5 pt-2 pb-5 lg:hidden">
+          <div className="menu-enter border-t border-white/10 bg-[#1c0726]/95 px-5 pt-2 pb-5 xl:hidden">
             <nav className="flex flex-col">
               {NAV.map((item) =>
                 item.anchor ? (
