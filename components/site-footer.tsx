@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { buildInfo } from "@/lib/version";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getActiveSalons, getSetting } from "@/lib/data";
@@ -90,7 +91,17 @@ export async function SiteFooter() {
         </div>
 
         <div className="foot-note">
-          <span>{t("copyright", { year: new Date().getFullYear() })}</span>
+          <span>
+            {t("copyright", { year: new Date().getFullYear() })}
+            {/* Версия сборки — чтобы по сайту было видно, свежий он или нет
+                (просьба Тимура). Приглушённая: покупателю она ни о чём. */}
+            <span
+              title="Версия сборки"
+              style={{ marginLeft: 12, opacity: 0.45, fontVariantNumeric: "tabular-nums" }}
+            >
+              {buildInfo().label}
+            </span>
+          </span>
           <nav style={{ display: "flex", flexWrap: "wrap", gap: "18px" }}>
             <Link href="/legal/offer">{tLegal("offer")}</Link>
             <Link href="/legal/privacy">{tLegal("privacy")}</Link>

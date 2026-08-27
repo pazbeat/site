@@ -29,6 +29,12 @@ COPY --from=builder /app/lib/generated ./lib/generated
 # ---------- runner ----------
 FROM base AS runner
 ENV NODE_ENV=production
+# Версия сборки: `.git` в .dockerignore, внутрь образа её не видно —
+# коммит и время передаются аргументами из команды деплоя (см. docker-compose).
+ARG BUILD_SHA=""
+ARG BUILD_TIME=""
+ENV BUILD_SHA=$BUILD_SHA
+ENV BUILD_TIME=$BUILD_TIME
 # postgresql16-client + tar — pg_dump/pg_restore для панели бэкапов (/admin/backup)
 # openssl — подпись манифеста .pkpass (PKCS#7); в базовом образе его нет
 RUN apk add --no-cache postgresql16-client tar openssl \
