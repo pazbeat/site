@@ -12,6 +12,7 @@ export default async function AdminSettingsPage() {
       <NotifySettings
         enabled={cfg.enabled ?? false}
         telegramChatId={cfg.telegramChatId ?? ""}
+        telegramThreadId={cfg.telegramThreadId ?? ""}
         email={cfg.email ?? ""}
         telegramTokenSet={Boolean(process.env.TELEGRAM_BOT_TOKEN)}
       />

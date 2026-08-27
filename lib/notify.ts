@@ -15,6 +15,11 @@ import { prisma } from "./db";
 export type SaleNotifySettings = {
   enabled?: boolean;
   telegramChatId?: string;
+  /**
+   * Тема (topic) в группе с включёнными темами. Без неё сообщение падает
+   * в General, а не в отдельную ветку, ради которой всё и затевалось.
+   */
+  telegramThreadId?: string;
   /** Куда слать письмо о продаже; несколько адресов — через запятую. */
   email?: string;
 };
@@ -60,7 +65,11 @@ export function buildSaleMessage(f: SaleFacts): string {
   return lines.join("\n");
 }
 
-async function sendTelegram(chatId: string, text: string): Promise<void> {
+async function sendTelegram(
+  chatId: string,
+  text: string,
+  threadId?: string,
+): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     console.warn("notify: telegramChatId задан, но TELEGRAM_BOT_TOKEN нет в env");
@@ -71,7 +80,11 @@ async function sendTelegram(chatId: string, text: string): Promise<void> {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        ...(threadId ? { message_thread_id: Number(threadId) } : {}),
+      }),
     },
   );
   if (!response.ok) {
@@ -87,7 +100,7 @@ export async function sendToChannels(
   const errors: string[] = [];
   if (cfg.telegramChatId) {
     try {
-      await sendTelegram(cfg.telegramChatId, text);
+      await sendTelegram(cfg.telegramChatId, text, cfg.telegramThreadId);
     } catch (error) {
       errors.push(`telegram: ${error instanceof Error ? error.message : error}`);
     }

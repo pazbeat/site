@@ -19,6 +19,8 @@ const settingsSchema = z.object({
     .trim()
     .regex(/^-?\d*$/, "invalid chat id")
     .max(20),
+  /// Тема в группе Telegram; пусто — сообщение уйдёт в General
+  telegramThreadId: z.string().trim().regex(/^\d*$/, "invalid thread").max(20),
   /// Адреса через запятую; пусто — берём MANAGER_EMAIL из env
   email: z.string().trim().max(200),
 });
@@ -28,11 +30,12 @@ export async function saveNotifySettingsAction(formData: FormData) {
   const parsed = settingsSchema.safeParse({
     enabled: formData.get("enabled") === "on",
     telegramChatId: formData.get("telegramChatId") ?? "",
+    telegramThreadId: formData.get("telegramThreadId") ?? "",
     email: formData.get("email") ?? "",
   });
   if (!parsed.success) {
     return {
-      error: "Проверьте поле: Telegram — числовой ID чата.",
+      error: "Проверьте поля: ID чата и ID темы — только цифры.",
     };
   }
   const emails = parsed.data.email
@@ -53,6 +56,7 @@ export async function saveNotifySettingsAction(formData: FormData) {
   const value = {
     enabled: parsed.data.enabled,
     telegramChatId: parsed.data.telegramChatId || undefined,
+    telegramThreadId: parsed.data.telegramThreadId || undefined,
     email: emails.join(", ") || undefined,
   };
   await prisma.setting.upsert({

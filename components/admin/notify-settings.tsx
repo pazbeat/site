@@ -15,11 +15,13 @@ const labelCls = "mb-1 block text-xs font-bold text-brand-purple-950/70";
 export function NotifySettings({
   enabled,
   telegramChatId,
+  telegramThreadId,
   email,
   telegramTokenSet,
 }: Readonly<{
   enabled: boolean;
   telegramChatId: string;
+  telegramThreadId: string;
   email: string;
   telegramTokenSet: boolean;
 }>) {
@@ -83,6 +85,25 @@ export function NotifySettings({
           className={inputCls}
         />
       </div>
+      <div className="mb-2">
+        <label className={labelCls} htmlFor="ns-thread">
+          Telegram: ID темы{" "}
+          <span className="font-normal text-brand-purple-950/45">
+            — если группа с темами
+          </span>
+        </label>
+        <input
+          id="ns-thread"
+          name="telegramThreadId"
+          defaultValue={telegramThreadId}
+          placeholder="например 42"
+          className={inputCls}
+        />
+        <p className="mt-1.5 text-xs text-brand-purple-950/55">
+          Пусто — сообщение уйдёт в общую ветку группы.
+        </p>
+      </div>
+
       <p className="mb-4 text-xs text-brand-purple-950/55">
         Свой ID покажет бот @userinfobot. Перед этим напишите нашему боту
         «/start», иначе Telegram не даст ему писать вам первым.{" "}
