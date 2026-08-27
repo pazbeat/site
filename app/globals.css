@@ -1847,11 +1847,16 @@ h3,
    ноутбуке. Пропорции карточек переворачиваем в горизонтальные — вертикальный
    кадр на низком экране показать негде. */
 @media (max-height: 520px) and (orientation: landscape) {
+  /* Возвращаем двухколоночный hero: экран широкий и низкий, видео сбоку —
+     тогда заголовок и кнопки видны сразу, без прокрутки. Стопкой (как на
+     вертикальном телефоне) кнопки уезжали под сгиб. */
   .rd .hero {
     min-height: 0;
+    grid-template-columns: 44% 56%;
   }
   .rd .hero-show {
-    min-height: 52svh;
+    order: 0;
+    min-height: 0;
   }
   .rd .hero-panel {
     padding: 72px 24px 32px;
@@ -1896,6 +1901,9 @@ h3,
   }
   .rd-foot {
     padding: 36px 0 28px;
+  }
+  .rd-foot .foot-cols {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
