@@ -9,7 +9,12 @@ import { buildInfo } from "@/lib/version";
 export async function GET() {
   const info = buildInfo();
   return NextResponse.json(
-    { sha: info.sha, builtAt: info.builtAt, label: info.label },
+    {
+      number: info.number,
+      sha: info.sha,
+      builtAt: info.builtAt,
+      label: info.label,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
