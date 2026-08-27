@@ -87,7 +87,6 @@ export async function testNotifyAction() {
     itemLabel: "ТЕСТОВОЕ УВЕДОМЛЕНИЕ — продажи не было",
     salonLine: "Проверка каналов из админки",
     toName: admin.email,
-    deliveryLine: "—",
     serial: null,
     orderId: "test",
   });

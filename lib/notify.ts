@@ -1,5 +1,13 @@
 import "server-only";
 import { prisma } from "./db";
+import { publicOrigin } from "./site-url";
+
+/** Как называть способ оплаты в уведомлении. */
+const PAYMENT_LABEL: Record<string, string> = {
+  kaspi: "Kaspi",
+  forte: "Банковская карта",
+  freedom: "Freedom Pay",
+};
 
 /**
  * Уведомления администратору о продажах — Telegram (бот). Включаются в
@@ -40,29 +48,76 @@ export async function getSaleNotifySettings(): Promise<SaleNotifySettings> {
   return (row?.value ?? {}) as SaleNotifySettings;
 }
 
-type SaleFacts = {
+export type SaleFacts = {
+  /** Сколько реально заплатили. */
   amountKzt: number;
+  /** Номинал сертификата: при промокоде он больше уплаченного. */
+  faceKzt?: number;
   itemLabel: string;
   salonLine: string;
+  designName?: string;
+  fromName?: string;
   toName: string;
-  deliveryLine: string;
+  message?: string | null;
+  buyerEmail?: string;
+  /** Почта получателя; пусто — покупатель дарит сам. */
+  recipientEmail?: string | null;
+  paidLabel?: string;
+  paymentLabel?: string;
+  paid?: boolean;
   serial: string | null;
   orderId: string;
+  certUrl?: string;
+  adminUrl?: string;
   manual?: boolean;
 };
 
 /** Текст уведомления (чистая функция — тестируется). */
 export function buildSaleMessage(f: SaleFacts): string {
-  const lines = [
-    `🎁 Новая продажа: ${f.amountKzt.toLocaleString("ru-RU")} ₸`,
-    f.itemLabel,
-    `Филиал: ${f.salonLine}`,
-    `Кому: ${f.toName}`,
-    `Доставка: ${f.deliveryLine}`,
-    `${f.serial ? `Серийник: ${f.serial} · ` : ""}Заказ ${f.orderId}`,
-  ];
+  // Обычный пробел вместо неразрывного, который подставляет toLocaleString:
+  // менеджер ищет в Telegram «36 000» с клавиатуры, и по неразрывному
+  // пробелу поиск ничего не находит.
+  const money = (v: number) =>
+    `${v.toLocaleString("ru-RU").replace(/\s/g, " ")} ₸`;
+  const lines = [`🎁 Новая продажа — ${money(f.amountKzt)}`];
+
+  lines.push(
+    [
+      f.paid === false ? "⏳ Не оплачено" : "✅ Оплачено",
+      f.paymentLabel,
+      f.paidLabel,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  );
+  // Скидку видно только сопоставлением: оплата меньше номинала.
+  if (f.faceKzt && f.faceKzt !== f.amountKzt) {
+    lines.push(`Номинал сертификата: ${money(f.faceKzt)} (со скидкой)`);
+  }
+  lines.push("");
+
+  if (f.serial) lines.push(`Код: ${f.serial}`);
+  lines.push(`Что: ${f.itemLabel}`);
+  lines.push(`Филиал: ${f.salonLine}`);
+  if (f.designName) lines.push(`Дизайн: ${f.designName}`);
+  lines.push("");
+
+  if (f.fromName) lines.push(`От кого: ${f.fromName}`);
+  lines.push(`Кому: ${f.toName}`);
+  if (f.message) lines.push(`Пожелание: «${f.message}»`);
+  lines.push("");
+
+  if (f.buyerEmail) lines.push(`Почта покупателя: ${f.buyerEmail}`);
+  lines.push(
+    `Почта получателя: ${f.recipientEmail ? f.recipientEmail : "— (дарит сам)"}`,
+  );
+  lines.push("");
+
+  lines.push(`Заказ: ${f.orderId}`);
+  if (f.certUrl) lines.push(`Сертификат: ${f.certUrl}`);
+  if (f.adminUrl) lines.push(`В админке: ${f.adminUrl}`);
   if (f.manual) lines.push("⚠ Выпущен вручную из админки");
-  return lines.join("\n");
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 async function sendTelegram(
@@ -92,15 +147,59 @@ async function sendTelegram(
   }
 }
 
+/**
+ * Сертификат файлом. Подпись Telegram ограничивает 1024 знаками — если карточка
+ * длиннее, шлём её отдельным сообщением, а к файлу оставляем короткую строку.
+ */
+async function sendTelegramDocument(
+  chatId: string,
+  file: { name: string; content: Buffer },
+  caption: string,
+  threadId?: string,
+): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return;
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  if (threadId) form.append("message_thread_id", threadId);
+  if (caption) form.append("caption", caption);
+  form.append(
+    "document",
+    new Blob([new Uint8Array(file.content)], { type: "application/pdf" }),
+    file.name,
+  );
+  const response = await fetch(
+    `https://api.telegram.org/bot${token}/sendDocument`,
+    { method: "POST", body: form },
+  );
+  if (!response.ok) {
+    throw new Error(`telegram doc ${response.status}: ${await response.text()}`);
+  }
+}
+
+const TELEGRAM_CAPTION_LIMIT = 1024;
+
 /** Разослать текст по настроенным каналам. Возвращает список ошибок. */
 export async function sendToChannels(
   cfg: SaleNotifySettings,
   text: string,
+  file?: { name: string; content: Buffer },
 ): Promise<string[]> {
   const errors: string[] = [];
   if (cfg.telegramChatId) {
     try {
-      await sendTelegram(cfg.telegramChatId, text, cfg.telegramThreadId);
+      const asCaption = !!file && text.length <= TELEGRAM_CAPTION_LIMIT;
+      if (!asCaption) {
+        await sendTelegram(cfg.telegramChatId, text, cfg.telegramThreadId);
+      }
+      if (file) {
+        await sendTelegramDocument(
+          cfg.telegramChatId,
+          file,
+          asCaption ? text : "",
+          cfg.telegramThreadId,
+        );
+      }
     } catch (error) {
       errors.push(`telegram: ${error instanceof Error ? error.message : error}`);
     }
@@ -114,6 +213,9 @@ export async function sendToChannels(
       await getMailer().send({
         to: emails.join(", "),
         subject: first,
+        ...(file
+          ? { attachments: [{ filename: file.name, content: file.content }] }
+          : {}),
         // Письмо служебное: тот же текст, что уходит в Telegram, только
         // переносы строк превращены в разметку. Разводить два текста для
         // одного события — верный способ развести их со временем.
@@ -148,6 +250,7 @@ export async function notifySale(
     include: {
       salon: true,
       order: true,
+      design: true,
       programOption: { include: { program: true } },
     },
   });
@@ -156,19 +259,60 @@ export async function notifySale(
   const programName = cert.programOption
     ? ((cert.programOption.program.names as { ru?: string }).ru ?? "Программа")
     : null;
+  const faceKzt = cert.amountKzt ?? cert.balanceKzt;
+
+  // Дата по времени салона: менеджер сверяет её с выпиской банка, а не с UTC.
+  const paidAt = cert.order.paidAt ?? cert.order.createdAt;
+  const paidLabel = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Asia/Almaty",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(paidAt);
+
+  const origin = publicOrigin();
   const text = buildSaleMessage({
     amountKzt: cert.order.amountKzt,
+    faceKzt,
     itemLabel: programName
       ? `Программа «${programName}»`
-      : `Сертификат на сумму ${(cert.amountKzt ?? cert.order.amountKzt).toLocaleString("ru-RU")} ₸`,
+      : `Сертификат на сумму ${faceKzt.toLocaleString("ru-RU")} ₸`,
     salonLine: `${cert.salon.city}, ${cert.salon.address}`,
+    designName:
+      (cert.design.names as { ru?: string } | null)?.ru ?? undefined,
+    fromName: cert.fromName,
     toName: cert.toName,
-    deliveryLine: `Email ${cert.deliveryContact}`,
+    message: cert.message,
+    buyerEmail: cert.order.buyerEmail,
+    // Контакт равен почте покупателя — значит получателя не указывали.
+    recipientEmail:
+      cert.deliveryContact.trim().toLowerCase() ===
+      cert.order.buyerEmail.trim().toLowerCase()
+        ? null
+        : cert.deliveryContact,
+    paid: cert.order.status === "paid",
+    paidLabel,
+    paymentLabel: PAYMENT_LABEL[cert.order.paymentProvider ?? ""],
     serial: cert.serial,
     orderId: cert.orderId,
+    certUrl: `${origin}/ru/success?token=${cert.order.successToken}`,
+    adminUrl: `${origin}/admin/orders/${cert.orderId}`,
     manual: opts.manual,
   });
 
-  const errors = await sendToChannels(cfg, text);
+  // Сам сертификат файлом. Не собрался — уведомление всё равно уходит:
+  // текст менеджеру нужнее, чем вложение.
+  let file: { name: string; content: Buffer } | undefined;
+  try {
+    const { buildCertificatePdf } = await import("./delivery");
+    const built = await buildCertificatePdf(certificateId);
+    if (built) file = { name: built.filename, content: built.pdf };
+  } catch (error) {
+    console.error("notify sale: PDF не собрался", error);
+  }
+
+  const errors = await sendToChannels(cfg, text, file);
   for (const err of errors) console.error(`notify sale failed: ${err}`);
 }

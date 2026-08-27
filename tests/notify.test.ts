@@ -9,8 +9,7 @@ describe("buildSaleMessage", () => {
       itemLabel: "Сертификат на сумму 18 000 ₸",
       salonLine: "Алматы, ул. Розыбакиева 247",
       toName: "Айгерим",
-      deliveryLine: "Email a@b.kz",
-      serial: "WR005",
+        serial: "WR005",
       orderId: "abc123",
     });
     expect(text).toContain("Новая продажа");
@@ -26,7 +25,6 @@ describe("buildSaleMessage", () => {
       itemLabel: "Программа «Sanuk»",
       salonLine: "Астана",
       toName: "Тест",
-      deliveryLine: "WhatsApp +77001234567",
       serial: null,
       orderId: "x",
       manual: true,
@@ -67,5 +65,83 @@ describe("адреса для уведомления о продаже", () => {
     expect(notifyEmails({})).toEqual(["manager@imbir.kz"]);
     expect(notifyEmails({ email: "  " })).toEqual(["manager@imbir.kz"]);
     vi.unstubAllEnvs();
+  });
+});
+
+describe("карточка продажи для менеджера", () => {
+  const base = {
+    amountKzt: 36000,
+    itemLabel: "Программа «Karuna»",
+    salonLine: "Астана, Мәңгілік Ел 29/2",
+    toName: "Галия",
+    serial: "WM9006",
+    orderId: "cmt9abc",
+  };
+
+  it("несёт всё, что нужно менеджеру", () => {
+    const text = buildSaleMessage({
+      ...base,
+      designName: "Улыбок",
+      fromName: "Алия",
+      message: "С днём рождения!",
+      buyerEmail: "aliya@mail.kz",
+      recipientEmail: "galiya@mail.kz",
+      paid: true,
+      paidLabel: "27.08.2026, 10:54",
+      paymentLabel: "Kaspi",
+      certUrl: "https://new.imbir.kz/ru/success?token=abc",
+      adminUrl: "https://new.imbir.kz/admin/orders/cmt9abc",
+    });
+    for (const part of [
+      "36 000 ₸",
+      "✅ Оплачено",
+      "Kaspi",
+      "27.08.2026, 10:54",
+      "WM9006",
+      "Karuna",
+      "Мәңгілік Ел",
+      "Улыбок",
+      "Алия",
+      "Галия",
+      "С днём рождения!",
+      "aliya@mail.kz",
+      "galiya@mail.kz",
+      "cmt9abc",
+      "success?token=abc",
+      "admin/orders",
+    ]) {
+      expect(text, part).toContain(part);
+    }
+  });
+
+  it("отмечает, что получателя не указывали", () => {
+    const text = buildSaleMessage({ ...base, buyerEmail: "a@b.kz" });
+    expect(text).toContain("дарит сам");
+  });
+
+  it("показывает номинал отдельно, когда была скидка", () => {
+    const withPromo = buildSaleMessage({ ...base, amountKzt: 30600, faceKzt: 36000 });
+    expect(withPromo).toContain("30 600 ₸");
+    expect(withPromo).toContain("Номинал сертификата: 36 000 ₸");
+    // Без скидки лишней строки быть не должно.
+    const plain = buildSaleMessage({ ...base, faceKzt: 36000 });
+    expect(plain).not.toContain("Номинал сертификата");
+  });
+
+  it("влезает в подпись Telegram — иначе файл уйдёт без карточки", () => {
+    const text = buildSaleMessage({
+      ...base,
+      designName: "Улыбок",
+      fromName: "Алия",
+      message: "x".repeat(120),
+      buyerEmail: "aliya@mail.kz",
+      recipientEmail: "galiya@mail.kz",
+      paid: true,
+      paidLabel: "27.08.2026, 10:54",
+      paymentLabel: "Банковская карта",
+      certUrl: "https://new.imbir.kz/ru/success?token=cmt9qzilo000027pdf0opbgvc",
+      adminUrl: "https://new.imbir.kz/admin/orders/cmt9qzilo000027pdf0opbgvc",
+    });
+    expect(text.length).toBeLessThanOrEqual(1024);
   });
 });
