@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
 const inputCls =
-  "w-full rounded-xl border-[1.5px] border-brand-purple-100 bg-white px-3.5 py-3 text-sm outline-none transition-colors focus:border-brand-gold";
+  "w-full rounded-xl border-[1.5px] border-brand-purple-100 bg-white px-3.5 py-3 text-base outline-none transition-colors focus:border-brand-gold sm:text-sm";
 const labelCls = "mb-1.5 block text-[13px] font-bold";
 
 export function CorporateForm() {

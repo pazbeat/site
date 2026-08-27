@@ -63,12 +63,20 @@ export function ConsentModal({
 
   const decline = onDecline ?? (() => router.push("/"));
 
+  // Низкий экран (телефон в альбомной, ~320-430px) ломал покупку целиком:
+  // окно текста схлопывалось до 33px под 516px текста, чекбокс оставался
+  // заблокированным (он открывается прокруткой текста до конца), а кнопка
+  // «Принимаю» уезжала ниже экрана — прокрутить было нечем, у оверлея не было
+  // overflow, а у body стоит overflow:hidden. Замерено живьём 2026-08-27.
+  // Поэтому: оверлей прокручивается, у окна текста есть нижняя граница
+  // (min-h-32), а на низких экранах снимается потолок высоты панели.
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="consent-title"
-      className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-brand-purple-950/70 p-4 backdrop-blur-sm"
+      className="modal-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-brand-purple-950/70 p-4 backdrop-blur-sm sm:items-center"
     >
       {/* tabIndex/autoFocus: клавиатура должна попадать внутрь окна, а не
           продолжать обход страницы под ним. Escape намеренно не закрывает —
@@ -76,7 +84,7 @@ export function ConsentModal({
       <div
         autoFocus
         tabIndex={-1}
-        className="modal-panel flex max-h-[90dvh] w-full max-w-lg flex-col rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl outline-none sm:p-8"
+        className="modal-panel my-auto flex max-h-[90dvh] w-full max-w-lg flex-col rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl outline-none sm:p-8 [@media(max-height:520px)]:max-h-none [@media(max-height:520px)]:p-4"
       >
         <h2
           id="consent-title"
@@ -89,7 +97,7 @@ export function ConsentModal({
           ref={scrollRef}
           onScroll={handleScroll}
           style={{ WebkitOverflowScrolling: "touch" }}
-          className="min-h-0 max-h-64 flex-1 touch-pan-y overflow-y-auto overscroll-contain rounded-xl border border-brand-purple-100 bg-brand-purple-50/30 p-4 text-sm text-brand-purple-950"
+          className="max-h-64 min-h-32 flex-1 touch-pan-y overflow-y-auto overscroll-contain rounded-xl border border-brand-purple-100 bg-brand-purple-50/30 p-4 text-sm text-brand-purple-950 [@media(max-height:520px)]:max-h-40"
         >
           {html ? (
             <div

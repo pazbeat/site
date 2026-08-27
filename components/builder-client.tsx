@@ -92,8 +92,12 @@ function designThumb(url: string): string {
     : url;
 }
 
+// 16px на телефоне (text-base) — не «покрупнее для красоты», а обязательное:
+// при шрифте меньше 16px iOS Safari сам увеличивает страницу на фокусе поля
+// и обратно не отъезжает, дальше вся форма заполняется на съехавшем экране.
+// С 640px возвращаем прежние 14px.
 const inputCls =
-  "w-full rounded-xl border-[1.5px] border-brand-purple-100 bg-white px-3.5 py-3 text-sm outline-none transition-colors focus:border-brand-gold";
+  "w-full rounded-xl border-[1.5px] border-brand-purple-100 bg-white px-3.5 py-3 text-base outline-none transition-colors focus:border-brand-gold sm:text-sm";
 const labelCls = "mb-1.5 block text-[13px] font-bold";
 const segBtn = (active: boolean) =>
   `flex min-w-[120px] flex-1 flex-col items-center gap-0.5 rounded-2xl border-[1.5px] px-4 py-3.5 text-sm font-bold transition-colors ${
