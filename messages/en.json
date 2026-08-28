@@ -222,6 +222,7 @@
     "s5Card": "Card",
     "s5CardSub": "Visa · MasterCard",
     "s5Pay": "Pay {price}",
+    "s5Agree": "I agree to the <rules>certificate purchase and use rules</rules>, the <offer>public offer</offer> and the <privacy>privacy policy</privacy>, and I have read the <payment>online payment information</payment>.",
     "sumTitle": "Your order",
     "sumTypeNominal": "Gift card amount",
     "sumTypeProgram": "Program",
@@ -354,6 +355,7 @@
     "offer": "Public offer",
     "privacy": "Privacy policy",
     "rules": "Certificate rules",
+    "payment_info": "Online payment information",
     "onlyRu": "This document is available in Russian."
   },
   "Corporate": {

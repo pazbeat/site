@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CertPreview } from "./cert-preview";
+import { Link } from "@/i18n/navigation";
 import { ConsentModal } from "./consent-modal";
 import { optionLabel } from "./program-card";
 import { formatKzt } from "@/lib/format";
@@ -130,8 +131,19 @@ export function BuilderClient({
   const [acceptedNow, setAcceptedNow] = useState(false);
   const consented = acceptedNow;
   // Повторное согласие на шаге оплаты (PRD §5.2 — до оплаты)
-  const [payConsentOpen, setPayConsentOpen] = useState(false);
-  const acceptConsent = () => setAcceptedNow(true);
+  // Согласие перед оплатой — галочкой прямо на шаге, а не всплывающим окном.
+  // Окно перекрывало сводку заказа: человек соглашался, не видя, за что платит,
+  // а на телефоне ещё и перекрывало кнопку. Смысл согласия от этого не меняется:
+  // текст тот же, отметка осознанная, без неё кнопка оплаты не работает.
+  const [payAgreed, setPayAgreed] = useState(false);
+  // Запоминаем момент каждого подтверждения: их два, и второе — перед
+  // деньгами. Время браузерное, доказательное снимет сервер; здесь важен
+  // сам факт и картина «когда человек это делал у себя».
+  const consentAtRef = useRef<{ builder?: string; payment?: string }>({});
+  const acceptConsent = () => {
+    consentAtRef.current.builder = new Date().toISOString();
+    setAcceptedNow(true);
+  };
 
   // --- предвыбор из query ---
   const initialProgram = initialOptionId
@@ -483,6 +495,7 @@ export function BuilderClient({
           provider,
           locale,
           consentAccepted: true,
+          consentSteps: consentAtRef.current,
         }),
       });
       if (response.status === 429) {
@@ -603,18 +616,6 @@ export function BuilderClient({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Повторное согласие перед оплатой */}
-      {payConsentOpen && (
-        <ConsentModal
-          html={consentHtml}
-          onAccept={() => {
-            setPayConsentOpen(false);
-            submit();
-          }}
-          onDecline={() => setPayConsentOpen(false)}
-        />
       )}
 
       <div className="mb-7 flex flex-wrap gap-1.5">
@@ -1154,6 +1155,66 @@ export function BuilderClient({
             </>
           )}
 
+          {step === 4 && (
+            <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-brand-purple-100 bg-brand-purple-50/40 p-4 text-sm text-brand-purple-950">
+              <input
+                type="checkbox"
+                checked={payAgreed}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    consentAtRef.current.payment = new Date().toISOString();
+                  }
+                  setPayAgreed(e.target.checked);
+                }}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-brand-purple"
+              />
+              <span>
+                {t.rich("s5Agree", {
+                  rules: (chunks) => (
+                    <Link
+                      href="/legal/rules"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-gold"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                  offer: (chunks) => (
+                    <Link
+                      href="/legal/offer"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-gold"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                  privacy: (chunks) => (
+                    <Link
+                      href="/legal/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-gold"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                  payment: (chunks) => (
+                    <Link
+                      href="/legal/payment_info"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-gold"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                })}
+              </span>
+            </label>
+          )}
+
           {error && (
             <p className="mt-4 text-sm font-semibold text-brand-red">{error}</p>
           )}
@@ -1177,8 +1238,8 @@ export function BuilderClient({
             ) : (
               <button
                 type="button"
-                disabled={submitting}
-                onClick={() => setPayConsentOpen(true)}
+                disabled={submitting || !payAgreed}
+                onClick={submit}
                 className="bg-gold-gradient rounded-full px-7 py-3 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-50"
               >
                 {t("s5Pay", { price: formatKzt(total) })}

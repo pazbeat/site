@@ -32,6 +32,18 @@ export type ConsentRecord = {
   versions: Record<string, number | null>;
   /** Тип документа → SHA-256 её текста на момент согласия */
   hashes: Record<string, string | null>;
+  /**
+   * Два момента, когда покупатель соглашался: окно перед конструктором и
+   * галочка перед оплатой. Время — ПО ЧАСАМ БРАУЗЕРА, их можно подкрутить,
+   * поэтому доказательное время это `ts` выше, снятое на сервере. Здесь важно
+   * не время, а сам факт: подтверждений было два, и второе — перед деньгами.
+   */
+  steps?: {
+    /** Окно согласия перед входом в конструктор */
+    builder?: string;
+    /** Галочка на шаге оплаты */
+    payment?: string;
+  };
 };
 
 /** Отпечаток правового текста. Тот же алгоритм, что у кода сертификата. */
@@ -48,7 +60,13 @@ export type ShownVersion = { id: number; contentHtmlSanitized: string } | null;
  * приходит параметрами.
  */
 export function composeConsent(
-  input: { ip: string; ua: string; locale: string; now: Date },
+  input: {
+    ip: string;
+    ua: string;
+    locale: string;
+    now: Date;
+    steps?: { builder?: string; payment?: string };
+  },
   shown: Partial<Record<string, ShownVersion>>,
 ): ConsentRecord {
   const versions: Record<string, number | null> = {};
@@ -58,6 +76,10 @@ export function composeConsent(
     versions[type] = version?.id ?? null;
     hashes[type] = version ? hashLegalContent(version.contentHtmlSanitized) : null;
   }
+  const steps = {
+    ...(input.steps?.builder ? { builder: input.steps.builder } : {}),
+    ...(input.steps?.payment ? { payment: input.steps.payment } : {}),
+  };
   return {
     ts: input.now.toISOString(),
     ip: input.ip,
@@ -65,6 +87,7 @@ export function composeConsent(
     locale: input.locale,
     versions,
     hashes,
+    ...(Object.keys(steps).length > 0 ? { steps } : {}),
   };
 }
 
@@ -72,6 +95,7 @@ export async function buildConsentRecord(input: {
   ip: string;
   ua: string;
   locale: string;
+  steps?: { builder?: string; payment?: string };
 }): Promise<ConsentRecord> {
   const shown = await getLegalVersionsForLocale(input.locale);
   return composeConsent({ ...input, now: new Date() }, shown);

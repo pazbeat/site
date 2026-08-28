@@ -54,6 +54,15 @@ export const orderSchema = z
     locale: z.enum(["ru", "kk", "en"]).default("ru"),
     /// Без явного согласия заказ не создаётся (PRD §5.2)
     consentAccepted: z.literal(true),
+    /// Моменты обоих подтверждений по часам браузера: окно перед
+    /// конструктором и галочка перед оплатой. Доказательное время снимает
+    /// сервер, эти — для картины «когда человек это делал у себя».
+    consentSteps: z
+      .object({
+        builder: z.iso.datetime().optional(),
+        payment: z.iso.datetime().optional(),
+      })
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.item.type === "nominal") {

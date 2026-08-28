@@ -8,6 +8,7 @@ const TYPE_LABEL: Record<string, string> = {
   offer: "Публичная оферта",
   privacy: "Политика конфиденциальности",
   rules: "Правила использования",
+  payment_info: "Информация по онлайн платежу",
 };
 
 /** Последняя редакция на данном языке — так же её выбирает и публичная часть. */
@@ -40,7 +41,7 @@ export default async function AdminLegalPage() {
         последняя версия. HTML санитизируется на сервере.
       </p>
       <div className="space-y-4">
-        {(["consent_modal", "offer", "privacy", "rules"] as const).map((type) => {
+        {(["consent_modal", "offer", "privacy", "rules", "payment_info"] as const).map((type) => {
           const doc = byType.get(type);
           return (
             <LegalEditor

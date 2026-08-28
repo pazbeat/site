@@ -24,12 +24,15 @@ const prisma = new PrismaClient({ adapter });
 const DOCS: Array<{
   /** null → все языки (включая RU) из prisma/legal/{type}.{lang}.html */
   docx: string | null;
-  type: "offer" | "privacy" | "rules" | "consent_modal";
+  type: "offer" | "privacy" | "rules" | "consent_modal" | "payment_info";
 }> = [
   { docx: "oferta.docx", type: "offer" },
   { docx: "privacy_policy.docx", type: "privacy" },
   { docx: "rules.docx", type: "rules" },
   { docx: null, type: "consent_modal" },
+  // Пока только русский: перевода на kk/en заказчик не давал, страница
+  // отдаёт русский текст с пометкой «доступен на русском языке».
+  { docx: null, type: "payment_info" },
 ];
 const LANGS = ["ru", "kk", "en"] as const;
 

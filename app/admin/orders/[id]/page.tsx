@@ -63,6 +63,7 @@ export default async function AdminOrderPage({
     ua?: string;
     locale?: string;
     ts?: string;
+    steps?: { builder?: string; payment?: string };
   };
   // Тексты редакций, на которые сослалось согласие: без них запись «offer:13»
   // ничего не доказывает — нужно уметь показать, ЧТО именно человек принял.
@@ -149,6 +150,25 @@ export default async function AdminOrderPage({
             <Row label="Язык документов" value={consent.locale ?? "—"} />
             <Row label="Браузер (User-Agent)" value={consent.ua ?? "—"} />
           </dl>
+
+          <h3 className="mt-4 mb-2 text-xs font-bold tracking-wider text-brand-purple-600 uppercase">
+            Где ставилась галочка
+          </h3>
+          <dl className="text-sm">
+            <Row
+              label="Окно перед конструктором"
+              value={consent.steps?.builder ?? "—"}
+            />
+            <Row
+              label="Галочка на шаге оплаты"
+              value={consent.steps?.payment ?? "—"}
+            />
+          </dl>
+          <p className="mt-1.5 text-xs text-brand-purple-950/55">
+            Эти два времени — по часам браузера покупателя, их можно
+            подкрутить. Доказательное время выше: его снял сервер. Здесь важно
+            другое — подтверждений было два, и второе он дал перед оплатой.
+          </p>
 
           <h3 className="mt-4 mb-2 text-xs font-bold tracking-wider text-brand-purple-600 uppercase">
             Принятые редакции

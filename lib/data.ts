@@ -80,6 +80,7 @@ export const LEGAL_DOC_TYPES = [
   "privacy",
   "rules",
   "consent_modal",
+  "payment_info",
 ] as const satisfies readonly LegalDocType[];
 
 /**

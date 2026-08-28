@@ -57,11 +57,12 @@ describe("запись согласия", () => {
     );
   });
 
-  it("перечисляет все четыре документа, даже если какой-то не нашёлся", () => {
+  it("перечисляет все документы, даже если какой-то не нашёлся", () => {
     const record = composeConsent(base, { ...shown, rules: null });
     expect(Object.keys(record.versions).sort()).toEqual([
       "consent_modal",
       "offer",
+      "payment_info",
       "privacy",
       "rules",
     ]);
@@ -73,5 +74,51 @@ describe("запись согласия", () => {
     const record = composeConsent({ ...base, locale: "ru" }, shown);
     expect(record.locale).toBe("ru");
     expect(record.versions.offer).toBe(14);
+  });
+});
+
+describe("два момента согласия", () => {
+  const shown = {
+    offer: { id: 1, contentHtmlSanitized: "<p>оферта</p>" },
+    privacy: { id: 2, contentHtmlSanitized: "<p>политика</p>" },
+    rules: { id: 3, contentHtmlSanitized: "<p>правила</p>" },
+    consent_modal: { id: 4, contentHtmlSanitized: "<p>модалка</p>" },
+    payment_info: { id: 5, contentHtmlSanitized: "<p>оплата</p>" },
+  };
+  const base = {
+    ip: "1.2.3.4",
+    ua: "Mozilla/5.0",
+    locale: "ru",
+    now: new Date("2026-08-28T10:00:00.000Z"),
+  };
+
+  it("записывает оба подтверждения — окно и галочку перед оплатой", () => {
+    const rec = composeConsent(
+      {
+        ...base,
+        steps: {
+          builder: "2026-08-28T09:50:00.000Z",
+          payment: "2026-08-28T09:58:00.000Z",
+        },
+      },
+      shown,
+    );
+    expect(rec.steps?.builder).toBe("2026-08-28T09:50:00.000Z");
+    expect(rec.steps?.payment).toBe("2026-08-28T09:58:00.000Z");
+    // Доказательное время — серверное, а не браузерное.
+    expect(rec.ts).toBe("2026-08-28T10:00:00.000Z");
+  });
+
+  it("новый документ об оплате попадает в согласие наравне с остальными", () => {
+    const rec = composeConsent(base, shown);
+    expect(rec.versions.payment_info).toBe(5);
+    expect(rec.hashes.payment_info).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("без подтверждений поле steps не выдумывается", () => {
+    const rec = composeConsent(base, shown);
+    expect(rec.steps).toBeUndefined();
+    const half = composeConsent({ ...base, steps: { payment: undefined } }, shown);
+    expect(half.steps).toBeUndefined();
   });
 });

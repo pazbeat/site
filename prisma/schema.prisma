@@ -71,6 +71,8 @@ enum LegalDocType {
   privacy
   rules
   consent_modal
+  /// Информация по онлайн платежу — требование эквайринга ForteBank
+  payment_info
 }
 
 enum PromoKind {

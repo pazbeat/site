@@ -4,7 +4,7 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
 import { getLegalVersionForLocale } from "@/lib/data";
 
-const TYPES = ["offer", "privacy", "rules"] as const;
+const TYPES = ["offer", "privacy", "rules", "payment_info"] as const;
 type LegalType = (typeof TYPES)[number];
 
 function isLegalType(value: string): value is LegalType {

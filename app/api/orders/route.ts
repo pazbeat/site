@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
     ip,
     ua: request.headers.get("user-agent") ?? "",
     locale: input.locale,
+    steps: input.consentSteps,
   });
 
   // Группа A/B-теста цен, в которой покупатель видел номиналы (PRD §10)
