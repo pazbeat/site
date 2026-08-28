@@ -6,7 +6,10 @@ import { savePromoAction, togglePromoActiveAction } from "./actions";
 import { prisma } from "@/lib/db";
 import { formatKzt } from "@/lib/format";
 import { promoState, type PromoLimits, type PromoState } from "@/lib/promo";
-import { Link } from "@/i18n/navigation";
+// Именно next/link, а не Link из @/i18n/navigation: админка живёт вне
+// сегмента [locale], контекста локали там нет, и ссылка next-intl роняет
+// страницу целиком (поймано на боевом сервере 2026-08-28).
+import Link from "next/link";
 
 const STATE_LABEL: Record<PromoState, string> = {
   active: "Активен",
