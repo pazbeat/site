@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkPromoLimits,
   computeDiscount,
+  promoState,
   normalizePromoCode,
   type PromoLimits,
 } from "@/lib/promo";
@@ -78,5 +79,41 @@ describe("checkPromoLimits", () => {
     expect(
       checkPromoLimits(limits, { amountKzt: 20_000, now, usedCount: 5 }),
     ).toBeNull();
+  });
+});
+
+describe("состояние промокода в админке", () => {
+  const now = new Date("2026-08-28T12:00:00Z");
+  const state = (
+    limits: Record<string, unknown>,
+    used: number,
+    active = true,
+  ) => promoState({ active, limits }, used, now);
+
+  it("исчерпанный не показывается активным — это и была жалоба", () => {
+    // Лимит 1, покупка сделана: конструктор уже отказывает, значит и
+    // админка обязана показывать «Исчерпан», а не «Активен».
+    expect(state({ maxUses: 1 }, 1)).toBe("exhausted");
+    expect(state({ maxUses: 1 }, 0)).toBe("active");
+    expect(state({ maxUses: 3 }, 2)).toBe("active");
+    expect(state({ maxUses: 3 }, 3)).toBe("exhausted");
+  });
+
+  it("различает срок действия", () => {
+    expect(state({ validFrom: "2026-09-01T00:00:00Z" }, 0)).toBe("not_started");
+    expect(state({ validUntil: "2026-08-01T00:00:00Z" }, 0)).toBe("expired");
+    expect(state({ validUntil: "2026-12-31T00:00:00Z" }, 0)).toBe("active");
+  });
+
+  it("ручное выключение сильнее остального", () => {
+    expect(state({ maxUses: 5 }, 0, false)).toBe("hidden");
+  });
+
+  it("минимальная сумма на статус не влияет — она про заказ, а не про код", () => {
+    expect(state({ minAmountKzt: 50000 }, 0)).toBe("active");
+  });
+
+  it("без ограничений код активен всегда", () => {
+    expect(state({}, 100)).toBe("active");
   });
 });

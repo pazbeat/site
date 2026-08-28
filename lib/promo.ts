@@ -82,6 +82,40 @@ export function checkPromoLimits(
 }
 
 /**
+ * Состояние промокода для админки. Считается ТЕМИ ЖЕ правилами, что и
+ * проверка при оплате (checkPromoLimits) — иначе список показывал бы
+ * «Активен» у кода, который покупателю уже отказывает. Ровно это и было:
+ * лимит исчерпан, конструктор пишет «недействителен», а в админке зелено.
+ *
+ * `active` — ручной выключатель менеджера, он сильнее остального.
+ */
+export type PromoState =
+  | "hidden"
+  | "not_started"
+  | "expired"
+  | "exhausted"
+  | "active";
+
+export function promoState(
+  promo: { active: boolean; limits: PromoLimits },
+  usedCount: number,
+  now: Date = new Date(),
+): PromoState {
+  if (!promo.active) return "hidden";
+  // Сумму заказа тут не проверяем: минимальная сумма — свойство конкретной
+  // покупки, а не самого кода, и «активен» от неё не зависит.
+  const error = checkPromoLimits(promo.limits, {
+    amountKzt: Number.MAX_SAFE_INTEGER,
+    now,
+    usedCount,
+  });
+  if (error === "not_started") return "not_started";
+  if (error === "expired") return "expired";
+  if (error === "max_uses") return "exhausted";
+  return "active";
+}
+
+/**
  * Полная серверная проверка промокода для суммы заказа. Считает уже
  * использованные применения как число ОПЛАЧЕННЫХ заказов с этим промо.
  */

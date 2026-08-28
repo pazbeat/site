@@ -145,3 +145,48 @@ describe("карточка продажи для менеджера", () => {
     expect(text.length).toBeLessThanOrEqual(1024);
   });
 });
+
+describe("скидка в уведомлении о продаже", () => {
+  const base = {
+    itemLabel: "Сертификат на сумму 100 ₸",
+    salonLine: "Астана, Мәңгілік Ел 29/2",
+    toName: "Тест",
+    serial: "WM9007",
+    orderId: "cmt9abc",
+  };
+
+  it("называет промокод и его размер, а не просто «со скидкой»", () => {
+    const text = buildSaleMessage({
+      ...base,
+      amountKzt: 70,
+      faceKzt: 100,
+      promo: { code: "ZHADINA", kind: "percent", value: 30 },
+    });
+    expect(text).toContain("Номинал сертификата: 100 ₸");
+    expect(text).toContain("Скидка: промокод ZHADINA (30%) — −30 ₸");
+    // Прежняя формулировка не отвечала на вопрос «по какому коду».
+    expect(text).not.toContain("(со скидкой)");
+  });
+
+  it("для скидки фиксированной суммой показывает сумму", () => {
+    const text = buildSaleMessage({
+      ...base,
+      amountKzt: 31000,
+      faceKzt: 36000,
+      promo: { code: "VESNA", kind: "fixed", value: 5000 },
+    });
+    expect(text).toContain("Скидка: промокод VESNA (5 000 ₸) — −5 000 ₸");
+  });
+
+  it("скидка без промокода не выдумывает код", () => {
+    const text = buildSaleMessage({ ...base, amountKzt: 70, faceKzt: 100 });
+    expect(text).toContain("Скидка: −30 ₸");
+    expect(text).not.toContain("промокод");
+  });
+
+  it("без скидки строки о ней нет вовсе", () => {
+    const text = buildSaleMessage({ ...base, amountKzt: 100, faceKzt: 100 });
+    expect(text).not.toContain("Скидка");
+    expect(text).not.toContain("Номинал сертификата");
+  });
+});

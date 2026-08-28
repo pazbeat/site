@@ -5,7 +5,24 @@ import { PromoForm, type PromoFormValues } from "@/components/admin/promo-form";
 import { savePromoAction, togglePromoActiveAction } from "./actions";
 import { prisma } from "@/lib/db";
 import { formatKzt } from "@/lib/format";
-import type { PromoLimits } from "@/lib/promo";
+import { promoState, type PromoLimits, type PromoState } from "@/lib/promo";
+import { Link } from "@/i18n/navigation";
+
+const STATE_LABEL: Record<PromoState, string> = {
+  active: "Активен",
+  exhausted: "Исчерпан",
+  expired: "Истёк",
+  not_started: "Ещё не начался",
+  hidden: "Скрыт",
+};
+
+const STATE_STYLE: Record<PromoState, string> = {
+  active: "bg-green-50 text-green-800",
+  exhausted: "bg-brand-purple-50 text-brand-purple-950",
+  expired: "bg-brand-purple-50 text-brand-purple-950",
+  not_started: "bg-brand-gold-100/60 text-brand-gold-700",
+  hidden: "bg-brand-purple-50 text-brand-purple-950/60",
+};
 
 function limitsSummary(limits: PromoLimits): string {
   const parts: string[] = [];
@@ -21,17 +38,40 @@ function limitsSummary(limits: PromoLimits): string {
 export default async function AdminPromosPage() {
   const admin = await requireCatalogEditor();
 
-  const [promos, usage] = await Promise.all([
+  const [promos, usage, orders] = await Promise.all([
     prisma.promo.findMany({ orderBy: { id: "desc" } }),
     prisma.order.groupBy({
       by: ["promoId"],
       where: { status: "paid", promoId: { not: null } },
       _count: { _all: true },
     }),
+    // Заказы, где код применяли: менеджеру нужно видеть не только «сколько»,
+    // но и «кто» — иначе спорную скидку не отследить. Берём и неоплаченные:
+    // в лимит они не идут, но показывают, что кодом пытались воспользоваться.
+    prisma.order.findMany({
+      where: { promoId: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        promoId: true,
+        status: true,
+        amountKzt: true,
+        createdAt: true,
+        buyerEmail: true,
+        certificates: { select: { serial: true } },
+      },
+    }),
   ]);
   const usedBy = new Map(
     usage.map((u) => [u.promoId, u._count._all] as const),
   );
+  const ordersBy = new Map<number, typeof orders>();
+  for (const order of orders) {
+    const list = ordersBy.get(order.promoId!) ?? [];
+    list.push(order);
+    ordersBy.set(order.promoId!, list);
+  }
+  const now = new Date();
 
   return (
     <AdminChrome email={admin.email} role={admin.role} title="Промокоды">
@@ -58,6 +98,12 @@ export default async function AdminPromosPage() {
             {promos.map((p) => {
               const limits = (p.limits ?? {}) as PromoLimits;
               const used = usedBy.get(p.id) ?? 0;
+              const state = promoState(
+                { active: p.active, limits },
+                used,
+                now,
+              );
+              const promoOrders = ordersBy.get(p.id) ?? [];
               const initial: PromoFormValues = {
                 id: p.id,
                 code: p.code,
@@ -85,13 +131,52 @@ export default async function AdminPromosPage() {
                     {limitsSummary(limits)}
                   </td>
                   <td className="px-4 py-3">
-                    {used}
-                    {typeof limits.maxUses === "number"
-                      ? ` / ${limits.maxUses}`
-                      : ""}
+                    <span className="font-semibold">
+                      {used}
+                      {typeof limits.maxUses === "number"
+                        ? ` / ${limits.maxUses}`
+                        : ""}
+                    </span>
+                    {promoOrders.length > 0 && (
+                      <details className="mt-1.5">
+                        <summary className="cursor-pointer text-xs font-semibold text-brand-purple hover:underline">
+                          Заказы ({promoOrders.length})
+                        </summary>
+                        <ul className="mt-2 space-y-1.5 text-xs">
+                          {promoOrders.map((o) => (
+                            <li key={o.id}>
+                              <Link
+                                href={`/admin/orders/${o.id}`}
+                                className="font-semibold text-brand-purple hover:underline"
+                              >
+                                {o.certificates[0]?.serial ?? o.id.slice(-8)}
+                              </Link>{" "}
+                              <span className="text-brand-purple-950/60">
+                                {o.createdAt.toISOString().slice(0, 10)} ·{" "}
+                                {formatKzt(o.amountKzt)} ·{" "}
+                                {o.status === "paid" ? "оплачен" : o.status}
+                              </span>
+                              <br />
+                              <span className="text-brand-purple-950/45">
+                                {o.buyerEmail}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    {p.active ? "Активен" : "Скрыт"}
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATE_STYLE[state]}`}
+                    >
+                      {STATE_LABEL[state]}
+                    </span>
+                    {state === "exhausted" && (
+                      <p className="mt-1.5 text-xs text-brand-purple-950/55">
+                        Лимит выбран — покупателям больше не применяется.
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col items-end gap-2">

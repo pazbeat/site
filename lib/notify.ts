@@ -53,6 +53,8 @@ export type SaleFacts = {
   amountKzt: number;
   /** Номинал сертификата: при промокоде он больше уплаченного. */
   faceKzt?: number;
+  /** Промокод, если применялся: код и размер скидки. */
+  promo?: { code: string; kind: "percent" | "fixed"; value: number };
   itemLabel: string;
   salonLine: string;
   designName?: string;
@@ -90,9 +92,21 @@ export function buildSaleMessage(f: SaleFacts): string {
       .filter(Boolean)
       .join(" · "),
   );
-  // Скидку видно только сопоставлением: оплата меньше номинала.
+  // Скидку видно только сопоставлением сумм — само по себе «(со скидкой)»
+  // не отвечает на вопрос «по какому коду и на сколько».
   if (f.faceKzt && f.faceKzt !== f.amountKzt) {
-    lines.push(`Номинал сертификата: ${money(f.faceKzt)} (со скидкой)`);
+    const off = f.faceKzt - f.amountKzt;
+    lines.push(`Номинал сертификата: ${money(f.faceKzt)}`);
+    const size = f.promo
+      ? f.promo.kind === "percent"
+        ? `${f.promo.value}%`
+        : money(f.promo.value)
+      : null;
+    lines.push(
+      f.promo
+        ? `Скидка: промокод ${f.promo.code} (${size}) — −${money(off)}`
+        : `Скидка: −${money(off)}`,
+    );
   }
   lines.push("");
 
@@ -249,7 +263,7 @@ export async function notifySale(
     where: { id: certificateId },
     include: {
       salon: true,
-      order: true,
+      order: { include: { promo: true } },
       design: true,
       programOption: { include: { program: true } },
     },
@@ -276,6 +290,13 @@ export async function notifySale(
   const text = buildSaleMessage({
     amountKzt: cert.order.amountKzt,
     faceKzt,
+    promo: cert.order.promo
+      ? {
+          code: cert.order.promo.code,
+          kind: cert.order.promo.kind,
+          value: cert.order.promo.value,
+        }
+      : undefined,
     itemLabel: programName
       ? `Программа «${programName}»`
       : `Сертификат на сумму ${faceKzt.toLocaleString("ru-RU")} ₸`,
