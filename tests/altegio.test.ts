@@ -286,3 +286,55 @@ describe("altegio normalizePhone", () => {
     expect(normalizePhone("+7 701 000 00 00")).toBe("77010000000");
   });
 });
+
+describe("комментарий продажи в Altegio: скидка по промокоду", () => {
+  const base = { test: false, serial: "WM9007", orderId: "cmtcncjaa0004" };
+
+  it("объясняет, почему в кассу пришло меньше, чем стоит товар", () => {
+    // В CRM касса показывает 70 ₸, а внутри документа товар за 100 ₸ —
+    // без подписи разницу объяснить нечем.
+    const c = buildCertComment({
+      ...base,
+      promo: {
+        code: "ZHADINA",
+        kind: "percent",
+        value: 30,
+        faceKzt: 100,
+        paidKzt: 70,
+      },
+    });
+    expect(c).toContain("заказ cmtcncjaa0004");
+    expect(c).toContain("промокод ZHADINA −30%");
+    expect(c).toContain("оплачено 70 ₸ из 100 ₸");
+  });
+
+  it("скидку фиксированной суммой пишет суммой", () => {
+    const c = buildCertComment({
+      ...base,
+      promo: {
+        code: "VESNA",
+        kind: "fixed",
+        value: 5000,
+        faceKzt: 36000,
+        paidKzt: 31000,
+      },
+    });
+    expect(c).toContain("промокод VESNA −5 000 ₸");
+    expect(c).toContain("оплачено 31 000 ₸ из 36 000 ₸");
+  });
+
+  it("без промокода комментарий прежний, ничего лишнего", () => {
+    const c = buildCertComment({ ...base, promo: null });
+    expect(c).toBe("Сайт Imbir · WM9007 · заказ cmtcncjaa0004");
+  });
+
+  it("тестовая запись остаётся помеченной", () => {
+    const c = buildCertComment({
+      ...base,
+      test: true,
+      promo: { code: "X", kind: "percent", value: 10, faceKzt: 100, paidKzt: 90 },
+    });
+    expect(c.startsWith("[ТЕСТ] ")).toBe(true);
+    expect(c).toContain("промокод X −10%");
+  });
+});

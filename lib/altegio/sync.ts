@@ -53,10 +53,35 @@ export function buildCertComment(input: {
   test: boolean;
   serial: string | null;
   orderId: string;
+  /**
+   * Скидка по промокоду, если была. Без неё в CRM необъяснимая картина:
+   * в кассу пришло 70 ₸, а внутри документа товар за 100 ₸ — и понять,
+   * почему суммы разошлись, не по чему.
+   */
+  promo?: {
+    code: string;
+    kind: "percent" | "fixed";
+    value: number;
+    faceKzt: number;
+    paidKzt: number;
+  } | null;
 }): string {
   const prefix = input.test ? "[ТЕСТ] " : "";
   const serial = input.serial ? `${input.serial} · ` : "";
-  return `${prefix}Сайт Imbir · ${serial}заказ ${input.orderId}`;
+  const money = (v: number) =>
+    `${v.toLocaleString("ru-RU").replace(/\s/g, " ")} ₸`;
+  const parts = [`${prefix}Сайт Imbir · ${serial}заказ ${input.orderId}`];
+  if (input.promo) {
+    const size =
+      input.promo.kind === "percent"
+        ? `${input.promo.value}%`
+        : money(input.promo.value);
+    parts.push(
+      `промокод ${input.promo.code} −${size}: оплачено ` +
+        `${money(input.promo.paidKzt)} из ${money(input.promo.faceKzt)}`,
+    );
+  }
+  return parts.join(" · ");
 }
 
 /**
@@ -78,7 +103,7 @@ export async function syncCertificateToAltegio(
     where: { id: certificateId },
     include: {
       salon: true,
-      order: true,
+      order: { include: { promo: true } },
       programOption: { include: { program: true } },
     },
   });
@@ -133,6 +158,15 @@ export async function syncCertificateToAltegio(
       test: isAltegioTest(),
       serial: cert.serial,
       orderId: cert.orderId,
+      promo: cert.order.promo
+        ? {
+            code: cert.order.promo.code,
+            kind: cert.order.promo.kind,
+            value: cert.order.promo.value,
+            faceKzt,
+            paidKzt: cert.order.amountKzt,
+          }
+        : null,
     }),
   };
 
@@ -230,6 +264,15 @@ export async function syncCertificateToAltegio(
       test: isAltegioTest(),
       serial: next,
       orderId: cert.orderId,
+      promo: cert.order.promo
+        ? {
+            code: cert.order.promo.code,
+            kind: cert.order.promo.kind,
+            value: cert.order.promo.value,
+            faceKzt,
+            paidKzt: cert.order.amountKzt,
+          }
+        : null,
     });
   }
 
