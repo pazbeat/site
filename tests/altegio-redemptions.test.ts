@@ -171,3 +171,67 @@ describe("журнал: закладка не застревает навсег�
     expect(selectFreshRedemptions(rows, 10).map((r) => r.id)).toEqual([20]);
   });
 });
+
+describe("возврат: сертификат убрали из Altegio", () => {
+  const withdrawn = () =>
+    import("@/lib/altegio/redemptions").then((m) => m.certificateWithdrawn);
+
+  it("пустой список товаров — сертификат убран", async () => {
+    // Так выглядит документ после возврата: строка исчезает, документ
+    // остаётся (сверено на WM9006 против WM9007, 2026-08-28).
+    const fn = await withdrawn();
+    expect(fn({ paid: false, goods_transactions: [] }, "WM9006")).toBe(true);
+  });
+
+  it("строка с нашим номером на месте — возврата нет", async () => {
+    const fn = await withdrawn();
+    expect(
+      fn(
+        { paid: true, goods_transactions: [{ good_special_number: "WM9007" }] },
+        "WM9007",
+      ),
+    ).toBe(false);
+  });
+
+  it("непроведённая продажа сама по себе не возврат", async () => {
+    // В тест-режиме продажу намеренно не проводят: судить по paid значило бы
+    // объявить возвратом каждый тестовый сертификат.
+    const fn = await withdrawn();
+    expect(
+      fn(
+        { paid: false, goods_transactions: [{ good_special_number: "WM9010" }] },
+        "WM9010",
+      ),
+    ).toBe(false);
+  });
+
+  it("строка помечена удалённой — это возврат", async () => {
+    const fn = await withdrawn();
+    expect(
+      fn(
+        {
+          goods_transactions: [
+            { good_special_number: "WM9011", deleted: true },
+          ],
+        },
+        "WM9011",
+      ),
+    ).toBe(true);
+  });
+
+  it("непонятный ответ — молчим, а не гасим чужой сертификат", async () => {
+    const fn = await withdrawn();
+    expect(fn({}, "WM9012")).toBe(false);
+    expect(fn({ paid: true }, "WM9012")).toBe(false);
+  });
+
+  it("чужая строка в документе не спасает наш номер", async () => {
+    const fn = await withdrawn();
+    expect(
+      fn(
+        { goods_transactions: [{ good_special_number: "WM0001" }] },
+        "WM9013",
+      ),
+    ).toBe(true);
+  });
+});

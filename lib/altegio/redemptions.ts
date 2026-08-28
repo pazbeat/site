@@ -3,12 +3,14 @@ import { prisma } from "../db";
 import { decryptSecret } from "../crypto";
 import {
   getSaleDocument,
+  getStorageOperation,
   getVisit,
   isAltegioConfigured,
   listClientCertificates,
   listLoyaltyTransactions,
   readAltegioConfig,
   type LoyaltyTransaction,
+  type StorageOperation,
 } from "./client";
 import { hashCode } from "../certificate-code";
 import { reportFailure } from "../alerts";
@@ -624,6 +626,123 @@ export async function syncRedemptionsFromFeed(
         `строк ${stats.rows}, погашений ${stats.gift}, новых ${stats.fresh}, ` +
         `наших ${stats.ours}, обновлено ${stats.updated} (${stats.redeemedKzt}₸), ` +
         `ошибок ${stats.failed}`,
+    );
+  }
+  return stats;
+}
+
+// ── Возвраты: сертификат убрали из CRM ───────────────────────────────────
+
+/**
+ * Сколько документов продажи проверяем на возврат за прогон. Возвраты редки,
+ * а каждый сертификат стоит одного запроса — торопиться некуда.
+ */
+const MAX_WITHDRAW_CHECKS = 20;
+
+/**
+ * Убран ли наш сертификат из документа продажи.
+ *
+ * Когда бухгалтер оформляет возврат и удаляет сертификат в Altegio, документ
+ * никуда не девается, но ТОВАРНАЯ СТРОКА из него исчезает: сверено живьём
+ * 2026-08-28 — у возвращённого WM9006 `goods_transactions` пуст, а у обычного
+ * WM9007 там строка с его номером.
+ *
+ * Отдельно проверять `paid` нельзя: в тест-режиме продажа намеренно не
+ * проводится, и по этому полю мы объявили бы возвратом каждый тестовый
+ * сертификат. Признак — именно отсутствие строки с нашим номером.
+ *
+ * Чистая — её же проверяют тесты.
+ */
+export function certificateWithdrawn(
+  doc: StorageOperation,
+  number: string,
+): boolean {
+  const rows = doc.goods_transactions;
+  // Поля нет вовсе — судить не о чем: молчим, а не объявляем возврат.
+  if (!Array.isArray(rows)) return false;
+  return !rows.some(
+    (row) => row.good_special_number === number && row.deleted !== true,
+  );
+}
+
+export type WithdrawStats = { checked: number; refunded: number; failed: number };
+
+/**
+ * Ищет сертификаты, которые вернули и убрали из Altegio, и помечает их
+ * возвратом у нас: иначе покупатель видел бы на сайте и в кошельке живой
+ * сертификат, за который ему уже вернули деньги.
+ *
+ * Помечаем только по успешному ответу CRM. Ошибка запроса, пустой ответ или
+ * непонятная форма — повод промолчать, а не гасить чужой сертификат.
+ */
+export async function syncWithdrawnCertificates(): Promise<WithdrawStats> {
+  const stats: WithdrawStats = { checked: 0, refunded: 0, failed: 0 };
+  if (!isAltegioConfigured()) return stats;
+
+  const certs = await prisma.certificate.findMany({
+    where: {
+      status: { in: ["active", "partially_used"] },
+      altegioCertId: { not: null },
+      altegioCompanyId: { not: null },
+    },
+    orderBy: { altegioCheckedAt: { sort: "asc", nulls: "first" } },
+    take: MAX_WITHDRAW_CHECKS,
+  });
+
+  for (const cert of certs) {
+    const number = cert.serial;
+    if (!number) continue;
+    let doc: StorageOperation;
+    try {
+      doc = await getStorageOperation(
+        cert.altegioCompanyId!,
+        Number(cert.altegioCertId),
+      );
+    } catch (error) {
+      stats.failed++;
+      console.error(`[altegio] возвраты: документ ${cert.altegioCertId}`, error);
+      continue;
+    }
+    stats.checked++;
+    await prisma.certificate.update({
+      where: { id: cert.id },
+      data: { altegioCheckedAt: new Date() },
+    });
+    if (!certificateWithdrawn(doc, number)) continue;
+
+    // Сертификат из CRM убран — фиксируем возврат теми же правилами, что и
+    // ручное оформление из админки: баланс в ноль, заказ снимается с оплаты,
+    // когда возвращены все его сертификаты.
+    await prisma.$transaction(async (tx) => {
+      await tx.certificate.update({
+        where: { id: cert.id },
+        data: { status: "refunded", balanceKzt: 0, altegioSyncStatus: "missing" },
+      });
+      const left = await tx.certificate.count({
+        where: { orderId: cert.orderId, status: { not: "refunded" } },
+      });
+      if (left === 0) {
+        await tx.order.update({
+          where: { id: cert.orderId },
+          data: { status: "refunded" },
+        });
+      }
+    });
+    stats.refunded++;
+    // Карта в кошельке обязана погаснуть вместе с сертификатом.
+    await refreshPassesForCertificate(cert.id);
+    void reportFailure(
+      "Сертификат возвращён: убран из Altegio",
+      new Error(`${number} помечен возвратом по данным CRM`),
+      { сертификат: number, документ: cert.altegioCertId ?? "—" },
+    );
+    console.log(`[altegio] ${number}: убран из CRM — помечен возвратом`);
+  }
+
+  if (stats.refunded || stats.failed) {
+    console.log(
+      `[altegio] возвраты: проверено ${stats.checked}, ` +
+        `помечено ${stats.refunded}, ошибок ${stats.failed}`,
     );
   }
   return stats;

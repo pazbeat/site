@@ -197,6 +197,30 @@ export function getVisit(visitId: number): Promise<AltegioVisit> {
   return altegioRequest<AltegioVisit>(`visits/${visitId}`);
 }
 
+export type StorageOperation = {
+  paid?: boolean;
+  storage_id?: number;
+  goods_transactions?: Array<{
+    good_special_number?: string;
+    deleted?: boolean;
+  }>;
+};
+
+/**
+ * Складская операция — тот самый документ продажи, которым мы выпускали
+ * сертификат. Нужен, чтобы заметить возврат: когда бухгалтер оформляет
+ * возврат и убирает сертификат в CRM, документ остаётся, но товарная строка
+ * из него ИСЧЕЗАЕТ (сверено живьём 2026-08-28 на WM9006 против WM9007).
+ */
+export function getStorageOperation(
+  companyId: number,
+  documentId: number,
+): Promise<StorageOperation> {
+  return altegioRequest<StorageOperation>(
+    `storage_operations/operation/${companyId}/${documentId}`,
+  );
+}
+
 export type SaleDocument = {
   state?: {
     loyalty_transactions?: Array<{

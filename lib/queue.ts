@@ -104,10 +104,16 @@ async function createBoss(): Promise<PgBoss> {
     tz: "Asia/Almaty",
   });
   await boss.work(ALTEGIO_REDEMPTIONS, async () => {
-    const { syncRedemptionsFromFeed, syncRedemptionsFromAltegio } =
-      await import("./altegio/redemptions");
+    const {
+      syncRedemptionsFromFeed,
+      syncRedemptionsFromAltegio,
+      syncWithdrawnCertificates,
+    } = await import("./altegio/redemptions");
     await syncRedemptionsFromFeed();
     await syncRedemptionsFromAltegio();
+    // Возвраты: сертификат, убранный из CRM, должен погаснуть и у нас —
+    // иначе покупатель видит живой сертификат, за который ему вернули деньги.
+    await syncWithdrawnCertificates();
   });
 
   // Напоминания об истечении (за 30 и 7 дней) — раз в сутки, 09:00 Almaty.
