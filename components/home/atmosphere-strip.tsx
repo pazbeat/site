@@ -1,7 +1,17 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
-import { prefersReducedMotion } from "@/lib/reduced-motion";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import {
+  prefersReducedMotion,
+  reducedMotionServerSnapshot,
+  subscribeReducedMotion,
+} from "@/lib/reduced-motion";
 
 export type AtmoClip = { src: string; poster: string; caption: string };
 
@@ -21,13 +31,22 @@ export function AtmosphereStrip({
   clips: AtmoClip[];
 }) {
   const stripRef = useRef<HTMLDivElement>(null);
+  const systemReduced = useSyncExternalStore(
+    subscribeReducedMotion,
+    prefersReducedMotion,
+    reducedMotionServerSnapshot,
+  );
+  // Настройку уважаем, но лента не должна выглядеть сломанной: сами ролики
+  // не заводим, а по нажатию на карточку — запускаем. Просьба «меньше
+  // движения» — про неожиданное движение, а не про запрет смотреть.
+  const [userStarted, setUserStarted] = useState(false);
+  const reduced = systemReduced && !userStarted;
 
   useEffect(() => {
     const strip = stripRef.current;
     if (!strip) return;
-    // Просили убрать анимацию — ролики не заводим вовсе, остаётся постер.
     // Правило в CSS сюда не достаёт: воспроизведение начинается из скрипта.
-    if (prefersReducedMotion()) {
+    if (reduced) {
       strip.querySelectorAll("video").forEach((v) => v.pause());
       return;
     }
@@ -43,7 +62,7 @@ export function AtmosphereStrip({
     );
     strip.querySelectorAll("video").forEach((v) => io.observe(v));
     return () => io.disconnect();
-  }, [clips]);
+  }, [clips, reduced]);
 
   function scrollBy(dir: 1 | -1) {
     stripRef.current?.scrollBy({ left: dir * 322, behavior: "smooth" });
@@ -68,7 +87,17 @@ export function AtmosphereStrip({
 
       <div ref={stripRef} className="atmo-strip">
         {clips.map((clip) => (
-          <figure key={clip.src} className="acard">
+          <figure
+            key={clip.src}
+            className="acard"
+            onClick={reduced ? () => setUserStarted(true) : undefined}
+            title={
+              reduced
+                ? "В системе включено «меньше движения» — нажмите, чтобы запустить"
+                : undefined
+            }
+            style={reduced ? { cursor: "pointer" } : undefined}
+          >
             <video src={clip.src} poster={clip.poster} muted loop playsInline preload="none" />
             <figcaption>{clip.caption}</figcaption>
           </figure>

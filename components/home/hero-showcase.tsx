@@ -49,11 +49,16 @@ export function HeroShowcase({
   // Человек мог попросить систему убрать анимацию — тогда никакого
   // самозапуска и никакой автосмены слайдов: показываем постер. Это
   // требование ТЗ, и правилом в CSS его не закрыть — видео стартует отсюда.
-  const reduced = useSyncExternalStore(
+  const systemReduced = useSyncExternalStore(
     subscribeReducedMotion,
     prefersReducedMotion,
     reducedMotionServerSnapshot,
   );
+  // Настройку уважаем, но не превращаем первый экран в мёртвую картинку:
+  // ролики не запускаются сами, а по кнопке — пожалуйста. Просьба «меньше
+  // движения» — это про неожиданное движение, а не про запрет смотреть.
+  const [userStarted, setUserStarted] = useState(false);
+  const reduced = systemReduced && !userStarted;
 
   const hasSound = slides[current]?.sound ?? false;
 
@@ -136,6 +141,21 @@ export function HeroShowcase({
             />
           </div>
         ))}
+
+        {reduced && (
+          <button
+            type="button"
+            className="sound-btn"
+            style={{ right: "auto", left: 16 }}
+            onClick={() => setUserStarted(true)}
+            aria-label="Включить видео"
+            title="В системе включено «меньше движения» — ролики не запускаются сами"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden>
+              <path d="M8 5v14l11-7z" fill="currentColor" />
+            </svg>
+          </button>
+        )}
 
         {hasSound && (
           <button type="button" className="sound-btn" onClick={toggleSound}>
