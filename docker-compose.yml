@@ -65,6 +65,13 @@ services:
       FORTE_PASSWORD: ${FORTE_PASSWORD:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
       RUN_SEED: ${RUN_SEED:-0}
+      # Тот же том, что у сервиса backup: страница /admin/backup показывает
+      # ночные копии и кладёт туда же свои. Без этого приложение писало в
+      # каталог образа и падало на правах (EACCES /app/backups) — страница
+      # бэкапов не открывалась вовсе.
+      BACKUP_DIR: /backups
+    volumes:
+      - backups:/backups
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
@@ -98,7 +105,11 @@ services:
       - backups:/backups
     # Раз в сутки: бэкап снимается при старте контейнера и дальше каждые 24 часа.
     # Это не расписание по часам — момент задаёт последний перезапуск стенда.
-    entrypoint: ["sh", "-c", "while true; do sh /opt/imbir-scripts/backup-db.sh; sleep 86400; done"]
+    # chown при старте: том создаётся от root, а приложение работает под uid
+    # 1001 и иначе не может записать туда копию из админки. Этот контейнер
+    # root — он и выставляет права, чтобы на чистой установке ничего не
+    # приходилось чинить руками.
+    entrypoint: ["sh", "-c", "mkdir -p /backups && chown 1001:1001 /backups; while true; do sh /opt/imbir-scripts/backup-db.sh; sleep 86400; done"]
 
 volumes:
   pgdata:

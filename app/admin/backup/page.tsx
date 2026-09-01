@@ -10,6 +10,7 @@ export default async function AdminBackupPage() {
     sizeMb: (b.sizeBytes / 1024 / 1024).toFixed(2),
     createdAt: b.createdAt.toISOString().slice(0, 16).replace("T", " "),
     hasUploads: b.hasUploads,
+    kind: b.kind,
   }));
 
   return (

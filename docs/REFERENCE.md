@@ -148,6 +148,15 @@ npm run dev
 zcat imbir-*.sql.gz | docker exec -i imbir-pg psql -U imbir -d imbir
 ```
 
+**Восстановление ночной копии на сервере.** В админке у таких копий кнопки
+восстановления нет намеренно: `.sql.gz` — обычный SQL без DROP-команд,
+накат поверх живой базы кончится ошибками на каждой таблице. Правильный
+порядок — снять свежую копию, очистить схему, залить дамп:
+
+```bash
+ssh -i ~/.ssh/imbir_deploy root@185.129.51.231 "cd /root/site && docker compose exec -T db psql -U imbir -d imbir -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && docker compose exec -T backup sh -c 'zcat /backups/imbir-ГГГГММДД-ЧЧММСС.sql.gz' | docker compose exec -T db psql -U imbir -d imbir"
+```
+
 ### Что НЕ переносится автоматически
 
 **Переписка с Claude Code хранится локально**, на серверы не уезжает. Файлы

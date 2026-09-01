@@ -15,6 +15,8 @@ type Row = {
   sizeMb: string;
   createdAt: string;
   hasUploads: boolean;
+  /** panel — снята здесь кнопкой; nightly — ночная копия по расписанию. */
+  kind: "panel" | "nightly";
 };
 
 export function BackupPanel({ backups }: Readonly<{ backups: Row[] }>) {
@@ -48,6 +50,7 @@ export function BackupPanel({ backups }: Readonly<{ backups: Row[] }>) {
           <thead>
             <tr className="border-b border-brand-purple-100 text-left text-xs text-brand-purple-950/55 uppercase">
               <th className="px-4 py-3 font-semibold">Бэкап</th>
+              <th className="px-4 py-3 font-semibold">Откуда</th>
               <th className="px-4 py-3 font-semibold">Создан</th>
               <th className="px-4 py-3 font-semibold">Размер</th>
               <th className="px-4 py-3 font-semibold">Фото</th>
@@ -57,7 +60,7 @@ export function BackupPanel({ backups }: Readonly<{ backups: Row[] }>) {
           <tbody>
             {backups.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-brand-purple-950/55">
+                <td colSpan={6} className="px-4 py-6 text-center text-brand-purple-950/55">
                   Бэкапов пока нет.
                 </td>
               </tr>
@@ -65,6 +68,9 @@ export function BackupPanel({ backups }: Readonly<{ backups: Row[] }>) {
             {backups.map((b) => (
               <tr key={b.name} className="border-b border-brand-purple-100/60 last:border-0">
                 <td className="px-4 py-3 font-medium whitespace-nowrap">{b.name}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-brand-purple-950/70">
+                  {b.kind === "nightly" ? "По расписанию" : "Из админки"}
+                </td>
                 <td className="px-4 py-3 whitespace-nowrap">{b.createdAt}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{b.sizeMb} МБ</td>
                 <td className="px-4 py-3">{b.hasUploads ? "✓" : "—"}</td>
@@ -76,34 +82,41 @@ export function BackupPanel({ backups }: Readonly<{ backups: Row[] }>) {
                     >
                       Скачать
                     </a>
-                    <ConfirmButton
-                      label="Восстановить"
-                      title={`Восстановить базу из ${b.name}?`}
-                      body="Текущие данные будут ЗАМЕНЕНЫ состоянием на момент бэкапа: заказы и сертификаты, созданные позже, исчезнут. Действие необратимо — сначала создайте свежий бэкап."
-                      confirmLabel="Да, восстановить"
-                      danger
-                      disabled={pending}
-                      className="rounded-full border-[1.5px] border-brand-red px-4 py-1.5 text-xs font-bold text-brand-red hover:bg-brand-red/5"
-                      onConfirm={() => {
-                        const fd = new FormData();
-                        fd.set("name", b.name);
-                        run(() => restoreBackupAction(fd));
-                      }}
-                    />
-                    <ConfirmButton
-                      label="Удалить"
-                      title={`Удалить бэкап ${b.name}?`}
-                      body="Файл бэкапа будет удалён с сервера безвозвратно."
-                      confirmLabel="Удалить"
-                      danger
-                      disabled={pending}
-                      className="rounded-full border-[1.5px] border-brand-purple-100 px-4 py-1.5 text-xs font-bold text-brand-purple-950/60 hover:border-brand-red hover:text-brand-red"
-                      onConfirm={() => {
-                        const fd = new FormData();
-                        fd.set("name", b.name);
-                        run(() => deleteBackupAction(fd));
-                      }}
-                    />
+                    {/* Восстановление и удаление — только для копий, снятых
+                        здесь: ночная лежит в другом формате, а удалять её
+                        руками незачем, она ротируется сама. */}
+                    {b.kind === "panel" && (
+                      <>
+                        <ConfirmButton
+                          label="Восстановить"
+                          title={`Восстановить базу из ${b.name}?`}
+                          body="Текущие данные будут ЗАМЕНЕНЫ состоянием на момент бэкапа: заказы и сертификаты, созданные позже, исчезнут. Действие необратимо — сначала создайте свежий бэкап."
+                          confirmLabel="Да, восстановить"
+                          danger
+                          disabled={pending}
+                          className="rounded-full border-[1.5px] border-brand-red px-4 py-1.5 text-xs font-bold text-brand-red hover:bg-brand-red/5"
+                          onConfirm={() => {
+                            const fd = new FormData();
+                            fd.set("name", b.name);
+                            run(() => restoreBackupAction(fd));
+                          }}
+                        />
+                        <ConfirmButton
+                          label="Удалить"
+                          title={`Удалить бэкап ${b.name}?`}
+                          body="Файл бэкапа будет удалён с сервера безвозвратно."
+                          confirmLabel="Удалить"
+                          danger
+                          disabled={pending}
+                          className="rounded-full border-[1.5px] border-brand-purple-100 px-4 py-1.5 text-xs font-bold text-brand-purple-950/60 hover:border-brand-red hover:text-brand-red"
+                          onConfirm={() => {
+                            const fd = new FormData();
+                            fd.set("name", b.name);
+                            run(() => deleteBackupAction(fd));
+                          }}
+                        />
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -111,6 +124,14 @@ export function BackupPanel({ backups }: Readonly<{ backups: Row[] }>) {
           </tbody>
         </table>
       </div>
+
+      <p className="mt-4 text-xs leading-relaxed text-brand-purple-950/55">
+        Копии «по расписанию» снимаются автоматически каждые сутки и хранятся
+        90 дней. Их можно скачать; разворачиваются они на сервере командой
+        (см. docs/REFERENCE.md), поэтому кнопок восстановления и удаления у них
+        здесь нет — чтобы случайным нажатием не остаться без единственного
+        запаса.
+      </p>
     </div>
   );
 }

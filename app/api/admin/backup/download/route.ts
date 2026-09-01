@@ -4,7 +4,7 @@ import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { loadActiveAdmin } from "@/lib/admin/guard";
-import { backupFilePath, isValidBackupName } from "@/lib/backup";
+import { resolveBackupFile } from "@/lib/backup";
 
 /**
  * Скачивание файла бэкапа (для хранения копии вне сервера).
@@ -18,21 +18,24 @@ export async function GET(request: Request) {
   }
 
   const name = new URL(request.url).searchParams.get("name") ?? "";
-  if (!isValidBackupName(name)) {
-    return NextResponse.json({ error: "bad_name" }, { status: 400 });
+  // Формат зависит от того, чем копия снята: .dump из админки или .sql.gz
+  // ночным расписанием. Раньше отдавался только .dump — «Скачать» у ночных
+  // копий отвечало 404.
+  const found = await resolveBackupFile(name);
+  if (!found) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const file = backupFilePath(name, "db");
   try {
-    const s = await stat(file);
+    const s = await stat(found.file);
     const stream = Readable.toWeb(
-      createReadStream(file),
+      createReadStream(found.file),
     ) as ReadableStream<Uint8Array>;
     return new NextResponse(stream, {
       headers: {
         "Content-Type": "application/octet-stream",
         "Content-Length": String(s.size),
-        "Content-Disposition": `attachment; filename="${name}.dump"`,
+        "Content-Disposition": `attachment; filename="${found.filename}"`,
         "Cache-Control": "no-store",
       },
     });
