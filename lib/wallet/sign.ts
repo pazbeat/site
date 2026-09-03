@@ -43,8 +43,12 @@ export function createManifestSigner(keys: SigningKeys): ManifestSigner {
         "smime",
         "-sign",
         "-binary",
-        // Без -noattr Apple не принимает подпись: лишние атрибуты ломают проверку
-        "-noattr",
+        // Ключей у подписи ровно столько, сколько в каноническом рецепте Apple.
+        // Здесь стоял ещё `-noattr` с комментарием «иначе Apple не принимает» —
+        // на деле наоборот: без подписанных атрибутов (contentType и
+        // messageDigest) в CMS телефон пропуск отвергает. Проверено живьём
+        // 2026-09-03: iPhone скачивал файл целиком (200, все 30 КБ в логах
+        // nginx) и отвечал «Safari не удалось загрузить файл».
         "-outform",
         "DER",
         "-signer",

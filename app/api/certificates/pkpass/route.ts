@@ -59,7 +59,9 @@ export async function GET(request: Request) {
   return new NextResponse(new Uint8Array(issued.body), {
     headers: {
       "Content-Type": issued.contentType,
-      "Content-Disposition": `attachment; filename="${issued.filename}"`,
+      // Именно inline. С `attachment` Safari уводит файл в «Загрузки» вместо
+      // того, чтобы отдать его Кошельку, и спотыкается на этом.
+      "Content-Disposition": `inline; filename="${issued.filename}"`,
       // Длину указываем явно. Без неё ответ уходит по частям (chunked), и
       // Safari на iPhone отказывается принимать файл: «не удалось загрузить»
       // (поймано живьём 2026-09-03 при первой попытке добавить карту).
