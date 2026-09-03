@@ -46,7 +46,13 @@ export function buildPassContents(input: PackagePassInput): ZipEntry[] {
   for (const locale of PASS_LOCALES) {
     entries.push({
       name: `${locale}.lproj/pass.strings`,
-      data: Buffer.from(buildPassStrings(locale), "utf8"),
+      // UTF-16LE с меткой порядка байтов — так эти файлы пишет сама Apple.
+      // UTF-8 кошелёк местами читает, а местами молча игнорирует, и тогда
+      // на карте вместо «Остаток» стоит служебное слово balance.
+      data: Buffer.concat([
+        Buffer.from([0xff, 0xfe]),
+        Buffer.from(buildPassStrings(locale), "utf16le"),
+      ]),
     });
   }
   for (const image of input.images) {

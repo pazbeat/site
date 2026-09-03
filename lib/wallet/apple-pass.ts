@@ -80,6 +80,16 @@ export type ApplePassConfig = {
   authenticationToken?: string;
 };
 
+/**
+ * Дата в том виде, в каком её ждёт кошелёк: до секунд и с «Z».
+ * `toISOString` добавляет ещё и миллисекунды — формат W3C их допускает,
+ * но проверять на живом телефоне, насколько придирчив разбор, дороже, чем
+ * просто их не писать.
+ */
+function passDate(value: Date): string {
+  return `${value.toISOString().slice(0, 19)}Z`;
+}
+
 export function buildApplePassJson(
   fields: PassFields,
   config: ApplePassConfig,
@@ -97,7 +107,7 @@ export function buildApplePassJson(
     {
       key: "expiryBack",
       label: "expiryDate",
-      value: fields.validUntil.toISOString(),
+      value: passDate(fields.validUntil),
       dateStyle: "PKDateStyleFull",
     },
   ];
@@ -120,7 +130,7 @@ export function buildApplePassJson(
     // Карта сереет и перестаёт открываться кассиру. Удалить её из кошелька
     // программно нельзя — voided единственный способ закрыть.
     voided: fields.voided,
-    expirationDate: fields.validUntil.toISOString(),
+    expirationDate: passDate(fields.validUntil),
     ...(config.webServiceUrl && config.authenticationToken
       ? {
           webServiceURL: config.webServiceUrl,

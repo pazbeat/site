@@ -60,6 +60,10 @@ export async function GET(request: Request) {
     headers: {
       "Content-Type": issued.contentType,
       "Content-Disposition": `attachment; filename="${issued.filename}"`,
+      // Длину указываем явно. Без неё ответ уходит по частям (chunked), и
+      // Safari на iPhone отказывается принимать файл: «не удалось загрузить»
+      // (поймано живьём 2026-09-03 при первой попытке добавить карту).
+      "Content-Length": String(issued.body.length),
       "Cache-Control": "no-store",
     },
   });
