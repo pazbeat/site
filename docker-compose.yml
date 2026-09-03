@@ -72,6 +72,11 @@ services:
       BACKUP_DIR: /backups
     volumes:
       - backups:/backups
+      # Ключи Apple Wallet: сертификат подписи, приватный ключ, промежуточный
+      # WWDR и ключ пушей. В образ они не попадают и в репозитории не лежат —
+      # каталог задаётся APPLE_WALLET_DIR (на сервере /opt/imbir/wallet),
+      # внутрь подключается только на чтение.
+      - ${APPLE_WALLET_DIR:-./secrets/wallet}:/wallet:ro
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
