@@ -14,6 +14,7 @@ function cert(over: Partial<PassSource> = {}): PassSource {
   return {
     code: "WM0042",
     holder: "Айгерим",
+    fromName: "Мадина",
     amountKzt: 20000,
     balanceKzt: 20000,
     status: "active",

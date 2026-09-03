@@ -29,6 +29,7 @@ function source(over: Partial<PassSource> = {}): PassSource {
   return {
     code: "WM0001",
     holder: "Айгуль",
+    fromName: "Мадина",
     amountKzt: 20000,
     balanceKzt: 20000,
     status: "active",
@@ -273,7 +274,8 @@ describe("оформление карты", () => {
     const logo = cls.programLogo as { sourceUri: { uri: string } };
     const hero = cls.heroImage as { sourceUri: { uri: string } };
     expect(logo.sourceUri.uri).toContain("/brand/wallet-logo.png");
-    expect(hero.sourceUri.uri).toContain("/brand/wallet-hero.jpg");
+    // Та же полоса, что и у Apple вверху карты, — один рисунок на оба кошелька
+    expect(hero.sourceUri.uri).toContain("/brand/wallet-strip.png");
   });
 
   it("ссылки на картинки абсолютные — Google забирает их сам", () => {

@@ -39,6 +39,7 @@ export function toPassSource(certificate: LoadedCertificate): PassSource | null 
   return {
     code,
     holder: certificate.toName,
+    fromName: certificate.fromName,
     amountKzt: certificate.type === "program" ? null : certificate.amountKzt,
     balanceKzt: certificate.balanceKzt,
     status: certificate.status,

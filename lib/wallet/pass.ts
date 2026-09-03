@@ -29,6 +29,8 @@ export type PassSource = {
   code: string;
   /** Держатель — кому подарили, поле «to_name» сертификата */
   holder: string;
+  /** Кто подарил, поле «from_name»; пусто — даритель не назвался */
+  fromName: string | null;
   /** Номинал; null — сертификат на программу, а не на сумму */
   amountKzt: number | null;
   balanceKzt: number;
@@ -44,6 +46,8 @@ export type PassFields = {
   /** Крупная строка карты: номинал или название программы */
   headline: string;
   holder: string;
+  /** Кто подарил; null — даритель не назвался. */
+  fromName: string | null;
   code: string;
   balanceKzt: number;
   balanceLabel: string;
@@ -104,6 +108,7 @@ export function buildPassFields(src: PassSource, now: Date = new Date()): PassFi
   return {
     headline: src.amountKzt !== null ? formatKzt(src.amountKzt) : (src.programName ?? "Сертификат"),
     holder: src.holder,
+    fromName: src.fromName?.trim() ? src.fromName.trim() : null,
     code: src.code,
     balanceKzt,
     balanceLabel: formatKzt(balanceKzt),

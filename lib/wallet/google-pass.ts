@@ -23,7 +23,7 @@ const BRAND_PURPLE = "#4D295D";
  * Заодно versioned-адрес обходит отрицательный кэш Cloudflare, если ссылку
  * успели запросить до выкладки файла.
  */
-const IMAGE_VERSION = 1;
+const IMAGE_VERSION = 2;
 
 export type GoogleIds = {
   issuerId: string;
@@ -86,9 +86,11 @@ export function buildGiftCardClass(
       `${base}/brand/wallet-logo.png?v=${IMAGE_VERSION}`,
       "Imbir Thai Spa",
     ),
+    // Та же полоса, что вверху карты Apple: один рисунок на оба кошелька,
+    // чтобы карта у покупателя выглядела одинаково независимо от телефона.
     heroImage: image(
-      `${base}/brand/wallet-hero.jpg?v=${IMAGE_VERSION}`,
-      "Салон Imbir Thai Spa",
+      `${base}/brand/wallet-strip.png?v=${IMAGE_VERSION}`,
+      "Подарочный сертификат Imbir Thai Spa",
     ),
     homepageUri: {
       uri: `${base}/`,
@@ -113,6 +115,9 @@ export function buildTextModules(
 ): Array<Record<string, string>> {
   const modules: Array<Record<string, string>> = [
     { id: "holder", header: "Кому", body: fields.holder },
+    ...(fields.fromName
+      ? [{ id: "fromName", header: "От кого", body: fields.fromName }]
+      : []),
     { id: "salon", header: "Филиал", body: fields.salonName },
     { id: "valid", header: "Действует до", body: fields.validUntilLabel },
   ];

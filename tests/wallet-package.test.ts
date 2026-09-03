@@ -11,6 +11,7 @@ function cert(over: Partial<PassSource> = {}): PassSource {
   return {
     code: "WM0042",
     holder: "Айгерим",
+    fromName: "Мадина",
     amountKzt: 20000,
     balanceKzt: 20000,
     status: "active",
@@ -36,8 +37,28 @@ describe("buildApplePassJson", () => {
     expect(pass.serialNumber).not.toBe("WM0042");
   });
 
+  it("тип карты — storeCard: только у него есть полоса вверху", () => {
+    // Полоса (strip.png) — единственное место, куда помещается оформление;
+    // у прежнего generic такого слота нет вовсе.
+    expect(pass.storeCard).toBeDefined();
+    expect((pass as unknown as Record<string, unknown>).generic).toBeUndefined();
+  });
+
+  it("рядом с «Кому» стоит «От кого», когда даритель назвался", () => {
+    const keys = pass.storeCard.secondaryFields.map((f) => f.key);
+    expect(keys).toEqual(["holder", "fromName"]);
+  });
+
+  it("даритель не назвался — пустой подписи на карте нет", () => {
+    const anon = buildApplePassJson(
+      buildPassFields(cert({ fromName: null }), NOW),
+      config,
+    );
+    expect(anon.storeCard.secondaryFields.map((f) => f.key)).toEqual(["holder"]);
+  });
+
   it("остаток уходит числом с валютой — Apple форматирует сам", () => {
-    const primary = pass.generic.primaryFields[0];
+    const primary = pass.storeCard.primaryFields[0];
     expect(primary.value).toBe(20000);
     expect(primary.currencyCode).toBe("KZT");
   });
@@ -84,13 +105,13 @@ describe("buildApplePassJson", () => {
   it("погашенная карта помечена voided и объясняет причину", () => {
     const voided = buildApplePassJson(buildPassFields(cert({ status: "used" }), NOW), config);
     expect(voided.voided).toBe(true);
-    const back = voided.generic.backFields;
+    const back = voided.storeCard.backFields;
     expect(back[0]).toMatchObject({ key: "status", value: "Погашен" });
   });
 
   it("у действующей карты причины нет", () => {
     expect(pass.voided).toBe(false);
-    const back = pass.generic.backFields;
+    const back = pass.storeCard.backFields;
     expect(back.some((f) => f.key === "status")).toBe(false);
   });
 });

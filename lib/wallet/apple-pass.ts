@@ -57,7 +57,14 @@ export type ApplePassJson = {
   /** `barcodes` понимает современный iOS, `barcode` оставлен для старых */
   barcodes: PassBarcode[];
   barcode: PassBarcode;
-  generic: {
+  /**
+   * Тип карты. `storeCard` вместо прежнего `generic` — только у него есть
+   * полоса вверху (`strip.png`), и он же предназначен для карт с остатком.
+   * Менять тип у уже выпущенной карты нельзя без последствий: установленный
+   * пропуск при обновлении переедет на другой макет. Поэтому переход сделан,
+   * пока продаж нет.
+   */
+  storeCard: {
     primaryFields: PassField[];
     secondaryFields: PassField[];
     auxiliaryFields: PassField[];
@@ -139,7 +146,7 @@ export function buildApplePassJson(
       : {}),
     barcodes: [barcode],
     barcode,
-    generic: {
+    storeCard: {
       primaryFields: [
         {
           key: "balance",
@@ -148,7 +155,14 @@ export function buildApplePassJson(
           currencyCode: "KZT",
         },
       ],
-      secondaryFields: [{ key: "holder", label: "holder", value: fields.holder }],
+      secondaryFields: [
+        { key: "holder", label: "holder", value: fields.holder },
+        // «От кого» — только когда даритель себя назвал: пустая подпись на
+        // карте выглядит как потерянные данные.
+        ...(fields.fromName
+          ? [{ key: "fromName", label: "fromName", value: fields.fromName }]
+          : []),
+      ],
       auxiliaryFields: [
         {
           key: "code",
@@ -175,7 +189,9 @@ export function buildApplePassJson(
 const STRINGS: Record<string, Record<string, string>> = {
   ru: {
     balance: "Остаток",
-    holder: "Держатель",
+    // «Кому», а не «Держатель»: рядом теперь стоит «От кого», и пара читается
+    holder: "Кому",
+    fromName: "От кого",
     code: "Номер",
     expiryDate: "Действителен до",
     salon: "Филиал",
@@ -183,7 +199,8 @@ const STRINGS: Record<string, Record<string, string>> = {
   },
   kk: {
     balance: "Қалдық",
-    holder: "Иесі",
+    holder: "Кімге",
+    fromName: "Кімнен",
     code: "Нөмір",
     expiryDate: "Жарамдылық мерзімі",
     salon: "Филиал",
@@ -191,7 +208,8 @@ const STRINGS: Record<string, Record<string, string>> = {
   },
   en: {
     balance: "Balance",
-    holder: "Holder",
+    holder: "To",
+    fromName: "From",
     code: "Number",
     expiryDate: "Valid until",
     salon: "Location",
