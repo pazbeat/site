@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { loadActiveAdmin } from "@/lib/admin/guard";
 import { prisma } from "@/lib/db";
 import { periodFilter, resolvePeriod } from "@/lib/admin/period";
+import { auditLog } from "@/lib/admin/guard";
 
 /**
  * Выгрузка платежей для сверки с банковской выпиской.
@@ -63,6 +64,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
+  // Выгрузка уносит с сервера почты покупателей и суммы всех продаж за период.
+  // Роль оставляем любой админской (сверять выписку — работа менеджера), но
+  // факт выгрузки записываем: кто, когда и за какой период.
   const url = new URL(request.url);
   const period = resolvePeriod({
     month: url.searchParams.get("month") ?? undefined,
@@ -70,6 +74,13 @@ export async function GET(request: Request) {
     to: url.searchParams.get("to") ?? undefined,
   });
   const paidAt = periodFilter(period);
+  await auditLog({
+    actor: admin.email,
+    action: "export.payments",
+    entity: "export",
+    entityId: period.key,
+    diff: { период: period.label },
+  });
 
   const orders = await prisma.order.findMany({
     where: { status: "paid", ...(paidAt ? { paidAt } : {}) },

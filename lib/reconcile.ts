@@ -36,7 +36,18 @@ const GRACE = {
 };
 
 /** Потолок автоповторов: дальше нужен человек, а не ещё один заход. */
-const MAX_ATTEMPTS = { altegio: 5, delivery: 3 };
+const MAX_ATTEMPTS = { altegio: 5, delivery: 5, repair: 5 };
+
+/**
+ * Насколько старое чиним автоматически.
+ *
+ * Неделя. Провести по кассе продажу месячной давности — значит записать её в
+ * сегодняшнюю смену, и бухгалтер будет искать, откуда взялись деньги. То же с
+ * доставкой: письмо «ваш подарок» через месяц после покупки пугает сильнее,
+ * чем молчание. Всё, что старше, остаётся видимым на экране сверки, но решает
+ * человек.
+ */
+const RETRY_MAX_AGE_MS = 7 * 24 * 60 * 60_000;
 
 /** Сколько строк показываем в сводке по каждому пункту. */
 const DIGEST_LIMIT = 20;
@@ -50,6 +61,15 @@ const DIGEST_LIMIT = 20;
  * ловится сверкой выписки — для этого и сделана выгрузка платежей.
  */
 const REVERSAL_WINDOW_MS = 30 * 24 * 60 * 60_000;
+
+/**
+ * Сколько отмен готовы применить за один проход.
+ *
+ * Три. Настоящие отмены единичны; десяток за сутки означает не всплеск
+ * чарджбэков, а сломавшийся ответ чужого бэкенда — и гасить по нему живые
+ * сертификаты пачкой нельзя. Сверх потолка только зовём людей.
+ */
+const MAX_REVERSALS_PER_RUN = 3;
 
 export type DiscrepancyKind =
   | "paid_without_certificate"
@@ -73,21 +93,26 @@ export type Discrepancy = {
 export async function findPaidWithoutCertificate(
   now: Date = new Date(),
 ): Promise<Discrepancy[]> {
+  const threshold = new Date(now.getTime() - GRACE.certificate);
   const orders = await prisma.order.findMany({
     where: {
       status: "paid",
       certificates: { none: {} },
-      paidAt: { lt: new Date(now.getTime() - GRACE.certificate) },
+      // Колонка `paidAt` появилась только 25.08.2026 и не заполнялась задним
+      // числом: у оплаченных раньше заказов там NULL, и фильтр по одному
+      // `paidAt` их молча не видел — то есть самый старый брак остался бы
+      // невидимым именно для той проверки, которая его ищет.
+      OR: [{ paidAt: { lt: threshold } }, { paidAt: null, createdAt: { lt: threshold } }],
     },
-    select: { id: true, paidAt: true, amountKzt: true, buyerEmail: true },
-    orderBy: { paidAt: "desc" },
+    select: { id: true, paidAt: true, amountKzt: true, buyerEmail: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
     take: 100,
   });
   return orders.map((order) => ({
     kind: "paid_without_certificate" as const,
     id: order.id,
     label: `Заказ ${order.id} · ${order.amountKzt} ₸ · ${order.buyerEmail}`,
-    since: order.paidAt ?? now,
+    since: order.paidAt ?? order.createdAt,
   }));
 }
 
@@ -238,6 +263,15 @@ export async function repairPaidWithoutCertificate(
   const { fulfillOrder } = await import("./certificates");
   let repaired = 0;
   for (const item of broken) {
+    // Потолок попыток. У этого инварианта его не было вовсе: заказ, который
+    // выпустить нельзя по существу (снят с продажи вариант, сломан снапшот),
+    // повторялся бы каждые десять минут вечно. Считаем по журналу — отдельный
+    // счётчик заводить ради этого незачем.
+    const failures = await prisma.paymentEvent.count({
+      where: { orderId: item.id, source: "reconcile", kind: "error" },
+    });
+    if (failures >= MAX_ATTEMPTS.repair) continue;
+
     try {
       const order = await prisma.order.findUnique({
         where: { id: item.id },
@@ -257,6 +291,14 @@ export async function repairPaidWithoutCertificate(
         );
       }
     } catch (error) {
+      // Пишем в журнал: по нему же считается потолок попыток выше.
+      void recordPaymentEvent({
+        orderId: item.id,
+        provider: null,
+        source: "reconcile",
+        kind: "error",
+        note: error instanceof Error ? error.message : String(error),
+      });
       void reportFailure("сверка: не удалось довыпустить сертификат", error, {
         заказ: item.id,
       });
@@ -282,7 +324,15 @@ export async function retryAltegioSync(
     where: {
       altegioSyncStatus: { in: ["pending", "failed"] },
       altegioSyncAttempts: { lt: MAX_ATTEMPTS.altegio },
-      createdAt: { lt: new Date(now.getTime() - GRACE.altegio) },
+      createdAt: {
+        lt: new Date(now.getTime() - GRACE.altegio),
+        // Нижняя граница обязательна. Без неё первое же включение записи в
+        // CRM (или её долгий простой) означало бы, что автоповтор возьмёт
+        // самые СТАРЫЕ сертификаты и проведёт по кассе продажи за прошлые
+        // месяцы — в сегодняшнюю смену. Старое чинит человек, зная контекст;
+        // на экране сверки такие строки всё равно видны.
+        gte: new Date(now.getTime() - RETRY_MAX_AGE_MS),
+      },
       order: { status: "paid" },
     },
     select: { id: true, serial: true, altegioSyncAttempts: true },
@@ -292,6 +342,17 @@ export async function retryAltegioSync(
 
   let ok = 0;
   for (const cert of stuck) {
+    // Попытку считаем ЗДЕСЬ, а не внутри синка. Внутри счётчик растит только
+    // markFailed, а он живёт после трёх ранних выходов (нет филиала в CRM,
+    // запись не сконфигурирована, у сертификата нет кода) — такие сертификаты
+    // навсегда оставались с нулём попыток, вечно стояли в голове очереди и,
+    // набравшись двадцати пяти, вытесняли из неё все настоящие сбои.
+    await prisma.certificate
+      .update({
+        where: { id: cert.id },
+        data: { altegioSyncAttempts: { increment: 1 } },
+      })
+      .catch(() => {});
     try {
       const { syncCertificateToAltegio } = await import("./altegio/sync");
       await syncCertificateToAltegio(cert.id);
@@ -327,7 +388,12 @@ export async function retryStuckDeliveries(
   const stuck = await prisma.certificate.findMany({
     where: {
       sentAt: null,
-      createdAt: { lt: threshold },
+      createdAt: {
+        lt: threshold,
+        // Как и у Altegio: месячной давности подарок отправлять «догоняющим»
+        // письмом нельзя, это разговор с человеком, а не работа cron'а.
+        gte: new Date(now.getTime() - RETRY_MAX_AGE_MS),
+      },
       deliveryAttempts: { lt: MAX_ATTEMPTS.delivery },
       OR: [{ scheduledAt: null }, { scheduledAt: { lt: threshold } }],
       order: { status: "paid" },
@@ -400,21 +466,72 @@ export async function detectReversedPayments(
 
   let found = 0;
   for (const order of orders) {
+    // Потолок на проход. Массовая «отмена» — это почти наверняка не сто
+    // чарджбэков за сутки, а сломавшийся чужой бэкенд. Гасить по такому
+    // сигналу сотню живых сертификатов нельзя: дальше только звать людей.
+    if (found >= MAX_REVERSALS_PER_RUN) {
+      void reportFailure(
+        "Сверка: слишком много отмен за один проход — остановились",
+        new Error(`уже погашено ${found}, дальше только вручную`),
+        { пояснение: "проверьте выписку и доступность банка" },
+      );
+      break;
+    }
     if (!order.paymentId) continue;
     // Ручное подтверждение провайдер не знает — спрашивать про него нечего.
     if (order.paymentId.startsWith("manual:")) continue;
-    let state: string;
+    // Спрашиваем СЫРОЙ статус, а не «paid/failed».
+    //
+    // Общий разбор отвечает на вопрос «оплата состоялась?» и в отказ сводит в
+    // том числе `expired` и `cancelled` — для заказа, который ещё ждёт денег,
+    // это нормально. Но у заказа, который УЖЕ оплачен, «expired» скорее
+    // означает, что запись протухла в чужом хранилище, а не что банк вернул
+    // деньги. Гасить по такому сигналу живой сертификат нельзя.
+    let statusRaw: string;
     try {
-      const { ForteBankProvider } = await import("./payments/forte");
-      state = await new ForteBankProvider().checkStatus(
-        order.paymentId,
-        order.amountKzt,
+      const { checkLegacyForteStatus } = await import(
+        "./payments/forte-legacy"
       );
+      statusRaw = (await checkLegacyForteStatus(order.paymentId)).statusRaw;
     } catch {
       // Недоступный банк — не повод объявлять платёж отменённым.
       continue;
     }
-    if (state !== "failed") continue;
+    const { isReversalStatus } = await import("./payments/forte-legacy");
+    if (!isReversalStatus(statusRaw)) continue;
+
+    // Гасим только по ВТОРОМУ подряд «отменено», а первое просто записываем.
+    //
+    // Действие необратимо: сертификат обнуляется, заказ уходит из выручки,
+    // карта в кошельке гаснет. Ошибиться здесь дороже, чем узнать на сутки
+    // позже: у чужого бэкенда бывают и сбои, и промежуточные состояния,
+    // которые он отдаёт как отказ. Второе подтверждение приходит следующим
+    // суточным проходом — деньги к тому моменту всё равно уже не у нас.
+    const seenBefore = await prisma.paymentEvent.count({
+      where: { orderId: order.id, kind: "failed", source: "reconcile" },
+    });
+    if (seenBefore === 0) {
+      await recordPaymentEvent({
+        orderId: order.id,
+        provider: "forte",
+        source: "reconcile",
+        kind: "failed",
+        externalRef: order.paymentId,
+        amountKzt: order.amountKzt,
+        statusRaw,
+        note: "банк ответил «отменено» — ждём подтверждения следующим проходом",
+      });
+      void reportFailure(
+        "Банк ответил «платёж отменён» — проверьте выписку",
+        new Error(`заказ ${order.id}, ${order.amountKzt} ₸`),
+        {
+          заказ: order.id,
+          пояснение:
+            "сертификат пока не гасим: ждём второго подтверждения через сутки",
+        },
+      );
+      continue;
+    }
 
     found++;
     const spent = order.certificates.filter(

@@ -115,6 +115,12 @@ export async function fulfillOrder(
     // склеенного SQL).
     await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
 
+    const before = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { status: true, _count: { select: { certificates: true } } },
+    });
+    if (!before) return { kind: "not_found" as const };
+
     const claimed = await tx.order.updateMany({
       where: { id: orderId, status: { in: ["pending", "expired"] } },
       // paidAt отдельно от createdAt: вебхуков у Kaspi и Forte нет, статус
@@ -123,17 +129,21 @@ export async function fulfillOrder(
       data: { status: "paid", paymentId: externalPaymentId, paidAt: new Date() },
     });
 
+    // Сертификат у заказа уже есть — второй не выпускаем НИКОГДА, чем бы ни
+    // закончился claim.
+    //
+    // Раньше эта проверка стояла только в ветке «claim не прошёл», и заказ в
+    // состоянии «сертификат есть, а заказ не оплачен» (его же ищет инвариант 2
+    // сверки) при подтверждении оплаты получал ВТОРОЙ сертификат: второй
+    // номер, вторую продажу в Altegio на те же деньги и второе письмо
+    // получателю. Деньги при этом принять надо — заказ выше уже помечен
+    // оплаченным, и это правильно.
+    if (before._count.certificates > 0) return { kind: "already" as const };
+
     let repaired = false;
     if (claimed.count === 0) {
-      const existing = await tx.order.findUnique({
-        where: { id: orderId },
-        select: { status: true, _count: { select: { certificates: true } } },
-      });
-      if (!existing) return { kind: "not_found" as const };
       // cancelled / refunded — выпускать нечего
-      if (existing.status !== "paid") return { kind: "not_payable" as const };
-      // Обычный повторный вызов (второй опрос, повторный вебхук)
-      if (existing._count.certificates > 0) return { kind: "already" as const };
+      if (before.status !== "paid") return { kind: "not_payable" as const };
       // Оплачен, а сертификата нет — тот самый случай, ради которого всё это
       repaired = true;
     }

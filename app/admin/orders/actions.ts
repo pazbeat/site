@@ -388,10 +388,16 @@ export async function resendAction(formData: FormData) {
   });
   if (!cert) return { error: "Сертификат не найден." };
 
-  // Сбрасываем sentAt и ставим доставку заново в очередь
+  // Сбрасываем ВСЕ три отметки и ставим доставку заново в очередь.
+  //
+  // Их стало три (общая + по письму получателю и покупателю), и обнуления
+  // одной sentAt больше не хватает: доставка смотрит на две частные отметки и,
+  // найдя их заполненными, пропускает оба письма и просто ставит sentAt
+  // обратно. Кнопка «отправить повторно» тогда не отправляет ничего, но
+  // выглядит успешной — худший вид поломки.
   await prisma.certificate.update({
     where: { id: cert.id },
-    data: { sentAt: null },
+    data: { sentAt: null, recipientSentAt: null, buyerSentAt: null },
   });
   try {
     const { enqueueDelivery } = await import("@/lib/queue");

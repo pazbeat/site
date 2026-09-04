@@ -322,6 +322,38 @@ export async function deliverCertificate(certificateId: string): Promise<void> {
   }
 }
 
+/**
+ * Занять «половину» доставки перед отправкой: письмо получателю или
+ * покупателю. Возвращает true, если занять удалось и письмо слать нам.
+ *
+ * Отметка ставится ДО отправки одним условным UPDATE — иначе два
+ * одновременных прохода (плановая сверка и нажатая кнопка, очередь и ручной
+ * повтор) читают «ещё не отправлено» каждый и шлют подарок дважды. Проверка
+ * по прочитанному ранее объекту от этого не спасала.
+ *
+ * Плата за атомарность — откат отметки при неудачной отправке (releaseLeg):
+ * иначе упавшее письмо считалось бы отправленным.
+ */
+async function claimLeg(
+  certificateId: string,
+  leg: "recipientSentAt" | "buyerSentAt",
+): Promise<boolean> {
+  const claimed = await prisma.certificate.updateMany({
+    where: { id: certificateId, [leg]: null },
+    data: { [leg]: new Date() },
+  });
+  return claimed.count === 1;
+}
+
+async function releaseLeg(
+  certificateId: string,
+  leg: "recipientSentAt" | "buyerSentAt",
+): Promise<void> {
+  await prisma.certificate
+    .update({ where: { id: certificateId }, data: { [leg]: null } })
+    .catch(() => {});
+}
+
 async function deliverCertificateOnce(certificateId: string): Promise<void> {
   const built = await buildCertificatePdf(certificateId);
   if (!built) {
@@ -364,18 +396,19 @@ async function deliverCertificateOnce(certificateId: string): Promise<void> {
   // доставки. Иначе падение письма покупателю приводило к тому, что повтор
   // присылал ПОЛУЧАТЕЛЮ второй сертификат: подарок приходил дважды, и человек
   // не понимал, один у него сертификат или два.
-  if (!giftingSelf && !certificate.recipientSentAt) {
-    const mail = recipientEmail(mailData);
-    await mailer.send({
-      to: recipient,
-      subject: mail.subject,
-      html: mail.html,
-      attachments: [attachment],
-    });
-    await prisma.certificate.update({
-      where: { id: certificateId },
-      data: { recipientSentAt: new Date() },
-    });
+  if (!giftingSelf && (await claimLeg(certificateId, "recipientSentAt"))) {
+    try {
+      const mail = recipientEmail(mailData);
+      await mailer.send({
+        to: recipient,
+        subject: mail.subject,
+        html: mail.html,
+        attachments: [attachment],
+      });
+    } catch (error) {
+      await releaseLeg(certificateId, "recipientSentAt");
+      throw error;
+    }
   }
 
   // Покупателю — сертификат и товарный чек. Чек best-effort: сбой его
@@ -393,17 +426,18 @@ async function deliverCertificateOnce(certificateId: string): Promise<void> {
   } catch (error) {
     console.error("receipt build failed (non-fatal)", error);
   }
-  if (!certificate.buyerSentAt) {
-    await mailer.send({
-      to: certificate.order.buyerEmail,
-      subject: buyer.subject,
-      html: buyer.html,
-      attachments: buyerAttachments,
-    });
-    await prisma.certificate.update({
-      where: { id: certificateId },
-      data: { buyerSentAt: new Date() },
-    });
+  if (await claimLeg(certificateId, "buyerSentAt")) {
+    try {
+      await mailer.send({
+        to: certificate.order.buyerEmail,
+        subject: buyer.subject,
+        html: buyer.html,
+        attachments: buyerAttachments,
+      });
+    } catch (error) {
+      await releaseLeg(certificateId, "buyerSentAt");
+      throw error;
+    }
   }
 
   // Уведомление о продаже (почта и/или Telegram) шлёт lib/notify из
@@ -415,8 +449,10 @@ async function deliverCertificateOnce(certificateId: string): Promise<void> {
     where: { id: certificateId },
     data: {
       sentAt: new Date(),
-      deliveryAttempts: { increment: 1 },
-      // Прошлая ошибка больше не актуальна: письмо ушло.
+      // Счётчик растёт ТОЛЬКО на неудачах (см. обёртку выше). Считать здесь
+      // тоже — значит расходовать потолок повторов на успешные доставки: с
+      // пятью ретраями очереди сертификат упирался бы в него, ни разу не
+      // получив шанса от сверки.
       deliveryLastError: null,
     },
   });

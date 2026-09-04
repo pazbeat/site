@@ -20,7 +20,14 @@ import { getMailer } from "./mail";
  */
 
 const EMAIL_COOLDOWN_MS = 15 * 60_000;
+const HOUR_MS = 60 * 60_000;
+/**
+ * Ключ → когда последний раз писали. Чистится при разрастании: ключей стало
+ * больше (к виду сбоя добавился заказ), и без уборки карта росла бы всё время
+ * жизни процесса.
+ */
 const lastSent = new Map<string, number>();
+const MAX_KEYS = 5000;
 
 /** Ошибка → короткий текст без стека (стек уходит в Sentry и в лог). */
 function describe(error: unknown): string {
@@ -35,15 +42,48 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;");
 }
 
-/** Прошло ли достаточно времени, чтобы снова писать по этому ключу. */
-export function shouldEmail(
+/**
+ * Прошло ли достаточно времени по этому ключу — БЕЗ отметки.
+ *
+ * Разделение проверки и отметки не формальность: ограничителей два (общий по
+ * виду сбоя и частный по заказу), и если отмечать при первой же удачной
+ * проверке, то письмо, которое не ушло из-за второго ограничителя, всё равно
+ * съедало бы лимит первого — и следующий, уже другой, сбой промолчал бы.
+ */
+export function canEmail(
   key: string,
   now: number,
   cooldownMs: number = EMAIL_COOLDOWN_MS,
 ): boolean {
   const previous = lastSent.get(key);
-  if (previous !== undefined && now - previous < cooldownMs) return false;
+  return previous === undefined || now - previous >= cooldownMs;
+}
+
+/** Отметить, что по этому ключу письмо ушло. */
+export function markEmailed(key: string, now: number): void {
+  if (lastSent.size >= MAX_KEYS) {
+    // Выкидываем всё, что заведомо остыло; если и после этого тесно —
+    // начинаем с чистого листа. Потеря истории здесь стоит лишнего письма,
+    // а не пропущенного.
+    for (const [k, at] of lastSent) {
+      if (now - at >= HOUR_MS) lastSent.delete(k);
+    }
+    if (lastSent.size >= MAX_KEYS) lastSent.clear();
+  }
   lastSent.set(key, now);
+}
+
+/**
+ * Проверка с отметкой — прежнее поведение, одним вызовом.
+ * Оставлено для простых мест, где ограничитель ровно один.
+ */
+export function shouldEmail(
+  key: string,
+  now: number,
+  cooldownMs: number = EMAIL_COOLDOWN_MS,
+): boolean {
+  if (!canEmail(key, now, cooldownMs)) return false;
+  markEmailed(key, now);
   return true;
 }
 
@@ -73,13 +113,23 @@ export async function reportFailure(
 
   const to = process.env.MANAGER_EMAIL?.trim();
   if (!to) return;
-  // Ключ throttle включает объект сбоя, а не только его вид. Иначе десять
-  // разных заказов с одной и той же бедой («сумма не сошлась») схлопывались
-  // в одно письмо, и девять оставались невидимыми — а именно множественность
-  // и отличает случайность от поломки, которую надо чинить немедленно.
+  // Два ограничителя сразу, и оба нужны.
+  //
+  // По виду сбоя — глобальный потолок: упал шлюз, и сотня заказов в одном
+  // проходе не должна превратиться в сотню писем. Это и был исходный замысел.
+  //
+  // По конкретному заказу — чтобы один и тот же заказ, который сверка
+  // безуспешно чинит каждые десять минут, не съедал этот потолок и не прятал
+  // за собой другие беды. Первым проходит общий: если он не пропустил, письма
+  // не будет в любом случае, а список пострадавших заказов всё равно виден на
+  // экране сверки и в суточной сводке.
   const subject = context["заказ"] ?? context["сертификат"] ?? "";
-  const throttleKey = subject ? `${where}:${subject}` : where;
-  if (!shouldEmail(throttleKey, Date.now())) return;
+  const subjectKey = subject ? `${where}:${subject}` : null;
+  const at = Date.now();
+  if (!canEmail(where, at)) return;
+  if (subjectKey && !canEmail(subjectKey, at, HOUR_MS)) return;
+  markEmailed(where, at);
+  if (subjectKey) markEmailed(subjectKey, at);
 
   try {
     const rows = Object.entries(context)

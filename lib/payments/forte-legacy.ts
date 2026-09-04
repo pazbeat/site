@@ -127,7 +127,25 @@ const FAILED = new Set([
 export type LegacyForteStatus = {
   state: "paid" | "pending" | "failed";
   amountKzt: number | null;
+  /** Статус банка как есть — по нему отличают отказ от ОТМЕНЫ уже прошедшей оплаты */
+  statusRaw: string;
 };
+
+/**
+ * Статусы, означающие именно ОТМЕНУ прошедшего платежа.
+ *
+ * Отделены от общего `FAILED` намеренно. Тот набор отвечает на вопрос «эта
+ * оплата не состоялась» и уместен, пока мы ждём денег: `declined`, `expired`,
+ * `cancelled` там нормальны. Но у заказа, который УЖЕ оплачен, «expired»
+ * скорее означает, что запись протухла в чужом хранилище, а не что банк
+ * вернул деньги. Гасить по такому сигналу живой сертификат нельзя.
+ */
+const REVERSED = new Set(["reversed", "refunded", "voided", "chargeback"]);
+
+/** Означает ли статус банка отмену уже прошедшей оплаты. */
+export function isReversalStatus(statusRaw: string): boolean {
+  return REVERSED.has(statusRaw.trim().toLowerCase());
+}
 
 export async function checkLegacyForteStatus(
   forteOrderId: string,
@@ -145,7 +163,7 @@ export async function checkLegacyForteStatus(
   } | null;
 
   if (response.status === 404 || data?.errorCode) {
-    return { state: "pending", amountKzt: null };
+    return { state: "pending", amountKzt: null, statusRaw: "" };
   }
   if (!response.ok || !data?.order) {
     throw new Error(`legacy_forte_status_failed: ${response.status}`);
@@ -168,9 +186,9 @@ export async function checkLegacyForteStatus(
         ),
       );
     }
-    return { state: "paid", amountKzt };
+    return { state: "paid", amountKzt, statusRaw: status };
   }
-  if (FAILED.has(status)) return { state: "failed", amountKzt };
+  if (FAILED.has(status)) return { state: "failed", amountKzt, statusRaw: status };
   if (status !== "preparing" && status !== "pending" && status !== "partiallypaid") {
     void import("../alerts").then(({ reportFailure }) =>
       reportFailure(
@@ -180,5 +198,5 @@ export async function checkLegacyForteStatus(
       ),
     );
   }
-  return { state: "pending", amountKzt };
+  return { state: "pending", amountKzt, statusRaw: status };
 }
