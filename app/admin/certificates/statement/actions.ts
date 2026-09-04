@@ -63,6 +63,7 @@ export async function uploadStatementAction(formData: FormData) {
       сошлось: result.summary.matchedCount,
       "лишних в выписке": result.summary.extraCount,
       "нет в выписке": result.summary.missingCount,
+      возвраты: result.summary.refundCount,
     },
   });
   revalidatePath("/admin/certificates/statement");
@@ -78,6 +79,9 @@ export async function uploadStatementAction(formData: FormData) {
       ? `у нас есть, в выписке нет: ${s.missingCount} на ${money(s.missingKzt)}`
       : null,
     s.mismatchCount > 0 ? `сумма разошлась: ${s.mismatchCount}` : null,
+    s.refundCount > 0
+      ? `возвраты: ${s.refundCount} на ${money(s.refundKzt)}`
+      : null,
   ].filter(Boolean);
 
   return {

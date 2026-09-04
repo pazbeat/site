@@ -4,7 +4,9 @@ import { AdminChrome } from "@/components/admin/chrome";
 import { PeriodPicker } from "@/components/admin/period-picker";
 import { ReportPresets } from "@/components/admin/report-presets";
 import { resolvePeriod } from "@/lib/admin/period";
-import { buildCertificateReport } from "@/lib/admin/certificate-report";
+import { buildCertificateReport, reportRange } from "@/lib/admin/certificate-report";
+import { findStatementDiscrepancies } from "@/lib/admin/statement";
+import { StatementDiscrepancies } from "@/components/admin/statement-discrepancies";
 import { formatKzt } from "@/lib/format";
 
 /**
@@ -37,7 +39,11 @@ export default async function CertificateReportPage({
 
   // Границы «всего времени» сводит к разумным сам отчёт: матрица по дням за
   // все годы была бы нечитаемой.
-  const report = await buildCertificateReport(period.from, period.to);
+  const range = reportRange(period.from, period.to);
+  const [report, diff] = await Promise.all([
+    buildCertificateReport(period.from, period.to),
+    findStatementDiscrepancies(range.from, range.to),
+  ]);
 
   const pick = (cell?: { paidKzt: number; faceKzt: number }) =>
     cell ? (measure === "paid" ? cell.paidKzt : cell.faceKzt) : 0;
@@ -258,6 +264,17 @@ export default async function CertificateReportPage({
           </ul>
         </div>
       )}
+
+      <div className="mt-6">
+        <h2 className="mb-3 text-sm font-bold text-brand-purple">
+          Сходится ли с банком
+        </h2>
+        <StatementDiscrepancies
+          diff={diff}
+          periodLabel={period.label}
+          uploadHref={`/admin/certificates/statement?${query.toString()}`}
+        />
+      </div>
     </AdminChrome>
   );
 }

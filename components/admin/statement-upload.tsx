@@ -43,7 +43,7 @@ export function StatementUpload({
           name="source"
           className="rounded-xl border-[1.5px] border-brand-purple-100 px-3 py-2 text-sm outline-none focus:border-brand-gold"
         >
-          <option value="kaspi">Kaspi</option>
+          <option value="kaspi">Kaspi (QR)</option>
           <option value="forte">ForteBank (карты)</option>
         </select>
       </label>
@@ -55,7 +55,7 @@ export function StatementUpload({
         <input
           type="file"
           name="file"
-          accept=".csv,.xlsx,.xls,text/csv"
+          accept=".csv,.xlsx,.xls,.pdf,text/csv,application/pdf"
           required
           className="rounded-xl border-[1.5px] border-brand-purple-100 px-3 py-2 text-sm file:mr-3 file:rounded-full file:border-0 file:bg-brand-purple-50 file:px-3 file:py-1 file:text-xs file:font-bold"
         />
@@ -70,9 +70,11 @@ export function StatementUpload({
       </button>
 
       <p className="w-full text-xs text-brand-purple-950/55">
-        Подойдёт CSV или Excel как выгружает банк. Колонки с датой, суммой и
-        номером операции находим сами; повторная загрузка за тот же период
-        заменяет прежнюю, а не добавляет строки заново.
+        Файл берём как есть: Kaspi выгружает «Детальную информацию по
+        операциям» в PDF, ForteBank — «Выписку по коммерсанту» в Excel;
+        понимаем и CSV. Колонки с датой, суммой и номером операции находим
+        сами; повторная загрузка за тот же период заменяет прежнюю, а не
+        добавляет строки заново.
       </p>
     </form>
   );

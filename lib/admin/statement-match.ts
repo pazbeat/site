@@ -40,31 +40,63 @@ export type MatchResult = {
   missingInStatement: MatchableOrder[];
   /** Совпал номер, но сумма разошлась — самое подозрительное */
   amountMismatch: { row: StatementRow; order: MatchableOrder }[];
+  /**
+   * Возвраты из выписки и заказы, к которым они относятся.
+   *
+   * По Kaspi это единственный способ узнать об отмене платежа: в ответе
+   * легаси-бэкенда состояния «отменено» нет вовсе, есть только признак
+   * «оплачено». Пока выписку не загрузили, погашённый назад платёж выглядит у
+   * нас как обычная продажа, а сертификат остаётся действующим.
+   */
+  refunds: { row: StatementRow; order: MatchableOrder | null }[];
 };
 
 /** Насколько далеко по времени готовы искать пару. */
 const DAY = 24 * 3_600_000;
 const WINDOW_MS = 3 * DAY;
+/** Возврат приходит заметно позже платежа — ему окно шире. */
+const REFUND_WINDOW_MS = 90 * DAY;
 
-/** Все номера, под которыми заказ мог попасть в выписку. */
+/**
+ * Все номера, под которыми заказ мог попасть в выписку.
+ *
+ * Порог в восемь знаков не случаен: номер ищется вхождением по всей строке
+ * выписки, и короткий «999» нашёлся бы внутри любой суммы или номера карты.
+ */
 function refsOf(order: MatchableOrder): string[] {
   return [order.kaspiRef, order.paymentId, order.id]
-    .filter((v): v is string => !!v && v.length >= 4)
+    .filter((v): v is string => !!v && v.length >= 8)
     .map((v) => v.replace(/^manual:/, ""));
 }
 
-/** Ищет любой из номеров заказа в тексте строки выписки. */
+/**
+ * Ищет любой из номеров заказа в тексте строки выписки.
+ *
+ * Сравниваем и как есть, и без пробелов вовсе: в PDF Kaspi двадцатизначный
+ * номер заказа разорван переносом строки на 13 и 7 цифр, и по ячейке
+ * «1071141051090 3180952» обычное вхождение не срабатывает.
+ */
 function referenceHit(row: StatementRow, order: MatchableOrder): boolean {
   const haystack = [row.reference ?? "", ...Object.values(row.raw)]
     .join(" ")
     .toLowerCase();
-  return refsOf(order).some((ref) => haystack.includes(ref.toLowerCase()));
+  const tight = haystack.replace(/\s+/g, "");
+  return refsOf(order).some((ref) => {
+    const needle = ref.toLowerCase();
+    return haystack.includes(needle) || tight.includes(needle);
+  });
 }
 
 export function matchStatement(
-  rows: StatementRow[],
+  allRows: StatementRow[],
   orders: MatchableOrder[],
 ): MatchResult {
+  // Возврат — не приход. Считать его платежом нельзя дважды: он занял бы
+  // чужой заказ по совпадению суммы, а сам заказ остался бы «не оплаченным по
+  // выписке». Поэтому возвраты уходят в собственный разбор.
+  const rows = allRows.filter((row) => row.kind !== "refund");
+  const refundRows = allRows.filter((row) => row.kind === "refund");
+
   const free = new Set(orders.map((o) => o.id));
   const byId = new Map(orders.map((o) => [o.id, o]));
   const matched: Match[] = [];
@@ -106,11 +138,27 @@ export function matchStatement(
     matched.push({ row, order: candidate, by: "amount_date" });
   }
 
+  // Возврат ищет свой заказ среди ВСЕХ, а не только свободных: платёж по нему
+  // в этой же выписке уже сошёлся, и заказ занят — но возврат относится
+  // именно к нему.
+  const refunds = refundRows.map((row) => {
+    const byReference = orders.find((o) => referenceHit(row, o));
+    if (byReference) return { row, order: byReference };
+    const byAmount = orders.find(
+      (o) =>
+        o.amountKzt === row.amountKzt &&
+        Math.abs(o.paidAt.getTime() - row.operatedAt.getTime()) <=
+          REFUND_WINDOW_MS,
+    );
+    return { row, order: byAmount ?? null };
+  });
+
   return {
     matched,
     extraInStatement,
     missingInStatement: [...free].map((id) => byId.get(id)!).filter(Boolean),
     amountMismatch,
+    refunds,
   };
 }
 
@@ -123,9 +171,13 @@ export function summarize(result: MatchResult): {
   missingCount: number;
   missingKzt: number;
   mismatchCount: number;
+  refundCount: number;
+  refundKzt: number;
 } {
   const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
   return {
+    refundCount: result.refunds.length,
+    refundKzt: sum(result.refunds.map((r) => r.row.amountKzt)),
     matchedCount: result.matched.length,
     matchedKzt: sum(result.matched.map((m) => m.row.amountKzt)),
     extraCount: result.extraInStatement.length,

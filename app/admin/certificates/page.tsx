@@ -104,18 +104,18 @@ export default async function AdminCertificatesPage({
   return (
     <AdminChrome email={admin.email} role={admin.role} title="Сертификаты">
       <div className="mb-4">
-        <a
+        <Link
           href="/admin/certificates/report"
           className="rounded-full border-[1.5px] border-brand-purple-100 px-4 py-2 text-xs font-bold text-brand-purple transition-colors hover:border-brand-gold"
         >
           Отчёт по дням и филиалам →
-        </a>
-        <a
+        </Link>
+        <Link
           href="/admin/certificates/statement"
           className="ml-2 rounded-full border-[1.5px] border-brand-purple-100 px-4 py-2 text-xs font-bold text-brand-purple transition-colors hover:border-brand-gold"
         >
           Сверка с выпиской →
-        </a>
+        </Link>
       </div>
       <form className="mb-5 flex flex-wrap items-end gap-3" method="get">
         <input

@@ -3,12 +3,15 @@ import ExcelJS from "exceljs";
 import { prisma } from "../db";
 import {
   detectColumns,
+  gridToStatement,
   parseCsv,
   toStatementRows,
   type ColumnMap,
   type ParsedStatement,
   type StatementRow,
 } from "./statement-parse";
+import { isXlsBuffer, readXls } from "./xls";
+import { isPdfBuffer, pdfToTable } from "./pdf-table";
 import { matchStatement, summarize, type MatchableOrder } from "./statement-match";
 
 /**
@@ -61,33 +64,31 @@ async function parseXlsx(buffer: Buffer): Promise<ParsedStatement> {
     });
     table.push([...cells].map((c) => c ?? ""));
   });
-
-  // Шапка — первая строка, в которой узнаются дата и сумма. У выписок сверху
-  // бывает шапка документа на несколько строк.
-  let headerIndex = 0;
-  for (let i = 0; i < Math.min(table.length, 15); i += 1) {
-    if (detectColumns(table[i].map((c) => c ?? ""))) {
-      headerIndex = i;
-      break;
-    }
-  }
-  const columns = (table[headerIndex] ?? []).map(
-    (c, i) => c || `Колонка ${i + 1}`,
-  );
-  const rows = table.slice(headerIndex + 1).map((cells) => {
-    const row: Record<string, string> = {};
-    columns.forEach((col, index) => {
-      row[col] = cells[index] ?? "";
-    });
-    return row;
-  });
-  return { columns, detected: detectColumns(columns), rows };
+  return gridToStatement(table);
 }
 
+/**
+ * Формат определяем по содержимому, а не по расширению.
+ *
+ * Так надёжнее: ForteBank называет файл «.xls», и это действительно старый
+ * формат OLE2, который ExcelJS не открывает вовсе; а выгрузки «в Excel» у
+ * многих систем на деле оказываются то CSV, то настоящим .xlsx под чужим
+ * именем. Расширение здесь — самое ненадёжное из доступных свидетельств.
+ */
 async function parseFile(
   name: string,
   buffer: Buffer,
 ): Promise<ParsedStatement> {
+  if (isPdfBuffer(buffer)) {
+    const { columns, rows } = pdfToTable(
+      buffer,
+      (texts) => detectColumns(texts) !== null,
+    );
+    return { columns, detected: detectColumns(columns), rows };
+  }
+  if (isXlsBuffer(buffer)) return gridToStatement(readXls(buffer));
+  // ZIP-сигнатура — это .xlsx (и .docx, но такой файл просто не разберётся).
+  if (buffer.subarray(0, 2).toString("latin1") === "PK") return parseXlsx(buffer);
   if (/\.xlsx?$/i.test(name)) return parseXlsx(buffer);
   return parseCsv(buffer.toString("utf8"));
 }
@@ -143,14 +144,21 @@ export async function uploadStatement(input: {
 }): Promise<UploadResult> {
   const parsed = await parseFile(input.fileName, input.buffer);
   if (parsed.rows.length === 0) {
-    return { ok: false, error: "В файле не нашлось ни одной строки с данными." };
+    return {
+      ok: false,
+      error: isPdfBuffer(input.buffer)
+        ? "В этом PDF не нашлось таблицы операций. Нужна «Детальная информация по операциям» из кабинета Kaspi, а не сводка или скан."
+        : "В файле не нашлось ни одной строки с данными.",
+    };
   }
   const map = input.columns ?? parsed.detected;
   if (!map) {
+    // Названия найденных колонок показываем всегда: по ним видно, тот ли файл
+    // выгружен, и по ним же за десять минут настраивается разбор.
     return {
       ok: false,
       error:
-        "Не понял, где в файле дата и сумма. Укажите колонки вручную или пришлите файл — подстроим разбор.",
+        "Не понял, где в файле дата и сумма. Проверьте, что это выписка по операциям, а не сводный отчёт.",
       columns: parsed.columns,
     };
   }
@@ -178,29 +186,29 @@ export async function uploadStatement(input: {
         operatedAt: { gte: input.from, lt: input.to },
       },
     });
+    const entry = (
+      row: StatementRow,
+      orderId: string | null,
+      matchedBy: string | null,
+    ) => ({
+      source: input.source,
+      operatedAt: row.operatedAt,
+      amountKzt: row.amountKzt,
+      kind: row.kind,
+      feeKzt: row.feeKzt,
+      reference: row.reference?.slice(0, 128) ?? null,
+      raw: row.raw,
+      orderId,
+      matchedBy,
+      batchId,
+      uploadedBy: input.actor,
+    });
+    // Сохраняем выписку целиком, включая возвраты: на вопрос «этот платёж мы
+    // уже разбирали?» иначе отвечать нечем.
     const data = [
-      ...result.matched.map((m) => ({
-        source: input.source,
-        operatedAt: m.row.operatedAt,
-        amountKzt: m.row.amountKzt,
-        reference: m.row.reference?.slice(0, 128) ?? null,
-        raw: m.row.raw,
-        orderId: m.order?.id ?? null,
-        matchedBy: m.by,
-        batchId,
-        uploadedBy: input.actor,
-      })),
-      ...result.extraInStatement.map((row) => ({
-        source: input.source,
-        operatedAt: row.operatedAt,
-        amountKzt: row.amountKzt,
-        reference: row.reference?.slice(0, 128) ?? null,
-        raw: row.raw,
-        orderId: null,
-        matchedBy: null,
-        batchId,
-        uploadedBy: input.actor,
-      })),
+      ...result.matched.map((m) => entry(m.row, m.order?.id ?? null, m.by)),
+      ...result.extraInStatement.map((row) => entry(row, null, null)),
+      ...result.refunds.map((r) => entry(r.row, r.order?.id ?? null, "refund")),
     ];
     // createMany порциями: месячная выписка это сотни строк, одним запросом их
     // слать незачем.
@@ -236,6 +244,19 @@ export type Discrepancies = {
     salonLabel: string;
     serial: string | null;
   }[];
+  /**
+   * Возвраты из выписки: деньги ушли назад, а сертификат мог остаться живым.
+   * По Kaspi это единственный способ вообще узнать об отмене платежа.
+   */
+  refunds: {
+    id: string;
+    source: string;
+    operatedAt: Date;
+    amountKzt: number;
+    reference: string | null;
+    orderId: string | null;
+    serial: string | null;
+  }[];
   /** Источники и периоды, по которым выписка вообще загружалась */
   loaded: { source: string; count: number; from: Date; to: Date }[];
 };
@@ -258,17 +279,22 @@ export async function findStatementDiscrepancies(
       source: true,
       operatedAt: true,
       amountKzt: true,
+      kind: true,
       reference: true,
       orderId: true,
     },
   });
   if (entries.length === 0) {
-    return { extra: [], missing: [], loaded: [] };
+    return { extra: [], missing: [], refunds: [], loaded: [] };
   }
 
+  const payments = entries.filter((e) => e.kind !== "refund");
+  const refundEntries = entries.filter((e) => e.kind === "refund");
   const sources = [...new Set(entries.map((e) => e.source))];
+  // Заказ считается подтверждённым выпиской только приходом. Возврат ссылается
+  // на тот же заказ, но подтверждает ровно обратное.
   const matchedOrderIds = new Set(
-    entries.map((e) => e.orderId).filter((id): id is string => !!id),
+    payments.map((e) => e.orderId).filter((id): id is string => !!id),
   );
 
   const ourOrders = await prisma.order.findMany({
@@ -302,8 +328,29 @@ export async function findStatementDiscrepancies(
     };
   });
 
+  // Номера сертификатов по возвращённым заказам: заказ мог быть и не из этого
+  // периода — возврат приходит позже платежа.
+  const refundedOrders = await prisma.order.findMany({
+    where: {
+      id: { in: refundEntries.map((e) => e.orderId ?? "").filter(Boolean) },
+    },
+    select: { id: true, certificates: { select: { serial: true } } },
+  });
+  const serialByOrder = new Map(
+    refundedOrders.map((o) => [o.id, o.certificates[0]?.serial ?? null]),
+  );
+
   return {
-    extra: entries
+    refunds: refundEntries.map((e) => ({
+      id: e.id,
+      source: e.source,
+      operatedAt: e.operatedAt,
+      amountKzt: e.amountKzt,
+      reference: e.reference,
+      orderId: e.orderId,
+      serial: e.orderId ? (serialByOrder.get(e.orderId) ?? null) : null,
+    })),
+    extra: payments
       .filter((e) => !e.orderId)
       .map((e) => ({
         id: e.id,

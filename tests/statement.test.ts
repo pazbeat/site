@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   detectColumns,
   parseAmount,
+  gridToStatement,
   parseCsv,
   parseDate,
   toStatementRows,
@@ -46,11 +47,31 @@ describe("разбор дат", () => {
 describe("определение колонок", () => {
   it("находит дату, сумму и номер по заголовкам", () => {
     const map = detectColumns(["Дата операции", "Сумма", "Номер заказа", "Статус"]);
-    expect(map).toEqual({
+    expect(map).toMatchObject({
       date: "Дата операции",
       amount: "Сумма",
       reference: "Номер заказа",
     });
+  });
+
+  it("оборот не путается с зачислением: у Forte это разные колонки", () => {
+    // «Сумма зачисления» — уже за вычетом комиссии банка. Возьми мы её, и
+    // сверка расходилась бы на каждой строке: заказ 35000, в выписке 34125.
+    const map = detectColumns([
+      "Дата транзакции",
+      "Код авторизации",
+      "Сумма транзакции",
+      "Комиссия Банка",
+      "Сумма зачисления",
+    ]);
+    expect(map?.amount).toBe("Сумма транзакции");
+    expect(map?.fee).toBe("Комиссия Банка");
+  });
+
+  it("двузначный год Forte читается как этот век, а не прошлый", () => {
+    expect(parseDate("03.09.26 07:42:05")?.toISOString()).toBe(
+      "2026-09-03T07:42:05.000Z",
+    );
   });
 
   it("без даты или суммы не угадывает — попросит человека", () => {
@@ -158,5 +179,100 @@ describe("сопоставление с выпиской", () => {
       extraKzt: 35000,
       missingCount: 0,
     });
+  });
+});
+
+/**
+ * Раскладка настоящих выписок за 03.09.2026 — по ней и написан разбор.
+ * Строки взяты из выгрузок, но с обезличенными номерами и суммами.
+ */
+describe("выписка ForteBank (карты)", () => {
+  const grid = [
+    ["АО «ForteBank»", "", "", "", ""],
+    ["Выписка по коммерсанту", "", "", "", ""],
+    ["Тоо Imbir Group(Ecom), БИН/ИИН 000000000000", "", "", "", ""],
+    ["За период с 03.09.2026 0:00:00 по 03.09.2026 23:59:59", "", "", "", ""],
+    [
+      "Дата транзакции",
+      "Код авторизации",
+      "Сумма транзакции",
+      "Комиссия Банка",
+      "Сумма зачисления",
+    ],
+    ["03.09.26 07:42:05", "111111", "35000", "875", "34125"],
+    ["03.09.26 17:30:20", "222222", "59500", "1487,50", "58012,50"],
+    ["Итого:", "", "94500", "2362.5", "92137.5"],
+  ];
+
+  it("шапка находится не в первой строке, а там, где она есть", () => {
+    const parsed = gridToStatement(grid);
+    expect(parsed.detected?.date).toBe("Дата транзакции");
+    expect(parsed.rows).toHaveLength(3);
+  });
+
+  it("берётся оборот, а не зачисление: иначе расхождение на комиссию", () => {
+    const parsed = gridToStatement(grid);
+    const { rows, skipped } = toStatementRows(parsed, parsed.detected!);
+    expect(rows.map((r) => r.amountKzt)).toEqual([35000, 59500]);
+    expect(rows.map((r) => r.feeKzt)).toEqual([875, 1488]);
+    // «Итого» — не операция.
+    expect(skipped).toBe(1);
+  });
+
+  it("двузначный год и местное время приводятся к UTC", () => {
+    const parsed = gridToStatement(grid);
+    const { rows } = toStatementRows(parsed, parsed.detected!);
+    // 07:42 в Алматы — это 02:42 UTC.
+    expect(rows[0].operatedAt.toISOString()).toBe("2026-09-03T02:42:05.000Z");
+  });
+});
+
+describe("выписка Kaspi (QR)", () => {
+  const grid = [
+    ["Адрес торговой точки", "Дата", "Время", "Сумма", "Стоимость услуг Kaspi", "Тип операции", "Номер операции", "Детали покупки"],
+    ["Астана, 40/5", "03.09.2026", "18:33:36", "29750.00", "-282.63", "Покупка", "QR17385619920", "9000000000000 0000001"],
+    ["Астана, 40/5", "03.09.2026", "12:20:20", "20000.00", "-190.00", "Возврат", "QR17377252246", "9000000000000 0000002"],
+  ];
+
+  it("дата и время из разных колонок собираются в один момент", () => {
+    const parsed = gridToStatement(grid);
+    const { rows } = toStatementRows(parsed, parsed.detected!);
+    expect(rows[0].operatedAt.toISOString()).toBe("2026-09-03T13:33:36.000Z");
+  });
+
+  it("возврат отличается от покупки по «Типу операции»", () => {
+    const parsed = gridToStatement(grid);
+    const { rows } = toStatementRows(parsed, parsed.detected!);
+    expect(rows.map((r) => r.kind)).toEqual(["payment", "refund"]);
+  });
+
+  it("возврат не считается приходом и не занимает чужой заказ", () => {
+    // Иначе возврат на 20000 «оплатил» бы заказ на 20000, а настоящий платёж
+    // остался бы висеть лишним — две ошибки вместо одной.
+    const parsed = gridToStatement(grid);
+    const { rows } = toStatementRows(parsed, parsed.detected!);
+    const target = order({
+      id: "возвращённый",
+      amountKzt: 20000,
+      kaspiRef: "90000000000000000002",
+      paymentId: null,
+      paidAt: new Date("2026-09-03T07:20:20Z"),
+    });
+    const result = matchStatement(rows, [target]);
+    expect(result.matched).toHaveLength(0);
+    expect(result.refunds).toHaveLength(1);
+    expect(result.refunds[0].order?.id).toBe("возвращённый");
+  });
+
+  it("номер заказа находится, даже если PDF разорвал его переносом", () => {
+    // В «Деталях покупки» двадцать цифр, но в печатной строке они разбиты на
+    // 13 и 7 — ячейка приходит с пробелом посередине.
+    const parsed = gridToStatement(grid);
+    const { rows } = toStatementRows(parsed, parsed.detected!);
+    const result = matchStatement(
+      [rows[0]],
+      [order({ kaspiRef: "90000000000000000001", paymentId: null })],
+    );
+    expect(result.matched[0]?.by).toBe("reference");
   });
 });
