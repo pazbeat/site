@@ -146,7 +146,13 @@ export async function checkLegacyForteStatus(
   if (PAID.has(status)) return { state: "paid", amountKzt };
   if (FAILED.has(status)) return { state: "failed", amountKzt };
   if (status !== "preparing" && status !== "pending" && status !== "partiallypaid") {
-    console.warn(`[forte] незнакомый статус «${status}» по заказу ${forteOrderId}`);
+    void import("../alerts").then(({ reportFailure }) =>
+      reportFailure(
+        "ForteBank: незнакомый статус платежа",
+        new Error(status || "(пусто)"),
+        { заказ: forteOrderId },
+      ),
+    );
   }
   return { state: "pending", amountKzt };
 }

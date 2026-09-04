@@ -245,21 +245,52 @@ export async function syncAltegioAction(formData: FormData) {
  * Помечает заказ оплаченным и выпускает сертификат тем же путём, что и
  * автоматика (fulfillOrder идемпотентен, второй сертификат не появится).
  */
+const manualFulfillSchema = z.object({
+  orderId: z.string().min(1),
+  /**
+   * Номер операции у провайдера или чека, который принёс покупатель.
+   * Обязателен: ручное подтверждение — самый реалистичный путь к «сертификат
+   * есть, денег нет», и без ссылки на платёж проверить его в выписке нечем.
+   */
+  reference: z.string().trim().min(3).max(64),
+});
+
 export async function manualFulfillAction(formData: FormData) {
   const admin = await requireAdmin();
-  const orderId = String(formData.get("orderId") ?? "");
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order) return { error: "Заказ не найден." };
-  if (order.status === "paid") {
-    return { error: "Заказ уже оплачен — сертификат выпущен автоматикой." };
+  const parsed = manualFulfillSchema.safeParse({
+    orderId: String(formData.get("orderId") ?? ""),
+    reference: String(formData.get("reference") ?? ""),
+  });
+  if (!parsed.success) {
+    return { error: "Укажите номер операции или чека (минимум 3 знака)." };
   }
-  if (order.status !== "pending" && order.status !== "expired") {
+  const { orderId, reference } = parsed.data;
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { _count: { select: { certificates: true } } },
+  });
+  if (!order) return { error: "Заказ не найден." };
+  // Оплаченный заказ БЕЗ сертификата выпускать можно и нужно — это починка
+  // (см. fulfillOrder). Раньше здесь стоял отказ «уже оплачен», и такой заказ
+  // чинить было нечем вовсе.
+  if (order.status === "paid" && order._count.certificates > 0) {
+    return { error: "Заказ уже оплачен, сертификат по нему выпущен." };
+  }
+  if (
+    order.status !== "pending" &&
+    order.status !== "expired" &&
+    order.status !== "paid"
+  ) {
     return { error: `Заказ в статусе «${order.status}» — выпуск невозможен.` };
   }
 
   const { fulfillOrder } = await import("@/lib/certificates");
-  const result = await fulfillOrder(order.id, `manual:${admin.email}`);
-  if (result.status !== "fulfilled") {
+  // Номер операции идёт в paymentId: по нему платёж находится в выписке.
+  // Префикс `manual:` сохраняем — по нему уведомление о продаже помечает
+  // выпуск ручным, и его же видно в отчётах.
+  const result = await fulfillOrder(order.id, `manual:${reference}`);
+  if (result.status !== "fulfilled" && result.status !== "repaired") {
     return { error: `Не получилось выпустить: ${result.status}.` };
   }
 
@@ -268,12 +299,20 @@ export async function manualFulfillAction(formData: FormData) {
     action: "order.manual_fulfill",
     entity: "order",
     entityId: order.id,
-    diff: { statusBefore: order.status, certificateId: result.certificateId },
+    diff: {
+      statusBefore: order.status,
+      certificateId: result.certificateId,
+      reference,
+      repair: result.status === "repaired",
+    },
   });
   revalidatePath("/admin/orders");
   return {
     ok: true,
-    message: "Сертификат выпущен и поставлен в доставку получателю.",
+    message:
+      result.status === "repaired"
+        ? "Сертификат по оплаченному заказу довыпущен и поставлен в доставку."
+        : "Сертификат выпущен и поставлен в доставку получателю.",
   };
 }
 

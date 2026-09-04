@@ -14,7 +14,11 @@ const DELIVER_CERT = "deliver-certificate";
 const DELIVER_SCHEDULED = "deliver-scheduled";
 const EXPIRY_REMINDERS = "expiry-reminders";
 const RECOVER_ABANDONED = "recover-abandoned";
-const POLL_KASPI = "poll-kaspi";
+const POLL_FRESH = "poll-payments-fresh";
+const POLL_RECENT = "poll-payments-recent";
+const POLL_TAIL = "poll-payments-tail";
+const RECONCILE = "reconcile";
+const RECONCILE_DIGEST = "reconcile-digest";
 const ORDER_TTL_MS = 30 * 60_000;
 
 type DeliverJob = { certificateId: string };
@@ -84,14 +88,45 @@ async function createBoss(): Promise<PgBoss> {
     await deliverDueScheduled();
   });
 
-  // Фоновый добор Kaspi-оплат (страница могла закрыться) — каждую минуту.
-  await boss.createQueue(POLL_KASPI);
-  await boss.schedule(POLL_KASPI, "* * * * *", undefined, {
+  // Фоновый добор оплат тремя ступенями. Одно окно в сутки, как было раньше,
+  // не годилось с обеих сторон: свежие заказы оно опрашивало достаточно часто,
+  // а оплата, пришедшая на вторые сутки, не подхватывалась ничем, кроме рук.
+  // Теперь свежие — каждую минуту, вчерашние — каждые десять, хвост до двух
+  // недель — раз в час.
+  for (const [queue, tier, cron] of [
+    [POLL_FRESH, "fresh", "* * * * *"],
+    [POLL_RECENT, "recent", "*/10 * * * *"],
+    [POLL_TAIL, "tail", "7 * * * *"],
+  ] as const) {
+    await boss.createQueue(queue);
+    await boss.schedule(queue, cron, undefined, { tz: "Asia/Almaty" });
+    await boss.work(queue, async () => {
+      const { pollPendingPayments } = await import("./kaspi-poller");
+      await pollPendingPayments(tier);
+    });
+  }
+
+  // Сверка контура «оплата → выпуск → CRM → доставка» — каждые 10 минут.
+  // Чинит то, что чинится повтором (недовыпущенный сертификат, непрошедший
+  // синк с Altegio, застрявшую доставку), остальное копит для сводки.
+  await boss.createQueue(RECONCILE);
+  await boss.schedule(RECONCILE, "*/10 * * * *", undefined, {
     tz: "Asia/Almaty",
   });
-  await boss.work(POLL_KASPI, async () => {
-    const { pollPendingPayments } = await import("./kaspi-poller");
-    await pollPendingPayments();
+  await boss.work(RECONCILE, async () => {
+    const { runReconcile } = await import("./reconcile");
+    await runReconcile();
+  });
+
+  // Сводка расхождений менеджеру — раз в сутки, 09:30 Almaty. Молчит, когда
+  // всё сходится: ежедневное «всё хорошо» перестают читать через неделю.
+  await boss.createQueue(RECONCILE_DIGEST);
+  await boss.schedule(RECONCILE_DIGEST, "30 9 * * *", undefined, {
+    tz: "Asia/Almaty",
+  });
+  await boss.work(RECONCILE_DIGEST, async () => {
+    const { sendReconcileDigest } = await import("./reconcile");
+    await sendReconcileDigest();
   });
 
   // Сверка погашений с Altegio (CRM — источник истины по погашениям) —

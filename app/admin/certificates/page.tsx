@@ -72,6 +72,9 @@ export default async function AdminCertificatesPage({
 
   if (query) {
     const or: Prisma.CertificateWhereInput[] = [
+      // Внутренний id: по нему ссылается сверка (/admin/reconcile) и журнал
+      // сбоев — у сертификата без серийника это единственный способ его найти.
+      { id: query },
       { serial: { contains: query, mode: "insensitive" } },
       { order: { buyerEmail: { contains: query, mode: "insensitive" } } },
       { toName: { contains: query, mode: "insensitive" } },

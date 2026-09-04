@@ -235,11 +235,16 @@ export class KaspiPayProvider implements PaymentProvider {
         status.paidKzt != null &&
         status.paidKzt !== expectedKzt
       ) {
-        console.error("kaspi legacy: сумма не сошлась", {
-          заказ: payqrOrderId,
-          ожидали: expectedKzt,
-          заплачено: status.paidKzt,
-        });
+        // Не console.error: заказ навсегда останется неоплаченным, покупатель
+        // ничего не получит, а причина будет видна только в логе контейнера.
+        // Это ровно тот случай, когда нужен живой человек.
+        void import("../alerts").then(({ reportFailure }) =>
+          reportFailure(
+            "Kaspi: сумма оплаты не совпала с заказом",
+            new Error(`ожидали ${expectedKzt} ₸, заплачено ${status.paidKzt} ₸`),
+            { заказ: payqrOrderId },
+          ),
+        );
         return "pending";
       }
       return "paid";

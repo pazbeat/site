@@ -9,6 +9,10 @@ import {
 import { encryptSecret } from "./crypto";
 import { getSetting } from "./data";
 import { reportFailure } from "./alerts";
+import type { Prisma } from "./generated/prisma/client";
+
+/** Обычный клиент Prisma или клиент внутри транзакции — оба подходят. */
+type PrismaLike = Omit<typeof prisma, "$transaction" | "$connect" | "$disconnect" | "$on" | "$extends" | "$use"> | Prisma.TransactionClient;
 
 /**
  * Следующий номер сертификата по салону: WM9001, WM9002… Атомарно
@@ -24,8 +28,18 @@ import { reportFailure } from "./alerts";
  * одной высокой базы мало: номер ещё и подтверждается в Altegio до отправки
  * письма (см. syncCertificateToAltegio), а на занятый берётся следующий.
  */
-export async function nextSalonSerial(salonId: number): Promise<string | null> {
-  const salon = await prisma.salon.update({
+export async function nextSalonSerial(
+  salonId: number,
+  /**
+   * Клиент транзакции, если номер берётся внутри неё. Это не украшение:
+   * инкремент счётчика и создание сертификата обязаны откатываться вместе,
+   * иначе упавший выпуск сжигает номер, а следующий покупатель получает
+   * WM9007 после WM9005 — и в кассе появляется дырка, которую никто не
+   * объяснит.
+   */
+  db: PrismaLike = prisma,
+): Promise<string | null> {
+  const salon = await db.salon.update({
     where: { id: salonId },
     data: { lastCertSerial: { increment: 1 } },
     select: { codePrefix: true, lastCertSerial: true },
@@ -50,9 +64,22 @@ type OrderItem = {
 };
 
 /**
- * Подтверждение оплаты (PRD §5.3): идемпотентный переход pending→paid
- * + генерация сертификата. Повторный вебхук не создаёт второй сертификат:
- * атомарный updateMany со статусом-guard'ом.
+ * Подтверждение оплаты (PRD §5.3): переход pending→paid и выпуск сертификата
+ * **одной транзакцией**.
+ *
+ * Раньше это были два отдельных запроса: сначала заказ помечался оплаченным,
+ * затем создавался сертификат. Падение между ними (упала база, рестарт
+ * контейнера, таймаут) оставляло заказ в состоянии «оплачен, сертификата
+ * нет» — а повторный вызов честно отвечал «уже оплачен» и ничего не
+ * создавал. Деньги списаны, сертификата нет, починить нечем. Теперь claim,
+ * номер и сертификат откатываются вместе, и опрос повторит попытку через
+ * минуту.
+ *
+ * Отсюда же второй режим — **починка**. Если заказ уже `paid`, но
+ * сертификата у него нет (последствие старого бага или сбоя снаружи
+ * транзакции), выпуск доводится до конца, а не отвергается. Возвращается
+ * `repaired`, чтобы это было видно в журнале, а не выглядело обычной
+ * продажей.
  *
  * Принимаем и expired: у Kaspi/Forte нет вебхуков, и оплата могла прийти
  * после нашего 30-минутного протухания (API провайдера лежал, сервер
@@ -64,70 +91,113 @@ export async function fulfillOrder(
   externalPaymentId: string,
 ): Promise<
   | { status: "fulfilled"; certificateId: string }
+  | { status: "repaired"; certificateId: string }
   | { status: "already_fulfilled" }
   | { status: "not_found" }
   | { status: "not_payable" }
 > {
-  const claimed = await prisma.order.updateMany({
-    where: { id: orderId, status: { in: ["pending", "expired"] } },
-    // paidAt отдельно от createdAt: вебхуков у Kaspi и Forte нет, статус
-    // узнаём опросом или подтверждают руками — деньги приходят много позже
-    // создания заказа, а иногда и после его протухания.
-    data: { status: "paid", paymentId: externalPaymentId, paidAt: new Date() },
-  });
-
-  if (claimed.count === 0) {
-    const order = await prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) return { status: "not_found" };
-    // Уже оплачен (повторный вебхук) — идемпотентный успех
-    if (order.status === "paid") return { status: "already_fulfilled" };
-    return { status: "not_payable" }; // expired / cancelled / refunded
-  }
-
-  const order = await prisma.order.findUniqueOrThrow({
-    where: { id: orderId },
-  });
-  const item = order.item as OrderItem;
-
+  // Читаем настройку ДО транзакции: держать её открытой ради обращения к
+  // справочнику незачем, а короткая транзакция — меньше шансов на таймаут.
   const validityMonthsRaw = await getSetting("certificate_validity_months");
   const validityMonths =
     typeof validityMonthsRaw === "number" ? validityMonthsRaw : 3;
-  const validUntil = new Date();
-  validUntil.setMonth(validUntil.getMonth() + validityMonths);
 
-  // Номер сертификата по салону (WM0001…): атомарный инкремент счётчика.
-  // Он же публичный код — один номер и в письме, и в PDF, и в Altegio, как
-  // на действующем сайте: кассир ищет в CRM ровно то, что покупатель видит.
-  const serial = await nextSalonSerial(order.salonId);
-  // Запасной путь: у салона нет префикса — выдаём случайный код, иначе
-  // сертификат остался бы вовсе без номера.
-  const code = serial ?? generateCertificateCode();
+  const outcome = await prisma.$transaction(async (tx) => {
+    // Блокировка строки заказа на время транзакции. Без неё два одновременных
+    // прохода поллера, увидев «оплачен, сертификата нет», выпустили бы по
+    // сертификату каждый. Запрос параметризован (правило проекта — никакого
+    // склеенного SQL).
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
 
-  const certificate = await prisma.certificate.create({
-    data: {
+    const claimed = await tx.order.updateMany({
+      where: { id: orderId, status: { in: ["pending", "expired"] } },
+      // paidAt отдельно от createdAt: вебхуков у Kaspi и Forte нет, статус
+      // узнаём опросом или подтверждают руками — деньги приходят много позже
+      // создания заказа, а иногда и после его протухания.
+      data: { status: "paid", paymentId: externalPaymentId, paidAt: new Date() },
+    });
+
+    let repaired = false;
+    if (claimed.count === 0) {
+      const existing = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { status: true, _count: { select: { certificates: true } } },
+      });
+      if (!existing) return { kind: "not_found" as const };
+      // cancelled / refunded — выпускать нечего
+      if (existing.status !== "paid") return { kind: "not_payable" as const };
+      // Обычный повторный вызов (второй опрос, повторный вебхук)
+      if (existing._count.certificates > 0) return { kind: "already" as const };
+      // Оплачен, а сертификата нет — тот самый случай, ради которого всё это
+      repaired = true;
+    }
+
+    const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
+    const item = order.item as OrderItem;
+
+    const validUntil = new Date();
+    validUntil.setMonth(validUntil.getMonth() + validityMonths);
+
+    // Номер сертификата по салону (WM0001…): атомарный инкремент счётчика.
+    // Он же публичный код — один номер и в письме, и в PDF, и в Altegio, как
+    // на действующем сайте: кассир ищет в CRM ровно то, что покупатель видит.
+    const serial = await nextSalonSerial(order.salonId, tx);
+    // Запасной путь: у салона нет префикса — выдаём случайный код, иначе
+    // сертификат остался бы вовсе без номера.
+    const code = serial ?? generateCertificateCode();
+
+    const certificate = await tx.certificate.create({
+      data: {
       orderId: order.id,
       salonId: order.salonId,
       codeHash: hashCode(code),
       codeDisplay: maskCode(code),
-      codeEncrypted: encryptSecret(code),
-      serial,
-      type: item.type,
-      programOptionId:
-        item.type === "program" ? (item.programOptionId ?? null) : null,
-      amountKzt: item.amountKzt,
-      balanceKzt: item.amountKzt,
-      designId: item.designId,
-      toName: item.toName,
-      fromName: item.fromName,
-      message: item.message || null,
-      deliveryMethod: item.delivery.method,
-      deliveryContact: item.delivery.contact,
-      scheduledAt: item.delivery.scheduledAt
-        ? new Date(item.delivery.scheduledAt)
-        : null,
-      validUntil,
-    },
+        codeEncrypted: encryptSecret(code),
+        serial,
+        type: item.type,
+        programOptionId:
+          item.type === "program" ? (item.programOptionId ?? null) : null,
+        amountKzt: item.amountKzt,
+        balanceKzt: item.amountKzt,
+        designId: item.designId,
+        toName: item.toName,
+        fromName: item.fromName,
+        message: item.message || null,
+        deliveryMethod: item.delivery.method,
+        deliveryContact: item.delivery.contact,
+        scheduledAt: item.delivery.scheduledAt
+          ? new Date(item.delivery.scheduledAt)
+          : null,
+        validUntil,
+      },
+    });
+
+    return {
+      kind: "issued" as const,
+      certificateId: certificate.id,
+      serial: certificate.serial,
+      scheduledAt: certificate.scheduledAt,
+      repaired,
+    };
   });
+
+  if (outcome.kind === "not_found") return { status: "not_found" };
+  if (outcome.kind === "not_payable") return { status: "not_payable" };
+  // Повторный вебхук или второй проход опроса — идемпотентный успех
+  if (outcome.kind === "already") return { status: "already_fulfilled" };
+
+  const certificate = {
+    id: outcome.certificateId,
+    serial: outcome.serial,
+    scheduledAt: outcome.scheduledAt,
+  };
+  if (outcome.repaired) {
+    // Не «обычная продажа»: заказ был оплачен раньше, а сертификата у него
+    // не было. Пусть это видно в журнале — иначе такие случаи растворяются.
+    console.warn(
+      `fulfillOrder: заказ ${orderId} был оплачен без сертификата — выпущен ${certificate.serial ?? certificate.id}`,
+    );
+  }
 
   // Запись в Altegio — ДО доставки, и её ждём. Номер сертификата уникален в
   // филиале, а нумерация там общая с действующим сайтом: часть номеров уже
@@ -181,5 +251,7 @@ export async function fulfillOrder(
       }),
     );
 
-  return { status: "fulfilled", certificateId: certificate.id };
+  return outcome.repaired
+    ? { status: "repaired", certificateId: certificate.id }
+    : { status: "fulfilled", certificateId: certificate.id };
 }

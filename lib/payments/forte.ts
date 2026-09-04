@@ -194,11 +194,15 @@ export class ForteBankProvider implements PaymentProvider {
         status.amountKzt != null &&
         status.amountKzt !== expectedKzt
       ) {
-        console.error("forte legacy: сумма не сошлась", {
-          заказ: forteOrderId,
-          ожидали: expectedKzt,
-          заплачено: status.amountKzt,
-        });
+        void import("../alerts").then(({ reportFailure }) =>
+          reportFailure(
+            "ForteBank: сумма оплаты не совпала с заказом",
+            new Error(
+              `ожидали ${expectedKzt} ₸, заплачено ${status.amountKzt} ₸`,
+            ),
+            { заказ: forteOrderId },
+          ),
+        );
         return "pending";
       }
       return "paid";
@@ -227,8 +231,16 @@ export class ForteBankProvider implements PaymentProvider {
     }
     if (FAILED_STATUSES.has(status)) return "failed";
     if (!PENDING_STATUSES.has(status)) {
-      // Незнакомое состояние: ждём дальше, но оставляем след для разбора
-      console.warn("forte unknown status:", status || "(empty)");
+      // Незнакомое состояние банка. Раньше это был console.warn, и ровно так
+      // мы полгода не знали, что боевой статус называется FullyPaid: оплаты
+      // висели неподтверждёнными, а строка лежала в логе контейнера.
+      void import("../alerts").then(({ reportFailure }) =>
+        reportFailure(
+          "ForteBank: незнакомый статус платежа",
+          new Error(status || "(пусто)"),
+          { заказ: forteOrderId },
+        ),
+      );
     }
     return "pending";
   }

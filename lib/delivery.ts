@@ -298,6 +298,31 @@ export async function buildReceiptPdf(certificateId: string): Promise<{
  * уведомление менеджеру. Идемпотентна по sentAt.
  */
 export async function deliverCertificate(certificateId: string): Promise<void> {
+  try {
+    await deliverCertificateOnce(certificateId);
+  } catch (error) {
+    // Причину неудачи храним в базе, а не только в очереди: у покупателя на
+    // руках оплаченный сертификат, которого он не получил, и менеджеру нужно
+    // видеть ПОЧЕМУ — отказ почтового сервиса, битый адрес или сбой PDF.
+    // Счётчик нужен сверке (lib/reconcile.ts): она повторяет доставку, но не
+    // бесконечно.
+    await prisma.certificate
+      .update({
+        where: { id: certificateId },
+        data: {
+          deliveryAttempts: { increment: 1 },
+          deliveryLastError: (error instanceof Error
+            ? error.message
+            : String(error)
+          ).slice(0, 500),
+        },
+      })
+      .catch(() => {});
+    throw error;
+  }
+}
+
+async function deliverCertificateOnce(certificateId: string): Promise<void> {
   const built = await buildCertificatePdf(certificateId);
   if (!built) {
     throw new Error(`delivery: certificate ${certificateId} has no code`);
@@ -374,6 +399,11 @@ export async function deliverCertificate(certificateId: string): Promise<void> {
 
   await prisma.certificate.update({
     where: { id: certificateId },
-    data: { sentAt: new Date() },
+    data: {
+      sentAt: new Date(),
+      deliveryAttempts: { increment: 1 },
+      // Прошлая ошибка больше не актуальна: письмо ушло.
+      deliveryLastError: null,
+    },
   });
 }

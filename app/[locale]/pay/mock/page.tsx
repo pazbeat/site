@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { currentAdmin } from "@/lib/admin/guard";
+import { mockEnabled } from "@/lib/payments";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
 import { MockPayButton } from "@/components/mock-pay-button";
@@ -7,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { formatKzt } from "@/lib/format";
 import { mockSignature } from "@/lib/payments/mock";
 
-/** Демо-страница «оплаты» — существует только при PAYMENT_MOCK=1. */
+/** Демо-страница «оплаты» — только вне production и только для админа. */
 export default async function MockPayPage({
   params,
   searchParams,
@@ -17,7 +18,7 @@ export default async function MockPayPage({
 }>) {
   // Демо-страница закрыта дважды: флагом окружения и админ-сессией. Без
   // второго условия ссылку на неё можно было бы просто угадать.
-  if (process.env.PAYMENT_MOCK !== "1") notFound();
+  if (!mockEnabled()) notFound();
   if (!(await currentAdmin())) notFound();
   const { locale } = await params;
   const { order: orderId } = await searchParams;

@@ -1,4 +1,5 @@
 import { hmacSign, hmacVerify } from "../crypto";
+import { mockEnabled } from "./mode";
 import type {
   CreatePaymentParams,
   CreatePaymentResult,
@@ -24,7 +25,7 @@ export class MockPayProvider implements PaymentProvider {
   readonly id = "mock" as const;
 
   isConfigured(): boolean {
-    return process.env.PAYMENT_MOCK === "1";
+    return mockEnabled();
   }
 
   async createPayment(

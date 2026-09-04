@@ -178,11 +178,28 @@ export async function syncCertificateToAltegio(
     return;
   }
 
-  const markFailed = () =>
+  /**
+   * Помечает провал синка: статус, причина и счётчик попыток.
+   *
+   * Причину пишем в базу, а не только в лог: по одному слову «failed» в
+   * админке нельзя понять, занят ли номер, лежит ли CRM или у филиала нет
+   * товара под этот номинал — а решения это требует разных. Счётчик нужен
+   * автоповтору (lib/reconcile.ts): у него должен быть потолок, иначе
+   * сертификат, который Altegio отвергает по существу, повторялся бы вечно
+   * и прятал настоящие сбои в шуме.
+   */
+  const markFailed = (reason: unknown) =>
     prisma.certificate
       .update({
         where: { id: certificateId },
-        data: { altegioSyncStatus: "failed" },
+        data: {
+          altegioSyncStatus: "failed",
+          altegioSyncAttempts: { increment: 1 },
+          altegioLastError: (reason instanceof Error
+            ? reason.message
+            : String(reason)
+          ).slice(0, 500),
+        },
       })
       .catch(() => {});
 
@@ -219,7 +236,7 @@ export async function syncCertificateToAltegio(
       });
     } catch (error) {
       // Помечаем провал синка, чтобы он был виден в админке.
-      await markFailed();
+      await markFailed(error);
       throw error;
     }
 
@@ -240,7 +257,11 @@ export async function syncCertificateToAltegio(
     // что-то другое, чего мы не понимаем.
     const next = cert.serial ? await nextSalonSerial(cert.salonId) : null;
     if (!next) {
-      await markFailed();
+      const reason = new Error(
+        `номер ${number} занят («${outcome.message}»), заменить нечем — ` +
+          `у салона ${cert.salonId} нет счётчика номеров`,
+      );
+      await markFailed(reason);
       throw new Error(
         `altegio: номер ${number} занят («${outcome.message}»), ` +
           `заменить нечем — у салона ${cert.salonId} нет счётчика номеров`,
@@ -277,7 +298,11 @@ export async function syncCertificateToAltegio(
   }
 
   if (!result) {
-    await markFailed();
+    await markFailed(
+      new Error(
+        `не удалось подобрать свободный номер за ${MAX_NUMBER_ATTEMPTS} попыток`,
+      ),
+    );
     throw new Error(
       `altegio: не удалось подобрать свободный номер за ${MAX_NUMBER_ATTEMPTS} ` +
         `попыток (последний — ${number}, салон ${cert.salonId})`,
@@ -291,6 +316,10 @@ export async function syncCertificateToAltegio(
     data: {
       altegioSyncStatus: "synced",
       altegioSyncedAt: new Date(),
+      altegioSyncAttempts: { increment: 1 },
+      // Причина прошлой неудачи больше не актуальна — иначе в админке рядом
+      // с «синхронизировано» висела бы старая ошибка.
+      altegioLastError: null,
       altegioCompanyId: result.companyId,
       // Пустой телефон не пишем: сверка остатков ищет клиента по номеру, и
       // пустая строка отправляла бы её в заведомо провальный запрос.
@@ -324,9 +353,18 @@ export async function syncCertificateToAltegio(
         `выбранный салон company ${companyId})`,
     );
     if (!result.paid && !isAltegioTest()) {
-      console.warn(
-        `[altegio] продажа ${result.documentId} осталась неоплаченной — ` +
-          `в кассу она не попадёт, нужно провести вручную`,
+      // Не console.warn: сертификат в CRM есть, но продажа не проведена —
+      // в кассовой смене её не будет, и бухгалтер этого не заметит, пока не
+      // начнёт сводить деньги. Такое обязано доходить до людей.
+      const { reportFailure } = await import("@/lib/alerts");
+      void reportFailure(
+        "Altegio: продажа не проведена в кассу",
+        new Error(`документ ${result.documentId} остался неоплаченным`),
+        {
+          сертификат: certificateId,
+          серийник: number,
+          документ: String(result.documentId),
+        },
       );
     }
   }

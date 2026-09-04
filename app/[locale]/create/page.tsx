@@ -7,6 +7,7 @@ import { localeAlternates } from "@/lib/seo";
 import { BuilderClient } from "@/components/builder-client";
 import { ForteBankProvider } from "@/lib/payments/forte";
 import { currentAdmin } from "@/lib/admin/guard";
+import { mockEnabled } from "@/lib/payments";
 import { prisma } from "@/lib/db";
 import { AB_COOKIE, filterByVariant, isAbVariant } from "@/lib/ab";
 import { countVisit } from "@/lib/visits";
@@ -58,7 +59,7 @@ export default async function CreatePage({
   if (builderChannel) void countVisit(builderChannel, "builder");
 
   const demoEnabled =
-    process.env.PAYMENT_MOCK === "1" && (await currentAdmin()) !== null;
+    mockEnabled() && (await currentAdmin()) !== null;
   const t = await getTranslations("Builder");
   const tNav = await getTranslations("Nav");
 

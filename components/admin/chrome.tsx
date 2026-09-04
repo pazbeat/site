@@ -24,6 +24,11 @@ const NAV: Array<{ href: string; label: string; roles: AdminRole[] }> = [
     label: "Корп. заявки",
     roles: ["superadmin", "manager"],
   },
+  {
+    href: "/admin/reconcile",
+    label: "Сверка",
+    roles: ["superadmin", "manager"],
+  },
   { href: "/admin/salons", label: "Города и филиалы", roles: ["superadmin", "manager"] },
   { href: "/admin/programs", label: "Программы", roles: ["superadmin", "manager"] },
   { href: "/admin/nominals", label: "Номиналы", roles: ["superadmin", "manager"] },

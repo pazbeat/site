@@ -356,12 +356,25 @@ model Certificate {
   altegioCheckedAt  DateTime?         @map("altegio_checked_at")
   /// Баланс по данным Altegio на момент последней сверки
   altegioBalanceKzt Int?              @map("altegio_balance_kzt")
+  /// Сколько раз пытались записать сертификат в CRM. Нужен потолок: сертификат,
+  /// который Altegio отвергает по существу (нет товара под номинал), иначе
+  /// повторялся бы вечно и прятал настоящие сбои в шуме.
+  altegioSyncAttempts Int             @default(0) @map("altegio_sync_attempts")
+  /// Текст последней ошибки синка — чтобы в админке было видно ПОЧЕМУ, а не
+  /// только «failed», и не приходилось лезть в логи контейнера.
+  altegioLastError  String?           @map("altegio_last_error")
+  /// Сколько раз пытались доставить сертификат получателю
+  deliveryAttempts  Int               @default(0) @map("delivery_attempts")
+  /// Текст последней ошибки доставки
+  deliveryLastError String?           @map("delivery_last_error")
   createdAt         DateTime          @default(now()) @map("created_at")
   redemptions       Redemption[]
   walletPasses      WalletPass[]
 
   @@index([status, validUntil])
   @@index([altegioSyncStatus, altegioCompanyId])
+  /// Сверка «выпущено, но не доставлено» ходит по этой паре каждые 10 минут
+  @@index([sentAt, scheduledAt])
   @@map("certificates")
 }
 

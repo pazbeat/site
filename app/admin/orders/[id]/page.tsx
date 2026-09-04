@@ -313,13 +313,26 @@ export default async function AdminOrderPage({
         </section>
       ) : (
         <section className="mt-5 rounded-2xl border border-brand-purple-100 bg-white p-5">
-          <p className="mb-4 text-sm text-brand-purple-950/60">
-            Сертификат ещё не выпущен (заказ не оплачен). Если покупатель
-            подтвердил оплату чеком или выпиской, а автоматика её не увидела —
-            выпустите сертификат вручную.
-          </p>
-          {(order.status === "pending" || order.status === "expired") && (
-            <ManualFulfill orderId={order.id} />
+          {/* Оплаченный заказ без сертификата — это не «ждём оплату», а сбой:
+              деньги приняты, покупатель ничего не получил. Такой случай надо
+              и назвать иначе, и дать кнопку починки. */}
+          {order.status === "paid" ? (
+            <p className="mb-4 rounded-xl border-l-[3px] border-brand-red bg-brand-red/5 px-4 py-3 text-sm text-brand-purple-950/80">
+              <strong>Заказ оплачен, но сертификата нет.</strong> Покупатель
+              заплатил и ничего не получил. Выпустите сертификат — деньги
+              повторно не списываются, оплата уже зафиксирована.
+            </p>
+          ) : (
+            <p className="mb-4 text-sm text-brand-purple-950/60">
+              Сертификат ещё не выпущен (заказ не оплачен). Если покупатель
+              подтвердил оплату чеком или выпиской, а автоматика её не увидела —
+              выпустите сертификат вручную.
+            </p>
+          )}
+          {(order.status === "pending" ||
+            order.status === "expired" ||
+            order.status === "paid") && (
+            <ManualFulfill orderId={order.id} repair={order.status === "paid"} />
           )}
         </section>
       )}
