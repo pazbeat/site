@@ -4,8 +4,10 @@ import { loadActiveAdmin, auditLog } from "@/lib/admin/guard";
 import { resolvePeriod } from "@/lib/admin/period";
 import {
   buildCertificateReport,
+  reportRange,
   reportToCsv,
 } from "@/lib/admin/certificate-report";
+import { buildCertificateXlsx } from "@/lib/admin/certificate-xlsx";
 
 /**
  * Отчёт по сертификатам в раскладке бухгалтерской таблицы: филиалы строками,
@@ -29,6 +31,9 @@ export async function GET(request: Request) {
     to: url.searchParams.get("to") ?? undefined,
   });
   const measure = url.searchParams.get("measure") === "face" ? "face" : "paid";
+  // Excel по умолчанию: в нём дата стоит НАД парой колонок, как в таблице
+  // бухгалтера, а в CSV объединённых ячеек нет и файл открывается съехавшим.
+  const format = url.searchParams.get("format") === "csv" ? "csv" : "xlsx";
 
   const report = await buildCertificateReport(period.from, period.to);
 
@@ -40,13 +45,33 @@ export async function GET(request: Request) {
     diff: { период: period.label, показатель: measure },
   });
 
-  const csv = reportToCsv(report, measure);
-  const name = `imbir-certificates-${period.key}-${measure}.csv`;
-  return new NextResponse(csv, {
+  const stamp = `${period.key}-${measure}`;
+  if (format === "csv") {
+    const csv = reportToCsv(report, measure);
+    return new NextResponse(csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="imbir-certificates-${stamp}.csv"`,
+        "Content-Length": String(Buffer.byteLength(csv, "utf8")),
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  const range = reportRange(period.from, period.to);
+  const xlsx = await buildCertificateXlsx({
+    report,
+    measure,
+    periodLabel: period.label,
+    from: range.from,
+    to: range.to,
+  });
+  return new NextResponse(new Uint8Array(xlsx), {
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${name}"`,
-      "Content-Length": String(Buffer.byteLength(csv, "utf8")),
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="imbir-certificates-${stamp}.xlsx"`,
+      "Content-Length": String(xlsx.length),
       "Cache-Control": "no-store",
     },
   });

@@ -91,9 +91,15 @@ export default async function CertificateReportPage({
         </div>
         <a
           href={`/api/admin/export/certificates?${query}`}
+          className="rounded-full bg-brand-purple px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-brand-purple-600"
+        >
+          Скачать Excel
+        </a>
+        <a
+          href={`/api/admin/export/certificates?${query}&format=csv`}
           className="rounded-full border-[1.5px] border-brand-purple-100 px-4 py-2 text-xs font-bold text-brand-purple hover:border-brand-gold"
         >
-          Скачать в раскладке таблицы (CSV)
+          CSV
         </a>
         <span className="text-xs text-brand-purple-950/55">
           {measure === "paid"
