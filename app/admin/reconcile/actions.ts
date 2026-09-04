@@ -14,7 +14,9 @@ import { runReconcile } from "@/lib/reconcile";
 export async function runReconcileAction() {
   const admin = await requireAdmin();
   try {
-    const result = await runReconcile();
+    // С проверкой отмен: кнопку жмут, когда разбираются с конкретным
+    // случаем, и лишняя минута ожидания здесь дешевле неполного ответа.
+    const result = await runReconcile(new Date(), { checkReversals: true });
     await auditLog({
       actor: admin.email,
       action: "reconcile.run",

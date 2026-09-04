@@ -463,14 +463,26 @@ export type ReconcileResult = {
   remaining: Discrepancy[];
 };
 
-/** Полный проход сверки: сначала чиним, потом смотрим, что осталось. */
+/**
+ * Полный проход сверки: сначала чиним, потом смотрим, что осталось.
+ *
+ * Проверка отмен по умолчанию выключена и живёт в отдельном суточном задании.
+ * Она стоит по запросу к банку на каждый оплаченный заказ за месяц, и гонять
+ * её каждые десять минут — это сотни обращений в час к чужому бэкенду ради
+ * события, которое случается раз в месяцы. Отмену на сутки позже мы всё равно
+ * заметим вовремя: сертификатом за это время едва ли успеют воспользоваться,
+ * а деньги уже ушли — вопрос в том, чтобы узнать, а не чтобы узнать в минуту.
+ */
 export async function runReconcile(
   now: Date = new Date(),
+  options: { checkReversals?: boolean } = {},
 ): Promise<ReconcileResult> {
   const repairedCertificates = await repairPaidWithoutCertificate(now);
   const syncedToAltegio = await retryAltegioSync(now);
   const delivered = await retryStuckDeliveries(now);
-  const reversed = await detectReversedPayments(now);
+  const reversed = options.checkReversals
+    ? await detectReversedPayments(now)
+    : 0;
   const remaining = await findDiscrepancies(now);
   if (
     repairedCertificates > 0 ||

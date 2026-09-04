@@ -19,6 +19,7 @@ const POLL_RECENT = "poll-payments-recent";
 const POLL_TAIL = "poll-payments-tail";
 const RECONCILE = "reconcile";
 const RECONCILE_DIGEST = "reconcile-digest";
+const REVERSAL_CHECK = "payments-reversal-check";
 const ORDER_TTL_MS = 30 * 60_000;
 
 type DeliverJob = { certificateId: string };
@@ -126,6 +127,19 @@ async function createBoss(): Promise<PgBoss> {
   await boss.work(RECONCILE, async () => {
     const { runReconcile } = await import("./reconcile");
     await runReconcile();
+  });
+
+  // Проверка отмен платежей — раз в сутки, 09:00 Almaty, до сводки.
+  // Отдельно от сверки: она стоит по запросу к банку на каждый оплаченный
+  // заказ за месяц, и в десятиминутном цикле это сотни обращений в час к
+  // чужому бэкенду ради события, которое случается раз в месяцы.
+  await boss.createQueue(REVERSAL_CHECK);
+  await boss.schedule(REVERSAL_CHECK, "0 9 * * *", undefined, {
+    tz: "Asia/Almaty",
+  });
+  await boss.work(REVERSAL_CHECK, async () => {
+    const { detectReversedPayments } = await import("./reconcile");
+    await detectReversedPayments();
   });
 
   // Сводка расхождений менеджеру — раз в сутки, 09:30 Almaty. Молчит, когда
