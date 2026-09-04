@@ -14,9 +14,11 @@ import { runReconcile } from "@/lib/reconcile";
 export async function runReconcileAction() {
   const admin = await requireAdmin();
   try {
-    // С проверкой отмен: кнопку жмут, когда разбираются с конкретным
-    // случаем, и лишняя минута ожидания здесь дешевле неполного ответа.
-    const result = await runReconcile(new Date(), { checkReversals: true });
+    // Без проверки отмен: она делает по запросу к банку на каждый оплаченный
+    // заказ за месяц, и кнопка висела бы до минуты без единого признака жизни.
+    // Кнопку жмут, когда покупатель на линии и нужен быстрый ответ, а отмены
+    // проверяются суточным заданием.
+    const result = await runReconcile();
     await auditLog({
       actor: admin.email,
       action: "reconcile.run",
