@@ -49,7 +49,9 @@ async function build(measure: "paid" | "face" = "paid") {
     to: new Date("2026-09-30T19:00:00Z"),
   });
   const book = new ExcelJS.Workbook();
-  await book.xlsx.load(new Uint8Array(buffer));
+  // Типы exceljs описывают Buffer из собственного окружения; на вход годится
+  // любой ArrayBuffer-подобный, поэтому приведение здесь честное.
+  await book.xlsx.load(buffer as unknown as ArrayBuffer);
   return book;
 }
 

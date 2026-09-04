@@ -309,9 +309,50 @@ model Order {
   createdAt       DateTime         @default(now()) @map("created_at")
   certificates    Certificate[]
   paymentEvents   PaymentEvent[]
+  statementEntries BankStatementEntry[]
 
   @@index([status, createdAt])
   @@map("orders")
+}
+
+/**
+ * Строка банковской выписки, загруженной бухгалтером.
+ *
+ * Сверять продажи с выпиской глазами — это то, ради чего таблица и ведётся с
+ * марта 2025: суммы за день сходятся или нет, а какой именно платёж лишний,
+ * приходится искать вручную. Здесь выписка загружается файлом, каждая строка
+ * сохраняется как есть и связывается с нашим заказом, если нашёлся.
+ *
+ * Хранится ВСЯ выписка, а не только расхождения: только так можно ответить на
+ * оба вопроса сразу — «какой наш платёж не подтверждён банком» и «какой платёж
+ * банка не наш». Второй вопрос важнее: за ним стоят деньги, за которые
+ * покупатель не получил сертификата.
+ */
+model BankStatementEntry {
+  id         String   @id @default(cuid())
+  /// kaspi | forte
+  source     String   @db.VarChar(16)
+  /// Дата операции по выписке (не дата загрузки)
+  operatedAt DateTime @map("operated_at")
+  amountKzt  Int      @map("amount_kzt")
+  /// Номер операции или заказа, как он записан в выписке
+  reference  String?  @db.VarChar(128)
+  /// Строка целиком — чтобы можно было посмотреть, что именно пришло
+  raw        Json
+  /// Наш заказ, если сопоставился
+  orderId    String?  @map("order_id")
+  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  /// Как сопоставили: reference | amount_date | none
+  matchedBy  String?  @db.VarChar(16) @map("matched_by")
+  /// Загрузка, в которой строка появилась. Повторная загрузка того же
+  /// источника за тот же период заменяет прежнюю целиком.
+  batchId    String   @db.VarChar(64) @map("batch_id")
+  uploadedBy String   @db.VarChar(160) @map("uploaded_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([source, operatedAt])
+  @@index([orderId])
+  @@map("bank_statement_entries")
 }
 
 /**

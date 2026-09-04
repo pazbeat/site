@@ -110,6 +110,12 @@ export default async function AdminCertificatesPage({
         >
           Отчёт по дням и филиалам →
         </a>
+        <a
+          href="/admin/certificates/statement"
+          className="ml-2 rounded-full border-[1.5px] border-brand-purple-100 px-4 py-2 text-xs font-bold text-brand-purple transition-colors hover:border-brand-gold"
+        >
+          Сверка с выпиской →
+        </a>
       </div>
       <form className="mb-5 flex flex-wrap items-end gap-3" method="get">
         <input
