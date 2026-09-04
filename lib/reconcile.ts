@@ -647,6 +647,36 @@ export async function runReconcile(
   now: Date = new Date(),
   options: { checkReversals?: boolean } = {},
 ): Promise<ReconcileResult> {
+  // Один проход за раз. Кнопка «Проверить сейчас» и плановый запуск легко
+  // совпадают — менеджер жмёт её как раз тогда, когда что-то не так, — а два
+  // прохода чинят одни и те же записи: пытаются довыпустить один заказ и
+  // отправить одно письмо дважды. Отметки доставки теперь занимаются
+  // атомарно, но полагаться на один предохранитель там, где речь о повторном
+  // подарке, не стоит.
+  if (running) {
+    console.log("reconcile: проход уже идёт — пропускаем");
+    return {
+      repairedCertificates: 0,
+      syncedToAltegio: 0,
+      delivered: 0,
+      reversed: 0,
+      remaining: await findDiscrepancies(now),
+    };
+  }
+  running = true;
+  try {
+    return await runReconcileOnce(now, options);
+  } finally {
+    running = false;
+  }
+}
+
+let running = false;
+
+async function runReconcileOnce(
+  now: Date,
+  options: { checkReversals?: boolean },
+): Promise<ReconcileResult> {
   const repairedCertificates = await repairPaidWithoutCertificate(now);
   const syncedToAltegio = await retryAltegioSync(now);
   const delivered = await retryStuckDeliveries(now);
