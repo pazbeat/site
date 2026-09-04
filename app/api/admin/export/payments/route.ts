@@ -17,10 +17,18 @@ import { periodFilter, resolvePeriod } from "@/lib/admin/period";
  * оплаченного назавтра.
  */
 
-/** CSV-экранирование: точка с запятой — разделитель, дружелюбный к Excel. */
+/**
+ * CSV-экранирование: точка с запятой — разделитель, дружелюбный к Excel.
+ *
+ * Ячейку, начинающуюся с `=`, `+`, `-` или `@`, Excel и Google Таблицы
+ * исполняют как формулу. В выгрузку попадают поля, которые заполняет
+ * покупатель, — почта и промокод, — поэтому такие значения предваряем
+ * апострофом: в таблице он не виден, но формула снова становится текстом.
+ */
 function cell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
-  const text = String(value);
+  let text = String(value);
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
   return /[";\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
