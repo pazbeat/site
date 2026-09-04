@@ -337,7 +337,14 @@ model Certificate {
   deliveryMethod    DeliveryMethod    @map("delivery_method")
   deliveryContact   String            @map("delivery_contact")
   scheduledAt       DateTime?         @map("scheduled_at")
+  /// Доставка завершена целиком: оба письма ушли. Идемпотентность джоба.
   sentAt            DateTime?         @map("sent_at")
+  /// Письмо получателю подарка ушло. Отдельно от sentAt: если письмо
+  /// покупателю упало после успешного письма получателю, повтор доставки
+  /// присылал получателю ВТОРОЙ сертификат — подарок приходил дважды.
+  recipientSentAt   DateTime?         @map("recipient_sent_at")
+  /// Письмо покупателю (сертификат + товарный чек) ушло
+  buyerSentAt       DateTime?         @map("buyer_sent_at")
   validUntil        DateTime          @map("valid_until")
   /// Отметки об отправленных напоминаниях об истечении (Фаза 2, PRD §6.7)
   reminder30SentAt  DateTime?         @map("reminder_30_sent_at")

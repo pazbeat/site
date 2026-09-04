@@ -24,6 +24,7 @@ export async function runReconcileAction() {
         repairedCertificates: result.repairedCertificates,
         syncedToAltegio: result.syncedToAltegio,
         delivered: result.delivered,
+        reversed: result.reversed,
         remaining: result.remaining.length,
       },
     });
@@ -37,6 +38,9 @@ export async function runReconcileAction() {
         ? `записано в Altegio: ${result.syncedToAltegio}`
         : null,
       result.delivered > 0 ? `доставлено: ${result.delivered}` : null,
+      result.reversed > 0
+        ? `отменено банком: ${result.reversed}`
+        : null,
     ].filter(Boolean);
 
     return {

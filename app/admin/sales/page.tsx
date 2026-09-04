@@ -18,6 +18,9 @@ const PROVIDER_LABEL: Record<string, string> = {
   kaspi: "Kaspi",
   forte: "Картой (Forte)",
   mock: "Демо (mock)",
+  "вручную (kaspi)": "Вручную · Kaspi",
+  "вручную (forte)": "Вручную · карта",
+  "вручную (—)": "Вручную",
 };
 
 /** Горизонтальный бар для разбивок. */
@@ -82,6 +85,7 @@ export default async function AdminSalesPage({
       createdAt: true,
       salonId: true,
       paymentProvider: true,
+      paymentId: true,
       salon: { select: { city: true, name: true } },
       certificates: {
         select: {
@@ -120,7 +124,14 @@ export default async function AdminSalesPage({
   // Разбивка по способу оплаты
   const byProvider = new Map<string, { count: number; sum: number }>();
   for (const o of orders) {
-    const key = o.paymentProvider ?? "—";
+    // Ручное подтверждение — отдельной строкой. Раньше оно попадало в Kaspi
+    // и Forte наравне с настоящими оплатами, и по отчёту нельзя было понять,
+    // что деньги подтвердил человек, а не банк. Именно эти строки и надо
+    // сверять с выпиской в первую очередь.
+    const manual = o.paymentId?.startsWith("manual:") ?? false;
+    const key = manual
+      ? `вручную (${o.paymentProvider ?? "—"})`
+      : (o.paymentProvider ?? "—");
     const cur = byProvider.get(key) ?? { count: 0, sum: 0 };
     cur.count++;
     cur.sum += o.amountKzt;

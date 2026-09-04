@@ -40,6 +40,16 @@ const MAX_ATTEMPTS = { altegio: 5, delivery: 3 };
 /** Сколько строк показываем в сводке по каждому пункту. */
 const DIGEST_LIMIT = 20;
 
+/**
+ * Как долго переспрашиваем банк про уже оплаченные заказы.
+ *
+ * Месяц — компромисс: окно чарджбэка у карт куда длиннее (120 дней и
+ * больше), но каждый заказ это один запрос к банку, и опрашивать полгода
+ * истории ежедневно ради редкого события расточительно. Всё, что старше,
+ * ловится сверкой выписки — для этого и сделана выгрузка платежей.
+ */
+const REVERSAL_WINDOW_MS = 30 * 24 * 60 * 60_000;
+
 export type DiscrepancyKind =
   | "paid_without_certificate"
   | "certificate_without_payment"
@@ -335,10 +345,108 @@ export async function retryStuckDeliveries(
   return sent;
 }
 
+/**
+ * Отмена платежа ПОСЛЕ выпуска сертификата.
+ *
+ * Оплаченный заказ никто не переспрашивал у провайдера ни разу: подтвердили —
+ * и забыли. Между тем банк умеет отменить операцию (реверс, чарджбэк,
+ * возврат через кабинет), и тогда у покупателя остаётся действующий
+ * сертификат, за который денег нет. Здесь мы такие платежи находим сами.
+ *
+ * **Только карты.** Ответ Kaspi через бэкенд действующего сайта состоит из
+ * одного признака «оплачено», состояния «отменено» в нём нет вовсе — реверс
+ * по Kaspi мы увидеть не можем и ловим его только сверкой выписки руками.
+ * Это ограничение чужого API, а не наша недоделка.
+ *
+ * Сертификат гасится в ноль и уходит в `refunded` — тем же путём, что и
+ * ручной возврат из админки. Дальше обязательно зовём людей: если часть
+ * суммы уже потрачена в салоне, услуга оказана, а денег за неё нет, и решать
+ * это должен человек.
+ */
+export async function detectReversedPayments(
+  now: Date = new Date(),
+): Promise<number> {
+  const orders = await prisma.order.findMany({
+    where: {
+      status: "paid",
+      paymentProvider: "forte",
+      paymentId: { not: null },
+      paidAt: { gte: new Date(now.getTime() - REVERSAL_WINDOW_MS) },
+    },
+    select: {
+      id: true,
+      paymentId: true,
+      amountKzt: true,
+      paidAt: true,
+      certificates: { select: { id: true, status: true, balanceKzt: true } },
+    },
+    orderBy: { paidAt: "desc" },
+    take: 50,
+  });
+
+  let found = 0;
+  for (const order of orders) {
+    if (!order.paymentId) continue;
+    // Ручное подтверждение провайдер не знает — спрашивать про него нечего.
+    if (order.paymentId.startsWith("manual:")) continue;
+    let state: string;
+    try {
+      const { ForteBankProvider } = await import("./payments/forte");
+      state = await new ForteBankProvider().checkStatus(
+        order.paymentId,
+        order.amountKzt,
+      );
+    } catch {
+      // Недоступный банк — не повод объявлять платёж отменённым.
+      continue;
+    }
+    if (state !== "failed") continue;
+
+    found++;
+    const spent = order.certificates.filter(
+      (cert) => cert.status === "partially_used" || cert.status === "used",
+    );
+    await prisma.$transaction(async (tx) => {
+      await tx.certificate.updateMany({
+        where: { orderId: order.id, status: { not: "refunded" } },
+        data: { status: "refunded", balanceKzt: 0 },
+      });
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: "refunded" },
+      });
+    });
+    // Кошелёк держателя должен погаснуть вместе с сертификатом.
+    try {
+      const { refreshPassesForCertificate } = await import("./wallet/notify");
+      for (const cert of order.certificates) {
+        await refreshPassesForCertificate(cert.id);
+      }
+    } catch {
+      // Карта обновится при следующей сверке остатков — не критично сейчас.
+    }
+
+    void reportFailure(
+      "Банк отменил платёж после выпуска сертификата",
+      new Error(`заказ ${order.id}, ${order.amountKzt} ₸`),
+      {
+        заказ: order.id,
+        оплачен: order.paidAt?.toISOString() ?? "",
+        сертификаты: order.certificates.map((c) => c.id).join(", "),
+        внимание: spent.length
+          ? "часть суммы уже потрачена в салоне — нужен разбор"
+          : undefined,
+      },
+    );
+  }
+  return found;
+}
+
 export type ReconcileResult = {
   repairedCertificates: number;
   syncedToAltegio: number;
   delivered: number;
+  reversed: number;
   remaining: Discrepancy[];
 };
 
@@ -349,20 +457,29 @@ export async function runReconcile(
   const repairedCertificates = await repairPaidWithoutCertificate(now);
   const syncedToAltegio = await retryAltegioSync(now);
   const delivered = await retryStuckDeliveries(now);
+  const reversed = await detectReversedPayments(now);
   const remaining = await findDiscrepancies(now);
   if (
     repairedCertificates > 0 ||
     syncedToAltegio > 0 ||
     delivered > 0 ||
+    reversed > 0 ||
     remaining.length > 0
   ) {
     console.log(
       `reconcile: починено выпусков ${repairedCertificates}, ` +
         `записано в CRM ${syncedToAltegio}, доставлено ${delivered}, ` +
+        `отменённых банком ${reversed}, ` +
         `осталось расхождений ${remaining.length}`,
     );
   }
-  return { repairedCertificates, syncedToAltegio, delivered, remaining };
+  return {
+    repairedCertificates,
+    syncedToAltegio,
+    delivered,
+    reversed,
+    remaining,
+  };
 }
 
 export const DISCREPANCY_TITLES: Record<DiscrepancyKind, string> = {

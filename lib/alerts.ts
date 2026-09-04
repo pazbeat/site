@@ -73,7 +73,13 @@ export async function reportFailure(
 
   const to = process.env.MANAGER_EMAIL?.trim();
   if (!to) return;
-  if (!shouldEmail(where, Date.now())) return;
+  // Ключ throttle включает объект сбоя, а не только его вид. Иначе десять
+  // разных заказов с одной и той же бедой («сумма не сошлась») схлопывались
+  // в одно письмо, и девять оставались невидимыми — а именно множественность
+  // и отличает случайность от поломки, которую надо чинить немедленно.
+  const subject = context["заказ"] ?? context["сертификат"] ?? "";
+  const throttleKey = subject ? `${where}:${subject}` : where;
+  if (!shouldEmail(throttleKey, Date.now())) return;
 
   try {
     const rows = Object.entries(context)

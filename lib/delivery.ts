@@ -360,13 +360,21 @@ async function deliverCertificateOnce(certificateId: string): Promise<void> {
     recipient.trim().toLowerCase() ===
     certificate.order.buyerEmail.trim().toLowerCase();
 
-  if (!giftingSelf) {
+  // Отметка ставится сразу после успешной отправки, а не в конце всей
+  // доставки. Иначе падение письма покупателю приводило к тому, что повтор
+  // присылал ПОЛУЧАТЕЛЮ второй сертификат: подарок приходил дважды, и человек
+  // не понимал, один у него сертификат или два.
+  if (!giftingSelf && !certificate.recipientSentAt) {
     const mail = recipientEmail(mailData);
     await mailer.send({
       to: recipient,
       subject: mail.subject,
       html: mail.html,
       attachments: [attachment],
+    });
+    await prisma.certificate.update({
+      where: { id: certificateId },
+      data: { recipientSentAt: new Date() },
     });
   }
 
@@ -385,12 +393,18 @@ async function deliverCertificateOnce(certificateId: string): Promise<void> {
   } catch (error) {
     console.error("receipt build failed (non-fatal)", error);
   }
-  await mailer.send({
-    to: certificate.order.buyerEmail,
-    subject: buyer.subject,
-    html: buyer.html,
-    attachments: buyerAttachments,
-  });
+  if (!certificate.buyerSentAt) {
+    await mailer.send({
+      to: certificate.order.buyerEmail,
+      subject: buyer.subject,
+      html: buyer.html,
+      attachments: buyerAttachments,
+    });
+    await prisma.certificate.update({
+      where: { id: certificateId },
+      data: { buyerSentAt: new Date() },
+    });
+  }
 
   // Уведомление о продаже (почта и/или Telegram) шлёт lib/notify из
   // fulfillOrder: там оно привязано к моменту ОПЛАТЫ, а не доставки —
