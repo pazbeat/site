@@ -26,6 +26,8 @@ export type BridgeOrder = {
   orderId: string;
   /** Короткий номер, под которым заказ виден в Kaspi */
   kaspiRef: string | null;
+  /** Каким способом покупатель выбрал платить: мосту Kaspi чужие не отдаём */
+  paymentProvider: string | null;
   /** Вид услуги — то, что покупатель увидит в приложении Kaspi */
   name: string;
   amountKzt: number;
@@ -116,6 +118,7 @@ export async function describeOrder(
   return {
     orderId: order.id,
     kaspiRef: order.kaspiRef,
+    paymentProvider: order.paymentProvider,
     name: await serviceName(item, item.amountKzt ?? amountKzt),
     amountKzt,
     amountTiyn: amountKzt * 100,

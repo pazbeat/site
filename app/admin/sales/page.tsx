@@ -202,6 +202,25 @@ export default async function AdminSalesPage({
     <AdminChrome email={admin.email} role={admin.role} title="Продажи">
       <PeriodPicker basePath="/admin/sales" period={period} />
 
+      {/* Выгрузка для сверки с выпиской: суммы на экране на этот вопрос не
+          отвечают — в банке платёж ищут по номеру операции, а не по итогу. */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <a
+          href={`/api/admin/export/payments?${new URLSearchParams(
+            period.kind === "custom"
+              ? { from: period.fromInput, to: period.toInput }
+              : { month: period.key },
+          ).toString()}`}
+          className="rounded-full border-[1.5px] border-brand-purple-100 px-4 py-2 text-xs font-bold text-brand-purple transition-colors hover:border-brand-gold"
+        >
+          Скачать платежи за период (CSV)
+        </a>
+        <span className="text-xs text-brand-purple-950/55">
+          Номера операций, промокоды и номера сертификатов — для сверки с
+          выпиской банка и кабинетом Kaspi.
+        </span>
+      </div>
+
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-brand-purple-100 bg-white p-5">
           <div className="text-xs font-semibold tracking-wide text-brand-purple-950/55 uppercase">

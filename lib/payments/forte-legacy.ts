@@ -101,6 +101,18 @@ const PAID = new Set([
   "success",
   "successful",
 ]);
+
+/**
+ * Единственный статус, который мы видели живьём на успешной оплате.
+ *
+ * Остальные в PAID — синонимы про запас, и один из них тревожит: при
+ * двухстадийной схеме эквайринга `Approved` означает «сумма заморожена», а не
+ * «списана», и сертификат уйдёт за деньги, которые могут не прийти. Выяснить
+ * это можно только у банка. До ответа выпускаем как раньше (отказать было бы
+ * хуже: одностадийная схема — самая вероятная), но первый же такой платёж
+ * сообщаем людям, чтобы у вопроса появился живой пример, а не гипотеза.
+ */
+const CONFIRMED_PAID = "fullypaid";
 const FAILED = new Set([
   "declined",
   "cancelled",
@@ -143,7 +155,21 @@ export async function checkLegacyForteStatus(
   const amount = Number(data.order.amount);
   const amountKzt = Number.isFinite(amount) && amount > 0 ? Math.round(amount) : null;
 
-  if (PAID.has(status)) return { state: "paid", amountKzt };
+  if (PAID.has(status)) {
+    if (status !== CONFIRMED_PAID) {
+      void import("../alerts").then(({ reportFailure }) =>
+        reportFailure(
+          "ForteBank: оплата принята по непроверенному статусу",
+          new Error(
+            `банк ответил «${status}» вместо «FullyPaid» — если у мерчанта ` +
+              `двухстадийная схема, деньги могли быть только заморожены`,
+          ),
+          { заказ: forteOrderId, статус: status },
+        ),
+      );
+    }
+    return { state: "paid", amountKzt };
+  }
   if (FAILED.has(status)) return { state: "failed", amountKzt };
   if (status !== "preparing" && status !== "pending" && status !== "partiallypaid") {
     void import("../alerts").then(({ reportFailure }) =>

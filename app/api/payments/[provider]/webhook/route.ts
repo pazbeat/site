@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { fulfillOrder } from "@/lib/certificates";
 import { getWebhookProvider } from "@/lib/payments";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 /**
  * Вебхук подтверждения оплаты (PRD §5.3, §9.7):
@@ -12,6 +13,14 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ provider: string }> },
 ) {
+  // Ограничение частоты. Подпись здесь и так обязательна, но эндпоинт открыт
+  // наружу и принимает любой номер заказа: без лимита им можно перебирать
+  // подписи сколько угодно, и это не будет стоить перебирающему ничего.
+  const limited = rateLimit(`payment-webhook:${clientIp(request)}`, 60);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
+
   const { provider: providerId } = await params;
   const provider = getWebhookProvider(providerId);
   if (!provider) {

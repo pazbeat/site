@@ -51,12 +51,34 @@ export async function POST(
       : typeof body.amountTiyn === "number"
         ? Math.round(body.amountTiyn / 100)
         : null;
-  if (claimedKzt !== null && claimedKzt !== order.amountKzt) {
-    console.error("kaspi bridge amount mismatch", {
-      orderId,
-      expected: order.amountKzt,
-      claimed: claimedKzt,
-    });
+  // Мост подтверждает только оплаты Kaspi. Заказ, оформленный на карту, он
+  // подтверждать не должен вовсе: у карты свой путь статуса, и совпадение
+  // номера ещё не значит, что деньги пришли этим способом.
+  if (order.paymentProvider && order.paymentProvider !== "kaspi") {
+    return NextResponse.json(
+      { error: "wrong_provider", provider: order.paymentProvider },
+      { status: 409 },
+    );
+  }
+
+  // Сумма обязательна. Раньше её отсутствие означало «сверять нечего» — и
+  // подтверждение оплаты принималось на слово. Для моста, который ходит по
+  // общему секрету, этого мало: сумма — единственное, что связывает
+  // подтверждение с конкретным заказом.
+  if (claimedKzt === null) {
+    return NextResponse.json(
+      { error: "amount_required" },
+      { status: 400 },
+    );
+  }
+  if (claimedKzt !== order.amountKzt) {
+    void import("@/lib/alerts").then(({ reportFailure }) =>
+      reportFailure(
+        "Мост Kaspi: сумма оплаты не совпала с заказом",
+        new Error(`ожидали ${order.amountKzt} ₸, прислали ${claimedKzt} ₸`),
+        { заказ: orderId },
+      ),
+    );
     return NextResponse.json(
       { error: "amount_mismatch", expected: order.amountKzt },
       { status: 409 },
