@@ -64,6 +64,10 @@ enum AltegioSyncStatus {
   failed
   /// Был выпущен, но пропал из Altegio (удалён/возврат в CRM) — нужен разбор менеджером
   missing
+  /// Продажу в CRM намеренно не писали (ручной выпуск сертификата, который
+  /// в Altegio уже есть). Отдельно от pending: за pending сверка гоняется,
+  /// а тут гоняться не за чем.
+  skipped
 }
 
 enum LegalDocType {

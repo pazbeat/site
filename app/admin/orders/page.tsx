@@ -35,6 +35,8 @@ const SYNC_MARK: Record<string, string> = {
   pending: "⏳",
   synced: "✓",
   failed: "✕",
+  missing: "⚠",
+  skipped: "—",
 };
 
 export default async function AdminOrdersPage({

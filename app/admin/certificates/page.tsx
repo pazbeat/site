@@ -29,6 +29,7 @@ const SYNC_LABEL: Record<string, string> = {
   synced: "✓ Altegio",
   failed: "✕ Altegio",
   missing: "⚠ нет в Altegio",
+  skipped: "— не писали в Altegio",
 };
 const SYNC_BADGE: Record<string, string> = {
   pending: "text-amber-600",

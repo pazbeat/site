@@ -264,7 +264,9 @@ export default async function AdminOrderPage({
                       ? "✕ ошибка синка"
                       : cert.altegioSyncStatus === "missing"
                         ? "⚠ пропал из Altegio — проверьте CRM"
-                        : "⏳ ожидает"
+                        : cert.altegioSyncStatus === "skipped"
+                          ? "— продажу в CRM намеренно не писали"
+                          : "⏳ ожидает"
                 }
               />
               {cert.altegioCheckedAt && (

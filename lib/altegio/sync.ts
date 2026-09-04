@@ -93,7 +93,20 @@ export function buildCertComment(input: {
  */
 export async function syncCertificateToAltegio(
   certificateId: string,
+  options: {
+    /**
+     * Можно ли на ответ «номер занят» взять следующий свободный.
+     *
+     * Для обычного выпуска — да: номер ещё никому не показан, а нумерация в
+     * филиале общая с действующим сайтом, и занятые попадаются вразнобой.
+     * Для номера, введённого менеджером вручную, — нет: он его выбрал
+     * намеренно (обычно чтобы совпасть с тем, что уже на руках у клиента), и
+     * подмена такого номера означала бы ровно ту беду, от которой он спасал.
+     */
+    allowRenumber?: boolean;
+  } = {},
 ): Promise<void> {
+  const allowRenumber = options.allowRenumber ?? true;
   if (!isAltegioConfigured()) {
     console.log("[altegio] не сконфигурирован — пропуск синка");
     return;
@@ -255,6 +268,20 @@ export async function syncCertificateToAltegio(
     // Чужой номер. Салонного счётчика нет (случайный код IMB-…) — повторять
     // нечем: такой код уникален по построению, и «уже существует» означало бы
     // что-то другое, чего мы не понимаем.
+    if (!allowRenumber) {
+      const reason = new Error(
+        `номер ${number} занят в Altegio («${outcome.message}») — ` +
+          `менеджер задал его вручную, подбирать другой нельзя`,
+      );
+      await markFailed(reason);
+      const { reportFailure } = await import("@/lib/alerts");
+      void reportFailure("Altegio: заданный вручную номер занят", reason, {
+        сертификат: certificateId,
+        серийник: number,
+      });
+      return;
+    }
+
     // Менять номер можно только ДО того, как сертификат ушёл покупателю.
     //
     // Подбор свободного номера писался под однократный вызов из выпуска —

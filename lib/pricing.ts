@@ -56,13 +56,31 @@ function issuable(
 export async function resolveOrderAmount(
   salonId: number,
   item: PricingItem,
+  options: {
+    /**
+     * Требовать, чтобы такой номинал/вариант можно было выпустить в CRM.
+     *
+     * Для покупателя — обязательно: иначе он заплатит за сертификат, которого
+     * в кассе не появится. Для ручного выпуска из админки — нет: там бывает
+     * противоположная задача, завести у себя сертификат, который в Altegio
+     * уже существует (продан старым сайтом), и второй раз его туда не пишут.
+     */
+    requireIssuable?: boolean;
+    /** Разрешить нерасторгуемые филиалы (не продаются на витрине). */
+    allowNonOrderable?: boolean;
+  } = {},
 ): Promise<PricingResult> {
+  const requireIssuable = options.requireIssuable ?? true;
   // orderable обязателен наравне с active: филиалы вроде Экибастуза и
   // Жезказгана показываются на витрине, но НЕ заведены в Altegio — заказ
   // на них создавал бы сертификат, который негде погасить. Конструктор их
   // и так не предлагает, но проверка интерфейса обходится запросом напрямую.
   const salon = await prisma.salon.findFirst({
-    where: { id: salonId, active: true, orderable: true },
+    where: {
+      id: salonId,
+      active: true,
+      ...(options.allowNonOrderable ? {} : { orderable: true }),
+    },
   });
   if (!salon) return { ok: false, error: "salon_not_found" };
 
@@ -84,7 +102,7 @@ export async function resolveOrderAmount(
     const programTitle = nameRu
       ? resolveProgramTitle(nameRu, option.priceKzt)
       : null;
-    if (!issuable(salon.altegioLocationId, option.priceKzt, programTitle)) {
+    if (requireIssuable && !issuable(salon.altegioLocationId, option.priceKzt, programTitle)) {
       return { ok: false, error: "amount_not_available" };
     }
     return {
@@ -106,7 +124,7 @@ export async function resolveOrderAmount(
       where: { id: item.nominalId, active: true },
     });
     if (!nominal) return { ok: false, error: "nominal_not_found" };
-    if (!issuable(salon.altegioLocationId, nominal.amountKzt, null)) {
+    if (requireIssuable && !issuable(salon.altegioLocationId, nominal.amountKzt, null)) {
       return { ok: false, error: "amount_not_available" };
     }
     return {
@@ -124,7 +142,7 @@ export async function resolveOrderAmount(
   if (custom < bounds.min || custom > bounds.max) {
     return { ok: false, error: "amount_out_of_bounds" };
   }
-  if (!issuable(salon.altegioLocationId, custom, null)) {
+  if (requireIssuable && !issuable(salon.altegioLocationId, custom, null)) {
     return { ok: false, error: "amount_not_available" };
   }
   return { ok: true, amountKzt: custom, itemSnapshot: { type: "nominal" } };
