@@ -119,6 +119,12 @@ export async function findCertificateWithoutPayment(): Promise<Discrepancy[]> {
 export async function findAltegioStuck(
   now: Date = new Date(),
 ): Promise<Discrepancy[]> {
+  // Запись в CRM выключена (стенд, локальная разработка) — тогда `pending` у
+  // всех сертификатов означает не сбой, а «мы туда и не ходили». Показывать
+  // это как расхождение — верный способ приучить не читать экран сверки.
+  const { isAltegioSyncEnabled } = await import("./altegio/sync");
+  if (!isAltegioSyncEnabled()) return [];
+
   const certs = await prisma.certificate.findMany({
     where: {
       altegioSyncStatus: { in: ["pending", "failed"] },
@@ -245,6 +251,9 @@ export async function repairPaidWithoutCertificate(
 export async function retryAltegioSync(
   now: Date = new Date(),
 ): Promise<number> {
+  const { isAltegioSyncEnabled } = await import("./altegio/sync");
+  if (!isAltegioSyncEnabled()) return 0;
+
   const stuck = await prisma.certificate.findMany({
     where: {
       altegioSyncStatus: { in: ["pending", "failed"] },
