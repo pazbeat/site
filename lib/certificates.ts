@@ -154,10 +154,10 @@ export async function fulfillOrder(
 
     const certificate = await tx.certificate.create({
       data: {
-      orderId: order.id,
-      salonId: order.salonId,
-      codeHash: hashCode(code),
-      codeDisplay: maskCode(code),
+        orderId: order.id,
+        salonId: order.salonId,
+        codeHash: hashCode(code),
+        codeDisplay: maskCode(code),
         codeEncrypted: encryptSecret(code),
         serial,
         type: item.type,
@@ -187,6 +187,13 @@ export async function fulfillOrder(
       amountKzt: order.amountKzt,
       repaired,
     };
+  },
+  {
+    // Дольше умолчания (5 с). Внутри только claim, счётчик номера и вставка —
+    // это доли секунды, но транзакция подтверждает ОПЛАТУ, и обрывать её из-за
+    // секундной задержки базы нельзя: следующий шанс будет через минуту, а
+    // покупатель в это время смотрит на «проверяем оплату».
+    timeout: 15_000,
   });
 
   if (outcome.kind === "not_found") return { status: "not_found" };
