@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       successToken: true,
       kaspiRef: true,
       amountKzt: true,
+      createdAt: true,
     },
   });
   if (!order) {
@@ -46,7 +47,18 @@ export async function POST(request: Request) {
   if (order.status === "paid") {
     return NextResponse.json({ paid: true, successToken: order.successToken });
   }
-  if (order.status !== "pending" || !order.paymentId) {
+  // Протухший заказ спрашиваем у провайдера так же, как ожидающий: человек
+  // мог оплатить на 31-й минуте и сидеть на этой странице. Раньше здесь был
+  // ранний выход, и такой покупатель видел вечное «проверяем оплату», пока
+  // через минуту его не подберёт фоновый добор. Старше суток не спрашиваем —
+  // там уже работают ступени поллера, а страницу давно закрыли.
+  const stale =
+    order.status === "expired" &&
+    order.createdAt.getTime() < Date.now() - 24 * 60 * 60_000;
+  if ((order.status !== "pending" && order.status !== "expired") || stale) {
+    return NextResponse.json({ paid: false, status: order.status });
+  }
+  if (!order.paymentId) {
     return NextResponse.json({ paid: false, status: order.status });
   }
 
@@ -58,10 +70,11 @@ export async function POST(request: Request) {
     const ref = order.kaspiRef ?? order.paymentId;
     paid = (await kaspi.checkStatus(ref, order.amountKzt)) === "paid";
   } catch (error) {
-    console.error("kaspi status check failed", {
-      orderId: order.id,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    void import("@/lib/alerts").then(({ reportFailure }) =>
+      reportFailure("Kaspi: не удалось узнать статус оплаты", error, {
+        заказ: order.id,
+      }),
+    );
     return NextResponse.json({ paid: false, error: "status_unavailable" });
   }
 
