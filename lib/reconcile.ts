@@ -186,19 +186,31 @@ export async function findDeliveryStuck(
       deliveryContact: true,
       deliveryAttempts: true,
       deliveryLastError: true,
+      recipientSentAt: true,
+      buyerSentAt: true,
     },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
-  return certs.map((cert) => ({
-    kind: "delivery_stuck" as const,
-    id: cert.id,
-    label:
-      `Сертификат ${cert.serial ?? cert.id} → ${cert.deliveryContact} · ` +
-      `попыток ${cert.deliveryAttempts}`,
-    since: cert.createdAt,
-    detail: cert.deliveryLastError,
-  }));
+  return certs.map((cert) => {
+    // Какое из двух писем не ушло — половина ответа на вопрос «что делать».
+    // «Не доставлено» без уточнения заставляло бы каждый раз открывать
+    // карточку, чтобы понять, знает ли получатель о подарке.
+    const missing = !cert.recipientSentAt
+      ? "получателю"
+      : !cert.buyerSentAt
+        ? "покупателю (чек)"
+        : "не отмечено доставленным";
+    return {
+      kind: "delivery_stuck" as const,
+      id: cert.id,
+      label:
+        `Сертификат ${cert.serial ?? cert.id} → ${cert.deliveryContact} · ` +
+        `не ушло ${missing} · попыток ${cert.deliveryAttempts}`,
+      since: cert.createdAt,
+      detail: cert.deliveryLastError,
+    };
+  });
 }
 
 export async function findDiscrepancies(
