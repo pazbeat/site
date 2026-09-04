@@ -82,6 +82,34 @@ function providers(): Provider[] {
   ];
 }
 
+/**
+ * Все номера, под которыми этот заказ мог быть оплачен.
+ *
+ * Первым — текущий (самый вероятный), дальше прежние счета из журнала
+ * платежа, новые раньше старых. Ограничиваем пятью: больше пяти открытых
+ * вкладок с оплатой — уже не про покупателя, а про перебор.
+ */
+const MAX_REFS = 5;
+
+async function knownRefs(
+  provider: Provider,
+  order: { id: string; paymentId: string | null; kaspiRef: string | null },
+): Promise<string[]> {
+  const current = provider.ref(order);
+  // У Kaspi номер заказа один и тот же на всё время жизни заказа — прежних
+  // счетов там не бывает, и лишний запрос в базу ни к чему.
+  if (provider.id !== "forte") return current ? [current] : [];
+
+  const events = await prisma.paymentEvent.findMany({
+    where: { orderId: order.id, kind: "invoice", externalRef: { not: null } },
+    select: { externalRef: true },
+    orderBy: { createdAt: "desc" },
+    take: MAX_REFS,
+  });
+  const refs = [current, ...events.map((e) => e.externalRef ?? "")];
+  return [...new Set(refs.filter(Boolean))].slice(0, MAX_REFS);
+}
+
 async function pollProvider(
   provider: Provider,
   tier: PollTier,
@@ -108,10 +136,24 @@ async function pollProvider(
   for (const order of orders) {
     if (!order.paymentId) continue;
     try {
-      const paid =
-        (await provider.check(provider.ref(order), order.amountKzt)) === "paid";
-      if (!paid) continue;
-      const result = await fulfillOrder(order.id, order.paymentId);
+      // Спрашиваем про ВСЕ известные счета этого заказа, а не только про
+      // последний.
+      //
+      // Каждая загрузка страницы оплаты картой заводит в банке новый заказ и
+      // перезаписывает наш paymentId. Покупатель, открывший оплату дважды и
+      // заплативший в первой вкладке, оставался невидимым: мы спрашивали
+      // только про второй счёт и получали «ещё не оплачено» вечно. Прежние
+      // номера теперь хранит журнал платежа — по нему и идём.
+      const refs = await knownRefs(provider, order);
+      let paidRef: string | null = null;
+      for (const ref of refs) {
+        if ((await provider.check(ref, order.amountKzt)) === "paid") {
+          paidRef = ref;
+          break;
+        }
+      }
+      if (!paidRef) continue;
+      const result = await fulfillOrder(order.id, paidRef);
       if (result.status === "fulfilled" || result.status === "repaired") {
         fulfilled++;
         console.log(
