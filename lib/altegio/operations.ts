@@ -468,14 +468,15 @@ export async function issueCertificateOperation(
   }
 
   let paid = false;
-  if (ctx.markPaid && documentId) {
+  // Нулевую оплату в кассу не проводим. Так бывает у подарка салона: документ
+  // выставлен на полный номинал, а денег не приходило вовсе. Провести платёж
+  // на ноль — либо ошибка API, либо строка «оплачено 0» в смене, из-за которой
+  // бухгалтер сводит кассу и видит недостачу без объяснения. Документ остаётся
+  // непроведённым осознанно, и это видно в комментарии к нему.
+  const payable = params.paidKzt ?? params.amountKzt;
+  if (ctx.markPaid && documentId && payable > 0) {
     try {
-      await markSaleAsPaid(
-        ctx.companyId,
-        documentId,
-        params.paidKzt ?? params.amountKzt,
-        ctx.accountId,
-      );
+      await markSaleAsPaid(ctx.companyId, documentId, payable, ctx.accountId);
       paid = true;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

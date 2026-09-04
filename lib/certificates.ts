@@ -157,7 +157,23 @@ export async function fulfillOrder(
     // Номер сертификата по салону (WM0001…): атомарный инкремент счётчика.
     // Он же публичный код — один номер и в письме, и в PDF, и в Altegio, как
     // на действующем сайте: кассир ищет в CRM ровно то, что покупатель видит.
-    const serial = await nextSalonSerial(order.salonId, tx);
+    let serial = await nextSalonSerial(order.salonId, tx);
+    // Номер мог быть занят: ручной выпуск позволяет задать любой, и счётчик
+    // после него подтягивается вперёд, но исторические записи и правки в базе
+    // это не покрывают. Проверяем ДО вставки, а не ловим ошибку уникальности:
+    // упавший INSERT в Postgres делает всю транзакцию непригодной, и
+    // подтверждение оплаты откатилось бы целиком — при каждой попытке.
+    for (let attempt = 0; attempt < 10 && serial; attempt += 1) {
+      const clash = await tx.certificate.findFirst({
+        where: { OR: [{ serial }, { codeHash: hashCode(serial) }] },
+        select: { id: true },
+      });
+      if (!clash) break;
+      console.warn(
+        `fulfillOrder: номер ${serial} занят — берём следующий (заказ ${orderId})`,
+      );
+      serial = await nextSalonSerial(order.salonId, tx);
+    }
     // Запасной путь: у салона нет префикса — выдаём случайный код, иначе
     // сертификат остался бы вовсе без номера.
     const code = serial ?? generateCertificateCode();

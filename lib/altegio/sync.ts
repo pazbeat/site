@@ -65,6 +65,12 @@ export function buildCertComment(input: {
     faceKzt: number;
     paidKzt: number;
   } | null;
+  /**
+   * Ручной выпуск: основание и сколько реально получено. Без этого в кассе
+   * такая продажа выглядит обычной покупкой с сайта, а суммы у неё могут не
+   * сходиться — и объяснить расхождение будет нечем.
+   */
+  manual?: { reference: string; paidKzt: number; faceKzt: number } | null;
 }): string {
   const prefix = input.test ? "[ТЕСТ] " : "";
   const serial = input.serial ? `${input.serial} · ` : "";
@@ -79,6 +85,12 @@ export function buildCertComment(input: {
     parts.push(
       `промокод ${input.promo.code} −${size}: оплачено ` +
         `${money(input.promo.paidKzt)} из ${money(input.promo.faceKzt)}`,
+    );
+  }
+  if (input.manual) {
+    parts.push(
+      `выпущен вручную (${input.manual.reference}): получено ` +
+        `${money(input.manual.paidKzt)} из ${money(input.manual.faceKzt)}`,
     );
   }
   return parts.join(" · ");
@@ -106,7 +118,9 @@ export async function syncCertificateToAltegio(
     allowRenumber?: boolean;
   } = {},
 ): Promise<void> {
-  const allowRenumber = options.allowRenumber ?? true;
+  // Значение по умолчанию берём из самой записи — см. certificates.serialManual.
+  // Аргумент оставлен на случай, когда вызывающий знает больше.
+  let allowRenumber = options.allowRenumber ?? true;
   if (!isAltegioConfigured()) {
     console.log("[altegio] не сконфигурирован — пропуск синка");
     return;
@@ -121,6 +135,9 @@ export async function syncCertificateToAltegio(
     },
   });
   if (!cert) throw new Error(`altegio sync: certificate ${certificateId} not found`);
+  if (options.allowRenumber === undefined && cert.serialManual) {
+    allowRenumber = false;
+  }
 
   const companyId = cert.salon.altegioLocationId;
   if (!companyId) {
@@ -178,6 +195,13 @@ export async function syncCertificateToAltegio(
             value: cert.order.promo.value,
             faceKzt,
             paidKzt: cert.order.amountKzt,
+          }
+        : null,
+      manual: cert.order.paymentId?.startsWith("manual:")
+        ? {
+            reference: cert.order.paymentId.slice("manual:".length),
+            paidKzt: cert.order.amountKzt,
+            faceKzt,
           }
         : null,
     }),
@@ -344,6 +368,13 @@ export async function syncCertificateToAltegio(
             paidKzt: cert.order.amountKzt,
           }
         : null,
+      manual: cert.order.paymentId?.startsWith("manual:")
+        ? {
+            reference: cert.order.paymentId.slice("manual:".length),
+            paidKzt: cert.order.amountKzt,
+            faceKzt,
+          }
+        : null,
     });
   }
 
@@ -446,7 +477,10 @@ export async function syncCertificateToAltegio(
         `оплачен=${result.paid}, фолбэк=${result.fallback}; ` +
         `выбранный салон company ${companyId})`,
     );
-    if (!result.paid && !isAltegioTest()) {
+    // Подарок салона (получено ноль) намеренно не проводится по кассе —
+    // тревожить некого. Тревога нужна там, где деньги были, а продажа
+    // осталась непроведённой.
+    if (!result.paid && !isAltegioTest() && cert.order.amountKzt > 0) {
       // Не console.warn: сертификат в CRM есть, но продажа не проведена —
       // в кассовой смене её не будет, и бухгалтер этого не заметит, пока не
       // начнёт сводить деньги. Такое обязано доходить до людей.

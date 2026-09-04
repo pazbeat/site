@@ -45,6 +45,12 @@ export type ManualIssueInput = {
   /** Кому уходит сертификат. Пусто — почта покупателя. */
   recipientEmail?: string;
   buyerEmail: string;
+  /**
+   * Телефон покупателя. Не обязателен, но с ним Altegio заводит карточку
+   * клиента, а по ней читается остаток сертификата из CRM — иначе сверять
+   * его можно только по журналу погашений сети.
+   */
+  buyerPhone?: string;
   /** Номер сертификата, если задан вручную. Пусто — берём следующий по салону. */
   serial?: string;
   /** Сколько реально получено. 0 — подарок салона, в выручку не идёт. */
@@ -79,10 +85,35 @@ export type ManualIssueResult =
  * случайный (IMB-XXXX-XXXX). Пробелы и регистр менеджеру прощаем — номер он
  * переписывает с чужого экрана или с бумаги.
  */
-export function normalizeManualSerial(raw: string): string | null {
+export function normalizeManualSerial(
+  raw: string,
+  codePrefix?: string | null,
+): { ok: true; serial: string } | { ok: false; error: string } {
   const value = normalizeCode(raw);
-  if (!value) return null;
-  return isValidCodeFormat(value) ? value : null;
+  if (!value) return { ok: false, error: "Номер пустой." };
+
+  // Салонный номер добиваем нулями до четырёх цифр. На бланке напечатано
+  // WM0123, менеджер набирает «WM 123» — и без выравнивания мы завели бы
+  // WM123: другой хэш, другой номер в CRM, «не найден» на /check по тому
+  // самому номеру, который у клиента на руках.
+  const salon = /^([A-Z]{2})(\d{1,6})$/.exec(value);
+  if (salon) {
+    const [, prefix, digits] = salon;
+    if (codePrefix && prefix !== codePrefix) {
+      return {
+        ok: false,
+        error: `Номер начинается с ${prefix}, а у выбранного филиала префикс ${codePrefix}. Проверьте филиал или номер.`,
+      };
+    }
+    return { ok: true, serial: `${prefix}${digits.padStart(4, "0")}` };
+  }
+
+  if (isValidCodeFormat(value)) return { ok: true, serial: value };
+  return {
+    ok: false,
+    error:
+      "Номер не похож на наш: ожидается салонный (например, WM9001) или старый IMB-XXXX-XXXX.",
+  };
 }
 
 export async function issueCertificateManually(
@@ -118,26 +149,56 @@ export async function issueCertificateManually(
   });
   if (!design) return { ok: false, error: "Дизайн не найден." };
 
+  // Тот же выпуск по тому же основанию — не повторяем.
+  //
+  // Круг с Altegio занимает секунды, и менеджер, не дождавшись ответа, жмёт
+  // кнопку снова или обновляет вкладку. Без этой проверки получались бы второй
+  // сертификат, вторая продажа в кассе на ту же сумму и второе письмо.
+  const already = await prisma.order.findFirst({
+    where: { paymentId: `manual:${input.reference.trim()}`, status: "paid" },
+    select: { id: true, certificates: { select: { serial: true, id: true } } },
+  });
+  if (already) {
+    const cert = already.certificates[0];
+    return {
+      ok: false,
+      error:
+        `По основанию «${input.reference.trim()}» сертификат уже выпущен` +
+        (cert?.serial ? ` — ${cert.serial}.` : ".") +
+        " Если нужен ещё один, укажите другое основание.",
+    };
+  }
+
+  const salon = await prisma.salon.findUnique({
+    where: { id: input.salonId },
+    select: { codePrefix: true, altegioLocationId: true },
+  });
+  // Филиал не заведён в Altegio — писать туда нечего, и делать вид, что
+  // «синк не прошёл», нельзя: это норма, а не сбой.
+  const syncToAltegio = input.syncToAltegio && salon?.altegioLocationId != null;
+
   // Номер: заданный вручную или следующий по счётчику филиала.
   let serial: string | null = null;
   let manualSerial = false;
   if (input.serial?.trim()) {
-    const normalized = normalizeManualSerial(input.serial);
-    if (!normalized) {
-      return {
-        ok: false,
-        error:
-          "Номер не похож на наш: ожидается салонный (например, WM9001) или старый IMB-XXXX-XXXX.",
-      };
-    }
+    const normalized = normalizeManualSerial(input.serial, salon?.codePrefix);
+    if (!normalized.ok) return { ok: false, error: normalized.error };
     const taken = await prisma.certificate.findFirst({
-      where: { OR: [{ serial: normalized }, { codeHash: hashCode(normalized) }] },
+      where: {
+        OR: [
+          { serial: normalized.serial },
+          { codeHash: hashCode(normalized.serial) },
+        ],
+      },
       select: { id: true },
     });
     if (taken) {
-      return { ok: false, error: `Номер ${normalized} уже занят у нас в базе.` };
+      return {
+        ok: false,
+        error: `Номер ${normalized.serial} уже занят у нас в базе.`,
+      };
     }
-    serial = normalized;
+    serial = normalized.serial;
     manualSerial = true;
   }
 
@@ -166,6 +227,7 @@ export async function issueCertificateManually(
         kaspiRef,
         salonId: input.salonId,
         buyerEmail: input.buyerEmail.trim(),
+        buyerPhone: input.buyerPhone?.trim() || null,
         amountKzt: Math.max(0, Math.round(input.paidKzt)),
         status: "paid",
         paidAt: new Date(),
@@ -195,6 +257,24 @@ export async function issueCertificateManually(
     });
 
     const number = serial ?? (await nextSalonSerial(input.salonId, tx));
+
+    // Ручной номер обязан двигать счётчик филиала.
+    //
+    // Иначе он остаётся позади: менеджер завёл WM9012, счётчик стоит на 9006,
+    // и через шесть обычных покупок nextSalonSerial выдаст ровно WM9012 —
+    // уникальный индекс отвергнет вставку, транзакция подтверждения оплаты
+    // откатится целиком вместе с инкрементом, и следующий опрос повторит то же
+    // самое. Филиал навсегда перестал бы выпускать сертификаты.
+    if (serial && salon?.codePrefix && serial.startsWith(salon.codePrefix)) {
+      const digits = Number(serial.slice(salon.codePrefix.length));
+      if (Number.isFinite(digits)) {
+        await tx.$executeRaw`
+          UPDATE salons
+             SET last_cert_serial = GREATEST(last_cert_serial, ${digits})
+           WHERE id = ${input.salonId}
+        `;
+      }
+    }
     const code = number ?? generateCertificateCode();
     const snapshot = pricing.itemSnapshot as { programOptionId?: number };
 
@@ -206,6 +286,10 @@ export async function issueCertificateManually(
         codeDisplay: maskCode(code),
         codeEncrypted: encryptSecret(code),
         serial: number,
+        // Признак живёт в записи, а не в аргументе вызова: автоповтор синка
+        // приходит позже и без контекста, а подменять заданный вручную номер
+        // нельзя никогда.
+        serialManual: manualSerial,
         type: input.item.type,
         programOptionId:
           input.item.type === "program" ? (snapshot.programOptionId ?? null) : null,
@@ -220,7 +304,7 @@ export async function issueCertificateManually(
         validUntil,
         // Продажу в CRM не пишем — статус должен это говорить, а не молчать
         // словом «pending», за которым сверка будет гоняться вечно.
-        altegioSyncStatus: input.syncToAltegio ? "pending" : "skipped",
+        altegioSyncStatus: syncToAltegio ? "pending" : "skipped",
       },
     });
 
@@ -240,13 +324,10 @@ export async function issueCertificateManually(
   // Запись в CRM. Ждём её, как и при обычном выпуске: менеджер должен увидеть
   // результат сразу, а не гадать, дошло ли.
   let altegio: "synced" | "failed" | "skipped" | null = null;
-  if (input.syncToAltegio) {
+  if (syncToAltegio) {
     try {
       const { syncCertificateToAltegio } = await import("../altegio/sync");
-      await syncCertificateToAltegio(created.certificate.id, {
-        // Номер, заданный менеджером, подменять нельзя — см. комментарий там.
-        allowRenumber: !manualSerial,
-      });
+      await syncCertificateToAltegio(created.certificate.id);
       const after = await prisma.certificate.findUnique({
         where: { id: created.certificate.id },
         select: { altegioSyncStatus: true },

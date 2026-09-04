@@ -252,6 +252,18 @@ export function IssueForm({
         </Field>
 
         <Field
+          label="Телефон покупателя"
+          hint="Не обязателен. С ним Altegio заводит карточку клиента, и остаток сертификата можно читать из CRM напрямую."
+        >
+          <input
+            name="buyerPhone"
+            inputMode="tel"
+            placeholder="+7 700 000 00 00"
+            className={inputClass}
+          />
+        </Field>
+
+        <Field
           label="Номер сертификата"
           hint={
             salon?.nextSerial
@@ -311,15 +323,17 @@ export function IssueForm({
             <input
               type="checkbox"
               name="syncToAltegio"
-              checked={sync}
+              checked={sync && (salon?.inAltegio ?? false)}
+              disabled={!salon?.inAltegio}
               onChange={(e) => setSync(e.target.checked)}
               className="mt-1"
             />
             <span>
               Записать продажу в Altegio
               <span className="block text-xs text-brand-purple-950/55">
-                Снимите, если сертификат в CRM уже есть — например, его продал
-                действующий сайт. Иначе в кассе появится вторая продажа.
+                {salon?.inAltegio
+                  ? "Снимите, если сертификат в CRM уже есть — например, его продал действующий сайт. Иначе в кассе появится вторая продажа."
+                  : "Недоступно: филиал не заведён в Altegio. Сертификат будет жить только у нас, и погасить его в кассе не получится."}
               </span>
             </span>
           </label>
