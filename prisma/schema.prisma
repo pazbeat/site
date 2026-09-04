@@ -298,9 +298,44 @@ model Order {
   recoveryEmailSentAt DateTime?    @map("recovery_email_sent_at")
   createdAt       DateTime         @default(now()) @map("created_at")
   certificates    Certificate[]
+  paymentEvents   PaymentEvent[]
 
   @@index([status, createdAt])
   @@map("orders")
+}
+
+/**
+ * Журнал того, что провайдер сказал про оплату и когда.
+ *
+ * До него доказать «банк ответил, что оплачено в 14:07» было нечем: ответы
+ * жили в логе контейнера, который ротируется и никем не читается. При споре с
+ * покупателем или при разборе расхождения с выпиской это единственный
+ * документ на нашей стороне.
+ *
+ * Пишутся только осмысленные переходы: выставление счёта, подтверждение,
+ * отказ, отмена, ошибка опроса. Обычный ответ «ещё не оплачено» не пишем —
+ * поллер спрашивает раз в минуту, и такой журнал состоял бы из него одного.
+ */
+model PaymentEvent {
+  id          String   @id @default(cuid())
+  orderId     String   @map("order_id")
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// kaspi | forte | mock
+  provider    String   @db.VarChar(16)
+  /// Кто узнал: page | poller | bridge | manual | reconcile | webhook | invoice
+  source      String   @db.VarChar(16)
+  /// Что произошло: invoice | paid | repaired | failed | reversed | error
+  kind        String   @db.VarChar(16)
+  /// Номер операции у провайдера — по нему платёж ищут в выписке
+  externalRef String?  @db.VarChar(128) @map("external_ref")
+  /// Сырой статус провайдера, как он пришёл
+  statusRaw   String?  @db.VarChar(64)  @map("status_raw")
+  amountKzt   Int?     @map("amount_kzt")
+  note        String?  @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([orderId, createdAt])
+  @@map("payment_events")
 }
 
 model Certificate {

@@ -75,13 +75,23 @@ export async function POST(request: Request) {
         заказ: order.id,
       }),
     );
+    void import("@/lib/payment-events").then(({ recordPaymentEvent }) =>
+      recordPaymentEvent({
+        orderId: order.id,
+        provider: "kaspi",
+        source: "page",
+        kind: "error",
+        externalRef: order.paymentId,
+        note: error instanceof Error ? error.message : String(error),
+      }),
+    );
     return NextResponse.json({ paid: false, error: "status_unavailable" });
   }
 
   if (!paid) return NextResponse.json({ paid: false });
 
   // Оплачено — исполняем заказ (идемпотентно)
-  const result = await fulfillOrder(order.id, order.paymentId);
+  const result = await fulfillOrder(order.id, order.paymentId, "page");
   if (result.status === "not_found" || result.status === "not_payable") {
     return NextResponse.json({ paid: false, error: result.status });
   }

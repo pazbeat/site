@@ -7,6 +7,7 @@ import { CertEdit } from "@/components/admin/cert-edit";
 import { ManualFulfill } from "@/components/admin/manual-fulfill";
 import { prisma } from "@/lib/db";
 import { formatKzt } from "@/lib/format";
+import { describePaymentEvent } from "@/lib/payment-events";
 
 const CERT_STATUS: Record<string, string> = {
   active: "Активен",
@@ -43,6 +44,9 @@ export default async function AdminOrderPage({
           programOption: { include: { program: true } },
         },
       },
+      // Журнал платежа: что провайдер отвечал и когда. Спор «я оплатил»
+      // решается этой таблицей, а не памятью менеджера.
+      paymentEvents: { orderBy: { createdAt: "desc" }, take: 30 },
     },
   });
   if (!order) notFound();
@@ -334,6 +338,46 @@ export default async function AdminOrderPage({
             order.status === "paid") && (
             <ManualFulfill orderId={order.id} repair={order.status === "paid"} />
           )}
+        </section>
+      )}
+
+      {order.paymentEvents.length > 0 && (
+        <section className="mt-5 rounded-2xl border border-brand-purple-100 bg-white p-5">
+          <h2 className="mb-1 text-sm font-bold text-brand-purple">
+            Журнал платежа
+          </h2>
+          <p className="mb-3 text-xs text-brand-purple-950/55">
+            Что отвечал провайдер и кто подтвердил оплату. Время — Asia/Almaty.
+          </p>
+          <ul className="text-sm">
+            {order.paymentEvents.map((event) => (
+              <li
+                key={event.id}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-brand-purple-100/60 py-2 last:border-0"
+              >
+                <span className="font-medium">
+                  {describePaymentEvent(event)}
+                </span>
+                <span className="text-xs whitespace-nowrap text-brand-purple-950/55">
+                  {new Date(event.createdAt.getTime() + 5 * 3_600_000)
+                    .toISOString()
+                    .slice(0, 16)
+                    .replace("T", " ")}
+                </span>
+                {(event.externalRef || event.statusRaw || event.note) && (
+                  <p className="w-full text-xs text-brand-purple-950/60">
+                    {[
+                      event.externalRef && `операция ${event.externalRef}`,
+                      event.statusRaw && `статус «${event.statusRaw}»`,
+                      event.note,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </AdminChrome>

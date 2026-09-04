@@ -53,6 +53,19 @@ export async function POST(request: Request) {
       where: { id: order.id },
       data: { paymentId: created.forteOrderId, paymentProvider: "forte" },
     });
+    // Каждая загрузка страницы оплаты создаёт НОВЫЙ заказ в банке и
+    // перезаписывает paymentId. Прежние номера иначе теряются, а оплата могла
+    // пройти по любому из них — журнал хранит их все.
+    void import("@/lib/payment-events").then(({ recordPaymentEvent }) =>
+      recordPaymentEvent({
+        orderId: order.id,
+        provider: "forte",
+        source: "invoice",
+        kind: "invoice",
+        externalRef: created.forteOrderId,
+        amountKzt: order.amountKzt,
+      }),
+    );
     return NextResponse.json({ redirectUrl: created.redirectUrl });
   } catch (error) {
     void reportFailure("Forte: не создан заказ в банке", error, {

@@ -9,6 +9,7 @@ import {
 import { encryptSecret } from "./crypto";
 import { getSetting } from "./data";
 import { reportFailure } from "./alerts";
+import { recordPaymentEvent, type PaymentEventSource } from "./payment-events";
 import type { Prisma } from "./generated/prisma/client";
 
 /** Обычный клиент Prisma или клиент внутри транзакции — оба подходят. */
@@ -89,6 +90,11 @@ type OrderItem = {
 export async function fulfillOrder(
   orderId: string,
   externalPaymentId: string,
+  /**
+   * Кто подтвердил оплату — для журнала платежа. По умолчанию «фоновая
+   * проверка»: так вызывает поллер, самый частый путь.
+   */
+  source: PaymentEventSource = "poller",
 ): Promise<
   | { status: "fulfilled"; certificateId: string }
   | { status: "repaired"; certificateId: string }
@@ -177,6 +183,8 @@ export async function fulfillOrder(
       certificateId: certificate.id,
       serial: certificate.serial,
       scheduledAt: certificate.scheduledAt,
+      provider: order.paymentProvider,
+      amountKzt: order.amountKzt,
       repaired,
     };
   });
@@ -198,6 +206,16 @@ export async function fulfillOrder(
       `fulfillOrder: заказ ${orderId} был оплачен без сертификата — выпущен ${certificate.serial ?? certificate.id}`,
     );
   }
+
+  void recordPaymentEvent({
+    orderId,
+    provider: outcome.provider,
+    source,
+    kind: outcome.repaired ? "repaired" : "paid",
+    externalRef: externalPaymentId,
+    amountKzt: outcome.amountKzt,
+    note: certificate.serial ? `сертификат ${certificate.serial}` : null,
+  });
 
   // Запись в Altegio — ДО доставки, и её ждём. Номер сертификата уникален в
   // филиале, а нумерация там общая с действующим сайтом: часть номеров уже

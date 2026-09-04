@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "./db";
 import { reportFailure } from "./alerts";
+import { recordPaymentEvent } from "./payment-events";
 
 /**
  * Сверка контура «оплата → выпуск → CRM → доставка».
@@ -233,6 +234,7 @@ export async function repairPaidWithoutCertificate(
       const result = await fulfillOrder(
         item.id,
         order?.paymentId ?? `reconcile:${item.id}`,
+        "reconcile",
       );
       if (result.status === "repaired" || result.status === "fulfilled") {
         repaired++;
@@ -426,6 +428,17 @@ export async function detectReversedPayments(
       // Карта обновится при следующей сверке остатков — не критично сейчас.
     }
 
+    void recordPaymentEvent({
+      orderId: order.id,
+      provider: "forte",
+      source: "reconcile",
+      kind: "reversed",
+      externalRef: order.paymentId,
+      amountKzt: order.amountKzt,
+      note: spent.length
+        ? "часть суммы уже была потрачена в салоне"
+        : "сертификат погашен в ноль",
+    });
     void reportFailure(
       "Банк отменил платёж после выпуска сертификата",
       new Error(`заказ ${order.id}, ${order.amountKzt} ₸`),

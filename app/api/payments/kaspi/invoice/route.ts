@@ -43,6 +43,16 @@ export async function POST(request: Request) {
       where: { id: order.id },
       data: { paymentId: payRef, paymentProvider: "kaspi" },
     });
+    void import("@/lib/payment-events").then(({ recordPaymentEvent }) =>
+      recordPaymentEvent({
+        orderId: order.id,
+        provider: "kaspi",
+        source: "invoice",
+        kind: "invoice",
+        externalRef: order.kaspiRef ?? payRef,
+        amountKzt: order.amountKzt,
+      }),
+    );
   }
 
   const kaspi = new KaspiPayProvider();

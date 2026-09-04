@@ -86,7 +86,7 @@ export async function POST(
   }
 
   const paymentRef = body.txnId ? `kaspi:${body.txnId}` : `kaspi:bridge`;
-  const result = await fulfillOrder(internalId, paymentRef);
+  const result = await fulfillOrder(internalId, paymentRef, "bridge");
 
   if (result.status === "not_found") {
     return NextResponse.json({ error: "order_not_found" }, { status: 404 });

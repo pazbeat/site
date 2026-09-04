@@ -49,6 +49,7 @@ export async function POST(
   const result = await fulfillOrder(
     verification.orderId,
     verification.externalId,
+    "webhook",
   );
   if (result.status === "not_found" || result.status === "not_payable") {
     return NextResponse.json({ error: result.status }, { status: 400 });

@@ -289,7 +289,7 @@ export async function manualFulfillAction(formData: FormData) {
   // Номер операции идёт в paymentId: по нему платёж находится в выписке.
   // Префикс `manual:` сохраняем — по нему уведомление о продаже помечает
   // выпуск ручным, и его же видно в отчётах.
-  const result = await fulfillOrder(order.id, `manual:${reference}`);
+  const result = await fulfillOrder(order.id, `manual:${reference}`, "manual");
   if (result.status !== "fulfilled" && result.status !== "repaired") {
     return { error: `Не получилось выпустить: ${result.status}.` };
   }
