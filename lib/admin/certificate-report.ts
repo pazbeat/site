@@ -89,10 +89,28 @@ type Row = {
   method: string;
 };
 
+/**
+ * Границы отчёта. Пустой период («всё время») в матрице по дням не имеет
+ * смысла — колонок было бы на годы; сводим к последним 30 суткам.
+ */
+export function reportRange(
+  from: Date | null,
+  to: Date | null,
+  now: Date = new Date(),
+): { from: Date; to: Date } {
+  const end = to ?? now;
+  return {
+    from: from ?? new Date(end.getTime() - 30 * 24 * 3_600_000),
+    to: end,
+  };
+}
+
 export async function buildCertificateReport(
-  from: Date,
-  to: Date,
+  fromRaw: Date | null,
+  toRaw: Date | null,
+  now: Date = new Date(),
 ): Promise<CertificateReport> {
+  const { from, to } = reportRange(fromRaw, toRaw, now);
   // Одним запросом: сертификаты с их заказами, сгруппированные по дню салона.
   // Считаем по сертификатам, а не по заказам: в отчёте бухгалтера строка — это
   // выпущенный сертификат, и заказ с двумя сертификатами (схема это допускает)

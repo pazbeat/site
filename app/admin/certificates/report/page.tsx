@@ -35,11 +35,9 @@ export default async function CertificateReportPage({
   const period = resolvePeriod(sp);
   const measure: "paid" | "face" = sp.measure === "face" ? "face" : "paid";
 
-  // «Всё время» в матрице по дням не имеет смысла — колонок было бы на годы.
-  // Тихо сводим к текущему месяцу и говорим об этом.
-  const from = period.from ?? new Date(Date.now() - 30 * 24 * 3_600_000);
-  const to = period.to ?? new Date();
-  const report = await buildCertificateReport(from, to);
+  // Границы «всего времени» сводит к разумным сам отчёт: матрица по дням за
+  // все годы была бы нечитаемой.
+  const report = await buildCertificateReport(period.from, period.to);
 
   const pick = (cell?: { paidKzt: number; faceKzt: number }) =>
     cell ? (measure === "paid" ? cell.paidKzt : cell.faceKzt) : 0;

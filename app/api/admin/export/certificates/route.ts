@@ -30,9 +30,7 @@ export async function GET(request: Request) {
   });
   const measure = url.searchParams.get("measure") === "face" ? "face" : "paid";
 
-  const from = period.from ?? new Date(Date.now() - 30 * 24 * 3_600_000);
-  const to = period.to ?? new Date();
-  const report = await buildCertificateReport(from, to);
+  const report = await buildCertificateReport(period.from, period.to);
 
   await auditLog({
     actor: admin.email,
