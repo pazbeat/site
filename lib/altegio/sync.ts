@@ -332,8 +332,52 @@ export async function syncCertificateToAltegio(
     },
   });
 
-  // Сразу подтягиваем состояние из CRM: заодно проверяем, что сертификат там
-  // действительно виден, и запоминаем его id.
+  // Проверяем, что сертификат ДЕЙСТВИТЕЛЬНО лежит в документе продажи, а не
+  // что нам ответили 200.
+  //
+  // Ровно на этом мы уже обжигались: на тестовом товаре продажа проходила, а
+  // сертификата в CRM не появлялось — снаружи это выглядело как успех. Ответ
+  // API тут ненадёжен и по другой причине: loyalty_certificate_id в нём
+  // приходит пустым даже у заведомо созданного сертификата (сверено на двух
+  // документах 2026-08-21). Единственная честная проверка — перечитать
+  // документ и найти в его товарных строках наш номер. Тем же способом мы
+  // ловим возвраты (certificateWithdrawn).
+  //
+  // Не сошлось — помечаем провал. Повтор безопасен: номер занят уже нами, и
+  // при следующем заходе Altegio ответит «уже существует», а за сертификатом
+  // записан altegioCertId — такой ответ считается идемпотентным успехом.
+  if (result.status === "issued") {
+    try {
+      const { getStorageOperation } = await import("./client");
+      const { certificateWithdrawn } = await import("./redemptions");
+      const doc = await getStorageOperation(
+        result.companyId,
+        Number(result.documentId),
+      );
+      if (certificateWithdrawn(doc, number)) {
+        await markFailed(
+          new Error(
+            `документ ${result.documentId} не содержит номер ${number} — ` +
+              `в CRM сертификата нет, хотя продажа прошла`,
+          ),
+        );
+        const { reportFailure } = await import("@/lib/alerts");
+        void reportFailure(
+          "Altegio: продажа прошла, а сертификата в CRM нет",
+          new Error(`документ ${result.documentId}, номер ${number}`),
+          { сертификат: certificateId, серийник: number },
+        );
+        return;
+      }
+    } catch (error) {
+      // Перечитать документ не удалось — это не повод объявлять выпуск
+      // неудачным, но и молчать нельзя: сверка повторит проверку.
+      console.error("[altegio] проверка документа не удалась", error);
+    }
+  }
+
+  // Сразу подтягиваем состояние из CRM: заодно запоминаем id сертификата в
+  // журнале лояльности, если клиент с телефоном у продажи есть.
   try {
     const { syncOneCertificate } = await import("./redemptions");
     await syncOneCertificate(certificateId);
