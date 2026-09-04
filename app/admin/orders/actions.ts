@@ -397,7 +397,16 @@ export async function resendAction(formData: FormData) {
   // выглядит успешной — худший вид поломки.
   await prisma.certificate.update({
     where: { id: cert.id },
-    data: { sentAt: null, recipientSentAt: null, buyerSentAt: null },
+    data: {
+      sentAt: null,
+      recipientSentAt: null,
+      buyerSentAt: null,
+      // Счётчик тоже обнуляем: ручные повторы не должны съедать бюджет
+      // автоматических — иначе после трёх нажатий сверка потеряет право
+      // вмешаться в этот сертификат сама.
+      deliveryAttempts: 0,
+      deliveryLastError: null,
+    },
   });
   try {
     const { enqueueDelivery } = await import("@/lib/queue");
