@@ -396,19 +396,6 @@ export function BuilderClient({
 
   const design = designs.find((d) => d.id === designId) ?? designs[0];
 
-  /**
-   * Веер номиналов: каждая сумма сдвигается вправо и наклоняется по дуге.
-   * Кривая считается здесь, а не в CSS через nth-child, потому что номиналы
-   * заводятся в админке и их число заранее неизвестно — набор правил на
-   * фиксированное количество разъехался бы на шестом.
-   */
-  const arcStyle = (i: number, total: number) => {
-    const k = total > 1 ? i / (total - 1) : 0.5;
-    return {
-      transform: `translateX(${(Math.sin(k * Math.PI) * 52).toFixed(1)}px) rotate(${((k - 0.5) * 30).toFixed(1)}deg)`,
-    };
-  };
-
   const availableAmounts = salonId ? (amountsBySalon[salonId] ?? []) : [];
   const custom = customAmount ? Number(customAmount) : null;
   const customValid =
@@ -757,7 +744,6 @@ export function BuilderClient({
           {step === 1 && (
             <>
               <div className="bld__head">
-                <p className="bld__eyebrow">{t("stepOf", { n: 2 })}</p>
                 <h2 className="bld__title">
                   {type === "nominal" ? t("s1TitleNominal") : t("s1TitleProgram")}
                 </h2>
@@ -834,10 +820,13 @@ export function BuilderClient({
                       быть отдельного нажатия. Карта несёт ВЫБРАННУЮ открытку —
                       покупатель видит ровно то, что получит, а не безликий
                       прямоугольник. */}
-                  <p className="bld__sect">{t("s1SelectAmount")}</p>
                   <div className="amt">
-                    {/* Слева — открытка покупателя: она и есть будущий
-                        сертификат, номинал ложится на неё. */}
+                    {/* Сумма напечатана НА открытке, а не рядом с ней. Это и
+                        есть будущий сертификат: карта показывает ровно то,
+                        что получит адресат. Прежний веер был украшением,
+                        притворявшимся управлением — пять чисел не складываются
+                        в дугу, поворот мешал их читать, а огромное число сбоку
+                        повторяло уже выбранное. */}
                     <div className="amt__stage">
                       <span className="amt__glow" aria-hidden="true" />
                       <span className="amt__card">
@@ -846,49 +835,42 @@ export function BuilderClient({
                           <img src={design.imageUrl} alt={design.name} />
                         )}
                         <span className="amt__edge" aria-hidden="true" />
+                        {/* key={price}: React перемонтирует плашку при смене
+                            суммы, и она проявляется заново. */}
+                        <span className="amt__plate" key={price}>
+                          {price > 0 ? formatKzt(price) : t("s1OwnOpen")}
+                        </span>
                       </span>
                     </div>
 
-                    {/* Справа — веер номиналов дугой. Все суммы видны разом и
-                        выбираются одним нажатием: лента требовала листать, а
-                        карусель — по нажатию на каждую следующую сумму. */}
-                    <ul className="amt__scale">
-                      {nominals.map((n, i) => (
-                        <li key={n.id} style={arcStyle(i, nominals.length + 1)}>
-                          <button
-                            type="button"
-                            className="amt__val"
-                            data-on={
-                              !customAmount && n.id === nominalId ? "1" : undefined
-                            }
-                            onClick={() => {
-                              setNominalId(n.id);
-                              setCustomAmount("");
-                              setCustomOpen(false);
-                            }}
-                          >
-                            {n.amountKzt.toLocaleString("ru-RU").replace(/ /g, " ")}
-                            {n.label && <small>{n.label}</small>}
-                          </button>
-                        </li>
-                      ))}
-                      <li style={arcStyle(nominals.length, nominals.length + 1)}>
+                    <div className="amt__picker">
+                      {nominals.map((n) => (
                         <button
+                          key={n.id}
                           type="button"
-                          className="amt__val amt__val--own"
-                          data-on={customOpen ? "1" : undefined}
-                          onClick={() => setCustomOpen(true)}
+                          className="amt__chip"
+                          data-on={
+                            !customAmount && n.id === nominalId ? "1" : undefined
+                          }
+                          onClick={() => {
+                            setNominalId(n.id);
+                            setCustomAmount("");
+                            setCustomOpen(false);
+                          }}
                         >
-                          {t("s1OwnOpen")}
+                          {formatKzt(n.amountKzt)}
+                          {n.label && <small>{n.label}</small>}
                         </button>
-                      </li>
-                    </ul>
-
-                    {/* key={price}: React перемонтирует узел при смене суммы,
-                        и анимация появления проигрывается заново. */}
-                    <p className="amt__big" key={price}>
-                      {price > 0 ? formatKzt(price) : "—"}
-                    </p>
+                      ))}
+                      <button
+                        type="button"
+                        className="amt__chip amt__chip--own"
+                        data-on={customOpen ? "1" : undefined}
+                        onClick={() => setCustomOpen(true)}
+                      >
+                        {t("s1OwnOpen")}
+                      </button>
+                    </div>
                   </div>
 
                   {customOpen && (
@@ -960,7 +942,6 @@ export function BuilderClient({
           {step === 0 && (
             <>
               <div className="bld__head">
-                <p className="bld__eyebrow">{t("stepOf", { n: 1 })}</p>
                 <h2 className="bld__title">{t("s2Title")}</h2>
                 <p className="bld__lede">{t("s2Hint")}</p>
               </div>
@@ -976,7 +957,6 @@ export function BuilderClient({
           {step === 2 && (
             <>
               <div className="bld__head">
-                <p className="bld__eyebrow">{t("stepOf", { n: 3 })}</p>
                 <h2 className="bld__title">{t("s3Title")}</h2>
                 <p className="bld__lede">{t("s3Hint")}</p>
               </div>
@@ -1050,7 +1030,6 @@ export function BuilderClient({
           {step === 3 && (
             <>
               <div className="bld__head">
-                <p className="bld__eyebrow">{t("stepOf", { n: 4 })}</p>
                 <h2 className="bld__title">{t("s4Title")}</h2>
                 <p className="bld__lede">{t("s4Hint")}</p>
               </div>
@@ -1179,7 +1158,6 @@ export function BuilderClient({
           {step === 4 && (
             <>
               <div className="bld__head">
-                <p className="bld__eyebrow">{t("stepOf", { n: 5 })}</p>
                 <h2 className="bld__title">{t("s5Title")}</h2>
               </div>
 
