@@ -179,7 +179,7 @@
     "eyebrow": "Builder",
     "title": "Create your certificate",
     "previewNote": "Preview updates in real time",
-    "step1": "Type",
+    "step1": "Salon & amount",
     "step2": "Design",
     "step3": "Message",
     "step4": "Delivery",
@@ -253,7 +253,31 @@
     "promoRemove": "Remove",
     "promoApplied": "Discount {amount}",
     "promoInvalid": "Promo code is not valid",
-    "lead": "Five steps — and the certificate reaches the recipient by email as a beautiful PDF with a QR code."
+    "lead": "Five steps — and the certificate reaches the recipient by email as a beautiful PDF with a QR code.",
+    "intro": {
+      "title": "What are you gifting?",
+      "nominalName": "By amount",
+      "nominalText": "The recipient decides what to spend it on. Valid for three months.",
+      "programName": "A specific service",
+      "programText": "You pick the exact programme — a 90-minute Thai massage, for example. All the recipient has to do is come in.",
+      "choose": "Choose",
+      "step": "Step 1 of 5",
+      "lede": "An amount — the recipient picks the programme themselves. Or a specific service, if you already know what would delight them."
+    },
+    "designs": {
+      "occasion": "Occasion",
+      "prev": "Previous card",
+      "next": "Next card",
+      "counter": "{n} of {total}",
+      "occ": {
+        "birthday": "Birthday",
+        "march8": "8 March",
+        "nauryz": "Nauryz",
+        "newyear": "New Year",
+        "grandma": "For grandma",
+        "any": "Just because"
+      }
+    }
   },
   "Gift": {
     "eyebrow": "A gift for you",

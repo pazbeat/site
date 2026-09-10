@@ -1909,3 +1909,385 @@ h3,
   }
 }
 
+/* ─── Входной экран конструктора: сумму или услугу ───────────────────────
+   Ни одной рамки. Объём даёт наклон, одна тень в четыре слоя и мягкое
+   сияние — тот же приём, что на кнопке подарка. Смысл несёт сам предмет:
+   слева веер из трёх открыток (получатель будет выбирать), справа одна
+   карта, повёрнутая к зрителю (выбор сделан за него).
+   Заголовок намеренно тихий: это шаг покупки, а не главная страница — если
+   он крупнее предмета, покупатель выбирает текст, а не карту.            */
+
+.pick{position:relative;overflow-x:clip;
+        padding:clamp(2rem,5svh,3.5rem) clamp(1.25rem,4vw,3rem) clamp(3rem,7svh,4.5rem)}
+  @supports not (overflow:clip){.pick{overflow-x:hidden}}
+  .pick__inner{max-width:1060px;margin-inline:auto}
+
+  /* Шапка намеренно тихая: это шаг в покупке, а не главная страница.
+     Предмет должен быть крупнее заголовка — иначе выбирают текст, а не карту. */
+  .pick__head{text-align:center;margin-bottom:clamp(2rem,4svh,3rem)}
+  .pick__step{font-size:10px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;
+        color:var(--gold-dim);margin:0 0 10px}
+  .pick__title{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.75rem,3.4vw,2.5rem);
+         line-height:1.1;color:var(--plum-950);margin:0}
+  .pick__lede{font-size:14px;line-height:1.6;color:var(--ink-soft);max-width:44ch;
+        margin:10px auto 0}
+
+  .pick__scene{display:grid;grid-template-columns:1fr;gap:clamp(3rem,7svh,4rem);
+         justify-items:center}
+
+  .pick__opt{all:unset;display:block;cursor:pointer;width:100%;max-width:400px;
+       border-radius:20px;-webkit-tap-highlight-color:transparent}
+  .pick__opt:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:10px}
+
+  /* display:block обязателен: это <span>, а у строчного элемента нет ни
+     ширины, ни высоты — сцена схлопывалась в ноль, и карты не рисовались. */
+  .pick__stage{display:block;position:relative;width:100%;aspect-ratio:5/3;perspective:1400px}
+
+  /* Мягкое сияние под предметом — тот же приём, что на кнопке подарка. */
+  .pick__glow{position:absolute;inset:-22% -18% -14%;border-radius:50%;pointer-events:none;
+        filter:blur(30px);opacity:.75;
+        transition:opacity .5s cubic-bezier(.22,.61,.36,1),transform .6s cubic-bezier(.22,.61,.36,1)}
+  .pick__opt--sum .pick__glow{background:radial-gradient(circle,rgba(182,146,68,.34),transparent 66%)}
+  .pick__opt--prog .pick__glow{background:radial-gradient(circle,rgba(123,50,168,.28),transparent 66%)}
+
+  .pick__deck{position:absolute;inset:0;transform-style:preserve-3d}
+  .pick__card{position:absolute;inset:0;border-radius:16px;
+        transition:transform .45s cubic-bezier(.22,.61,.36,1),box-shadow .45s cubic-bezier(.22,.61,.36,1)}
+  .pick__card img{width:100%;height:100%;object-fit:cover;border-radius:16px;display:block}
+
+  /* Одна честная тень в четыре слоя вместо россыпи эффектов. */
+  .pick__card--1{transform:rotateX(6deg) rotateY(-9deg);
+      box-shadow:0 2px 4px rgba(37,8,47,.14),
+                 0 12px 20px -8px rgba(37,8,47,.18),
+                 0 34px 44px -22px rgba(37,8,47,.24),
+                 0 70px 90px -50px rgba(37,8,47,.34)}
+  .pick__opt--prog .pick__card--1{transform:rotateX(6deg) rotateY(9deg)}
+  .pick__card--2{transform:rotateX(6deg) rotateY(-9deg) rotate(-7.5deg) translate(-30px,-15px) scale(.95);
+      opacity:.7;box-shadow:0 24px 34px -22px rgba(37,8,47,.28)}
+  .pick__card--3{transform:rotateX(6deg) rotateY(-9deg) rotate(-14deg) translate(-56px,-29px) scale(.90);
+      opacity:.42;box-shadow:0 22px 30px -22px rgba(37,8,47,.24)}
+
+  /* Кромка вместо рамки: свет сверху-слева, тень снизу-справа.
+     Замкнутого контура нет — читается как толщина, а не как обводка. */
+  .pick__edge{position:absolute;inset:0;border-radius:16px;pointer-events:none;
+        box-shadow:inset 1px 1px 0 rgba(255,255,255,.45),
+                   inset -1px -1.5px 0 rgba(37,8,47,.30)}
+
+  /* Сумма набрана Montserrat целиком: у Cormorant нет знака ₸. */
+  .pick__plate{position:absolute;left:18px;bottom:16px;padding:7px 13px;border-radius:999px;
+         font-weight:600;font-size:13px;color:var(--plum-950);
+         background:rgba(255,255,255,.92);backdrop-filter:blur(4px);
+         box-shadow:0 8px 18px -8px rgba(37,8,47,.4)}
+  .pick__plate--small{font-size:10px;letter-spacing:.09em;text-transform:uppercase}
+
+  .pick__cap{display:block;margin-top:34px;text-align:center}
+  .pick__name{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.6rem,3vw,2.1rem);
+        line-height:1.05;color:var(--color-brand-purple);display:block}
+  .pick__note{display:block;font-size:13.5px;line-height:1.6;color:var(--ink-soft);max-width:34ch;
+        margin:9px auto 0;min-height:3.2em}
+  .pick__go{display:inline-flex;align-items:center;justify-content:center;margin-top:18px;
+      min-height:46px;padding:0 30px;border-radius:999px;
+      font-size:11px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+      transition:transform .25s cubic-bezier(.22,.61,.36,1),box-shadow .25s cubic-bezier(.22,.61,.36,1)}
+  .pick__opt--sum .pick__go{background:linear-gradient(115deg,var(--gold),var(--gold-hi) 50%,var(--gold));
+                color:var(--plum-950);box-shadow:0 10px 24px -12px rgba(182,146,68,.65)}
+  .pick__opt--prog .pick__go{background:var(--color-brand-purple);color:#fff;
+                 box-shadow:0 10px 24px -12px rgba(77,41,93,.5)}
+
+  @media (hover:hover) and (pointer:fine){
+    .pick__opt:hover .pick__card--1{transform:rotateX(3deg) rotateY(-5deg) translateY(-10px) scale(1.025)}
+    .pick__opt--prog:hover .pick__card--1{transform:rotateX(3deg) rotateY(5deg) translateY(-10px) scale(1.025)}
+    .pick__opt:hover .pick__card--2{transform:rotateX(6deg) rotateY(-9deg) rotate(-9deg) translate(-30px,-16px) scale(.955)}
+    .pick__opt:hover .pick__card--3{transform:rotateX(6deg) rotateY(-9deg) rotate(-16deg) translate(-56px,-30px) scale(.915)}
+    .pick__opt:hover .pick__glow{opacity:1;transform:scale(1.06)}
+    .pick__opt:hover .pick__go{transform:translateY(-2px)}
+  }
+
+  @media (min-width:760px){
+    .pick__scene{grid-template-columns:1fr 1fr;gap:clamp(2rem,5vw,4.5rem);align-items:start}
+    .pick__opt{max-width:none}
+  }
+
+  /* Телефон лёжа — по ВЫСОТЕ, не по ширине. */
+  @media (max-height:520px) and (orientation:landscape){
+    .pick{padding:1rem 1rem 1.5rem}
+    .pick__head{margin-bottom:1rem}
+    .pick__title{font-size:1.4rem}
+    .pick__lede{display:none}
+    .pick__scene{grid-template-columns:1fr 1fr;gap:1.5rem}
+    .pick__cap{margin-top:18px}
+    .pick__name{font-size:1.15rem}
+    .pick__note{font-size:11px;max-width:30ch;margin-top:5px}
+    .pick__go{margin-top:10px;min-height:38px;padding:0 20px;font-size:10px}
+    .pick__plate{font-size:10px;padding:5px 9px;left:12px;bottom:11px}
+  }
+  @media (max-width:420px){
+    .pick__card--1,.pick__opt--prog .pick__card--1{transform:rotateX(5deg) rotateY(-5deg)}
+    .pick__opt--prog .pick__card--1{transform:rotateX(5deg) rotateY(5deg)}
+    .pick__card--2{transform:rotateX(5deg) rotateY(-5deg) rotate(-5deg) translate(-13px,-7px) scale(.955)}
+    .pick__card--3{transform:rotateX(5deg) rotateY(-5deg) rotate(-9.5deg) translate(-25px,-14px) scale(.915)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .pick__card,.pick__glow,.pick__go{transition:none}
+    .pick__opt:hover .pick__card--1,.pick__opt:hover .pick__card--2,.pick__opt:hover .pick__card--3,.pick__opt:hover .pick__go{transform:none}
+  }
+
+/* ─── Шаг «выберите открытку»: дуга поводов и карусель ───────────────────
+   Дуга несёт ПОВОДЫ, а не цвета: у нас 31 разная картинка, красить их
+   бессмысленно, а покупатель ищет «на день рождения», а не «фиолетовую».
+   Сама дуга — не кольцо точек, а нитка слов, провисающая под собственным
+   весом: кривая задана сдвигом по вертикали, SVG не нужен.            */
+
+
+  /* ── Дуга поводов ──────────────────────────────────────────────────────
+     Не кольцо точек, как в референсе, а нитка слов, провисающая под
+     собственным весом — как бусины на нити. Кривая задана сдвигом каждого
+     слова по вертикали; SVG не нужен.                                    */
+  .dsn__arc{display:flex;justify-content:center;align-items:flex-start;flex-wrap:nowrap;
+       gap:clamp(.5rem,2.2vw,1.9rem);margin:0 0 clamp(1.5rem,3svh,2.25rem);
+       overflow-x:auto;scrollbar-width:none;padding:6px 4px 34px}
+  .dsn__arc::-webkit-scrollbar{display:none}
+  .dsn__occ{all:unset;cursor:pointer;white-space:nowrap;position:relative;
+       font-size:clamp(11px,1.35vw,13px);font-weight:500;letter-spacing:.03em;
+       color:var(--ink-soft);padding:6px 2px;
+       transition:color .3s cubic-bezier(.22,.61,.36,1),transform .45s cubic-bezier(.22,.61,.36,1)}
+  .dsn__occ:nth-child(1){transform:translateY(0)}
+  .dsn__occ:nth-child(2){transform:translateY(13px)}
+  .dsn__occ:nth-child(3){transform:translateY(22px)}
+  .dsn__occ:nth-child(4){transform:translateY(22px)}
+  .dsn__occ:nth-child(5){transform:translateY(13px)}
+  .dsn__occ:nth-child(6){transform:translateY(0)}
+  .dsn__occ:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:4px;border-radius:6px}
+  /* Выбранный повод — золотой, с точкой-бусиной под словом. */
+  .dsn__occ[aria-selected="true"]{color:var(--gold-dim);font-weight:600}
+  .dsn__occ[aria-selected="true"]::after{content:"";position:absolute;left:50%;bottom:-9px;
+    width:5px;height:5px;margin-left:-2.5px;border-radius:50%;
+    background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+    box-shadow:0 0 10px rgba(182,146,68,.7)}
+  @media (hover:hover){.dsn__occ:hover{color:var(--color-brand-purple)}}
+
+  /* ── Сцена с открыткой ─────────────────────────────────────────────── */
+  .dsn__stage{position:relative;display:grid;place-items:center;
+         min-height:clamp(250px,38svh,380px);margin-bottom:1.25rem}
+  .dsn__glow{position:absolute;width:min(86%,620px);aspect-ratio:1;border-radius:50%;
+        pointer-events:none;filter:blur(30px);opacity:1;
+        background:radial-gradient(circle,rgba(182,146,68,.42),rgba(182,146,68,.14) 45%,transparent 70%)}
+
+  .dsn__rail{position:relative;display:flex;align-items:center;justify-content:center;
+        gap:clamp(.75rem,2.5vw,1.75rem);width:100%}
+  .dsn__slot{flex:0 0 auto;border-radius:16px;overflow:hidden;position:relative;
+        transition:opacity .4s cubic-bezier(.22,.61,.36,1),transform .4s cubic-bezier(.22,.61,.36,1),filter .4s cubic-bezier(.22,.61,.36,1)}
+  .dsn__slot img{display:block;width:100%;height:100%;object-fit:cover}
+  /* Соседи подглядывают, но не спорят с главной. */
+  .dsn__slot--side{width:clamp(64px,14vw,132px);aspect-ratio:5/3;opacity:.4;
+              filter:blur(1px);transform:scale(.94);
+              box-shadow:0 14px 22px -14px rgba(37,8,47,.3)}
+  .dsn__slot--main{width:clamp(230px,48vw,440px);aspect-ratio:5/3;
+              box-shadow:0 2px 4px rgba(37,8,47,.14),0 12px 20px -8px rgba(37,8,47,.18),
+                         0 34px 44px -22px rgba(37,8,47,.24),0 70px 90px -50px rgba(37,8,47,.34)}
+  /* Кромка вместо рамки — тот же приём, что на первом экране. */
+  .dsn__slot--main::after{content:"";position:absolute;inset:0;border-radius:16px;
+    pointer-events:none;
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.45),inset -1px -1.5px 0 rgba(37,8,47,.3)}
+
+  .dsn__nav{all:unset;position:absolute;top:50%;margin-top:-21px;width:42px;height:42px;
+       border-radius:50%;display:grid;place-items:center;cursor:pointer;z-index:2;
+       background:rgba(255,255,255,.92);color:var(--color-brand-purple);font-size:15px;
+       box-shadow:0 8px 20px -8px rgba(37,8,47,.35);
+       transition:transform .25s cubic-bezier(.22,.61,.36,1)}
+  .dsn__nav--prev{left:clamp(2px,6vw,86px)}.dsn__nav--next{right:clamp(2px,6vw,86px)}
+  .dsn__nav:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
+  @media (hover:hover){.dsn__nav:hover{transform:scale(1.08)}}
+
+  .dsn__meta{text-align:center;margin-bottom:1.5rem}
+  .dsn__cardname{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.3rem,2.6vw,1.8rem);
+            color:var(--color-brand-purple);display:block;line-height:1.15}
+  .dsn__count{display:block;margin-top:6px;font-size:11px;letter-spacing:.14em;
+         text-transform:uppercase;color:var(--ink-soft)}
+
+  .dsn__dots{display:flex;justify-content:center;gap:7px;margin-bottom:1.75rem}
+  .dsn__dot{width:6px;height:6px;border-radius:50%;background:rgba(77,41,93,.22);
+       transition:background .3s cubic-bezier(.22,.61,.36,1),transform .3s cubic-bezier(.22,.61,.36,1)}
+  .dsn__dot[data-on="1"]{background:var(--gold);transform:scale(1.35)}
+
+  /* Телефон лёжа — по ВЫСОТЕ, не по ширине. */
+  @media (max-height:520px) and (orientation:landscape){
+    .dsn__arc{margin-bottom:1rem;padding-bottom:16px}
+    .dsn__stage{min-height:150px;margin-bottom:.75rem}
+    .dsn__slot--main{width:min(38vw,250px)}
+    .dsn__slot--side{width:clamp(48px,9vw,84px)}
+    .dsn__meta{margin-bottom:.75rem}.dsn__cardname{font-size:1.1rem}
+    .dsn__dots{margin-bottom:.9rem}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .dsn__nav:hover{transform:none}
+  }
+
+/* ─── Конструктор: остальные шаги (филиал и сумма, подпись, доставка, оплата)
+   Те же правила, что на первых двух экранах: ни одной рамки, объём даёт
+   тень и кромка, акцент — золото. Белые коробки с обводкой спорили с
+   открыткой в предпросмотре: рамка вокруг формы читается как второй
+   предмет на экране, где предмет должен быть один.
+   Разметка и логика шагов не тронуты — заменены только классы.        */
+
+.bld{background:radial-gradient(120% 80% at 50% 0%,#fff 0%,var(--plum-50) 55%,#f6eefb 100%)}
+
+  /* ── Оглавление шагов ───────────────────────────────────────────────
+     Не вкладки: нажимать не на что, это подпись «где я сейчас». Тонкая
+     нить с золотой бусиной под текущим — тот же приём, что на дуге
+     поводов, чтобы два соседних экрана читались как один. */
+  .bld__steps{display:flex;flex-wrap:wrap;gap:6px clamp(.85rem,2.4vw,1.6rem);
+        margin:0 0 clamp(1.75rem,4svh,2.5rem);padding:0;list-style:none}
+  .bld__stepitem{display:inline-flex;align-items:baseline;gap:7px;white-space:nowrap;
+        color:rgba(43,23,52,.38);transition:color .3s cubic-bezier(.22,.61,.36,1)}
+  .bld__stepnum{position:relative;font-size:10px;font-weight:700;letter-spacing:.08em;
+        color:inherit;font-variant-numeric:tabular-nums}
+  .bld__steptitle{font-size:12px;font-weight:500;letter-spacing:.03em}
+  .bld__stepitem[data-state="done"]{color:rgba(43,23,52,.6)}
+  .bld__stepitem[data-state="on"]{color:var(--gold-dim)}
+  .bld__stepitem[data-state="on"] .bld__steptitle{font-weight:600}
+  .bld__stepitem[data-state="on"] .bld__stepnum::after{content:"";position:absolute;
+    left:50%;bottom:-8px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;
+    background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+    box-shadow:0 0 10px rgba(182,146,68,.7)}
+
+  /* ── Панель шага ────────────────────────────────────────────────────
+     Коробки нет вовсе: содержимое лежит прямо на подложке. min-width:0
+     обязателен — это ячейка грида, и без него длинный адрес филиала в
+     select растягивает колонку и выдавливает предпросмотр за экран. */
+  .bld__pane{min-width:0}
+
+  .bld__h{font-family:var(--font-display), Georgia, serif;font-weight:500;
+      font-size:clamp(1.45rem,2.8vw,1.9rem);line-height:1.15;color:var(--color-brand-purple);
+      margin:0;text-wrap:balance}
+  .bld__sub{font-size:13.5px;line-height:1.6;color:var(--ink-soft);margin:.5rem 0 1.5rem;
+      max-width:52ch}
+  .bld__hint{font-size:12px;line-height:1.55;color:var(--ink-soft);margin-top:6px}
+  .bld__hint--block{margin:0 0 1.5rem}
+
+  /* ── Поля ───────────────────────────────────────────────────────────
+     16px на телефоне — не «покрупнее для красоты», а обязательное: при
+     размере меньше 16px iOS Safari увеличивает страницу на фокусе поля и
+     обратно не отъезжает, и вся форма дальше заполняется на съехавшем
+     экране. С 640px возвращаем 14px. */
+  /* Подписи полей набраны как есть, без uppercase: половина из них —
+     целые фразы («Или укажите свою сумму (18 000 ₸ — 500 000 ₸)», «Дата и
+     время доставки (Asia/Almaty)»), и капитель превращает их в крик. */
+  .bld__label{display:block;margin-bottom:7px;font-size:12px;font-weight:600;
+       letter-spacing:.015em;color:rgba(43,23,52,.62)}
+  .bld__input{width:100%;border:0;border-radius:14px;padding:13px 15px;
+       font:inherit;font-size:16px;line-height:1.4;color:var(--ink);outline:none;
+       background:rgba(255,255,255,.86);
+       box-shadow:inset 0 0 0 1px rgba(77,41,93,.13);
+       transition:box-shadow .25s cubic-bezier(.22,.61,.36,1),background-color .25s cubic-bezier(.22,.61,.36,1)}
+  .bld__input::placeholder{color:rgba(43,23,52,.34)}
+  /* Кольцо фокуса обязательно: штатный outline снят, и без него проход
+     по форме с клавиатуры становится слепым. */
+  .bld__input:focus-visible{background:#fff;
+       box-shadow:inset 0 0 0 1.5px var(--gold),0 0 0 4px rgba(182,146,68,.18)}
+  @media (min-width:640px){.bld__input{font-size:14px}}
+  @media (hover:hover) and (pointer:fine){.bld__input:hover{background:#fff}}
+  select.bld__input{appearance:none;padding-right:38px;cursor:pointer;
+       background-image:linear-gradient(45deg,transparent 50%,rgba(77,41,93,.55) 50%),
+                        linear-gradient(135deg,rgba(77,41,93,.55) 50%,transparent 50%);
+       background-position:calc(100% - 19px) calc(50% + 1px),calc(100% - 14.5px) calc(50% + 1px);
+       background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+  textarea.bld__input{resize:vertical}
+
+  /* ── Плитки выбора (тип, номинал, вариант, срок, способ оплаты) ─────
+     Кнопка-плитка вместо кнопки с обводкой: выбранная поднимается кромкой
+     и тенью, а не толщиной рамки. */
+  .bld__seg{all:unset;box-sizing:border-box;cursor:pointer;
+       flex:1 1 auto;min-width:118px;display:flex;flex-direction:column;
+       align-items:center;justify-content:center;gap:3px;text-align:center;
+       padding:12px 16px;border-radius:15px;
+       font-size:14px;font-weight:600;color:var(--ink);
+       background:rgba(255,255,255,.82);
+       box-shadow:inset 0 0 0 1px rgba(77,41,93,.11);
+       transition:box-shadow .25s cubic-bezier(.22,.61,.36,1),
+                  background-color .25s cubic-bezier(.22,.61,.36,1),
+                  transform .25s cubic-bezier(.22,.61,.36,1)}
+  .bld__seg:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
+  .bld__seghint{display:block;font-size:11.5px;font-weight:500;line-height:1.35;
+       color:var(--ink-soft)}
+  .bld__segprice{display:block;font-size:11.5px;font-weight:600;color:var(--gold-dim)}
+  @media (hover:hover) and (pointer:fine){
+    .bld__seg:hover{background:#fff;box-shadow:inset 0 0 0 1px rgba(182,146,68,.5)}
+  }
+  .bld__seg--on{background:#fff;color:var(--color-brand-purple);
+       box-shadow:inset 1px 1px 0 rgba(255,255,255,.6),
+                  inset 0 0 0 1.5px var(--gold),
+                  0 10px 22px -14px rgba(37,8,47,.45)}
+  .bld__seg--on .bld__seghint{color:rgba(77,41,93,.72)}
+
+  /* ── Промокод ── */
+  .bld__promo{margin-top:1.6rem;padding-top:1.4rem;
+       border-top:1px solid rgba(77,41,93,.11)}
+  .bld__promook{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+       border-radius:14px;padding:12px 15px;font-size:14px;
+       background:rgba(236,201,120,.14);
+       box-shadow:inset 0 0 0 1px rgba(182,146,68,.45)}
+
+  /* ── Согласие на шаге оплаты ── */
+  .bld__consent{display:flex;align-items:flex-start;gap:12px;cursor:pointer;
+       margin-top:1.6rem;border-radius:15px;padding:15px;
+       font-size:13.5px;line-height:1.55;color:var(--ink);
+       background:rgba(255,255,255,.7);
+       box-shadow:inset 0 0 0 1px rgba(77,41,93,.11)}
+
+  /* ── Кнопки шага ────────────────────────────────────────────────────
+     «Назад» на первом шаге скрыт через .invisible, но место занимает —
+     иначе «Далее» прыгает влево при переходе со второго шага на первый. */
+  .bld__actions{display:flex;justify-content:space-between;gap:12px;margin-top:1.9rem}
+  .bld__btn{all:unset;box-sizing:border-box;cursor:pointer;
+       display:inline-flex;align-items:center;justify-content:center;
+       min-height:46px;padding:0 clamp(20px,3vw,30px);border-radius:999px;
+       font-size:12px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;
+       text-align:center;
+       transition:transform .25s cubic-bezier(.22,.61,.36,1),
+                  box-shadow .25s cubic-bezier(.22,.61,.36,1),
+                  background-color .25s cubic-bezier(.22,.61,.36,1)}
+  .bld__btn:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
+  .bld__btn:disabled{opacity:.45;cursor:not-allowed}
+  /* Своя скрывалка, а не утилита .invisible: `all:unset` возвращает
+     visibility к inherit, а неслоёное правило перебивает @layer utilities
+     Tailwind — кнопка «Назад» осталась бы видимой на первом шаге. */
+  .bld__btn--hidden{visibility:hidden}
+  .bld__btn--ghost{color:var(--color-brand-purple);
+       box-shadow:inset 0 0 0 1.5px rgba(77,41,93,.28)}
+  .bld__btn--go{background:var(--color-brand-purple);color:#fff;
+       box-shadow:0 10px 24px -12px rgba(77,41,93,.55)}
+  /* Итоговая кнопка — единственное золото на экране: последний шаг. */
+  .bld__btn--pay{background:linear-gradient(115deg,var(--gold),var(--gold-hi) 50%,var(--gold));
+       color:var(--plum-950);letter-spacing:.08em;
+       box-shadow:0 12px 26px -12px rgba(182,146,68,.7)}
+  @media (hover:hover) and (pointer:fine){
+    .bld__btn--ghost:hover{box-shadow:inset 0 0 0 1.5px var(--color-brand-purple)}
+    .bld__btn--go:hover,.bld__btn--pay:hover{transform:translateY(-2px)}
+  }
+  .bld__btn:active{transform:translateY(0) scale(.985)}
+
+  /* ── Правая колонка: предпросмотр и сводка ──────────────────────────
+     Липкой становится только с 1024px: ниже она стоит под формой, и
+     position:sticky там ничего не даёт, кроме лишнего слоя. */
+  .bld__aside{min-width:0}
+  @media (min-width:1024px){.bld__aside{position:sticky;top:6rem}}
+  .bld__prevnote{margin-top:12px;text-align:center;font-size:11.5px;color:var(--ink-soft)}
+
+  .bld__summary{margin-top:1.4rem;font-size:14px}
+  .bld__row{display:flex;justify-content:space-between;gap:14px;padding:5px 0}
+  .bld__rowk{color:var(--ink-soft)}
+  .bld__row--promo{color:var(--gold-dim)}
+  .bld__row--total{margin-top:10px;padding-top:12px;
+        border-top:1px solid rgba(77,41,93,.13);
+        font-size:1rem;font-weight:800;color:var(--color-brand-purple)}
+  .bld__validity{margin-top:9px;font-size:11px;line-height:1.5;color:rgba(43,23,52,.5)}
+
+  /* Телефон лёжа — по ВЫСОТЕ, не по ширине: по ширине альбомный телефон
+     попадает в планшетную ветку и получает вертикальную вёрстку. */
+  @media (max-height:520px) and (orientation:landscape){
+    .bld__steps{margin-bottom:1.1rem}
+    .bld__sub{margin-bottom:1rem}
+    .bld__actions{margin-top:1.2rem}
+    .bld__btn{min-height:40px;font-size:11px}
+  }

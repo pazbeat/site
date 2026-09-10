@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CertPreview } from "./cert-preview";
 import { Link } from "@/i18n/navigation";
+import { BuilderIntro } from "./builder-intro";
+import { BuilderDesigns } from "./builder-designs";
 import { ConsentModal } from "./consent-modal";
 import { optionLabel } from "./program-card";
 import { formatKzt } from "@/lib/format";
@@ -47,7 +49,9 @@ type Props = Readonly<{
 }>;
 
 type Step = 0 | 1 | 2 | 3 | 4;
-const DRAFT_KEY = "imbir-builder-draft";
+/* v2: порядок шагов изменился (дизайн стал первым), и черновик хранит
+   номер шага — старый ключ восстановил бы покупателя не на тот экран. */
+const DRAFT_KEY = "imbir-builder-draft-v2";
 
 /** Снимок конструктора для сохранения черновика в localStorage. */
 type Draft = {
@@ -58,7 +62,7 @@ type Draft = {
   optionId: number | null;
   nominalId: number | null;
   customAmount: string;
-  designIdx: number;
+  designId: number | null;
   toName: string;
   fromName: string;
   message: string;
@@ -86,26 +90,14 @@ function isResumable(d: Draft): boolean {
   );
 }
 
-/** Превью дизайна для сетки выбора (public/designs/thumbs, 360px). */
-function designThumb(url: string): string {
-  return url.startsWith("/designs/")
-    ? url.replace("/designs/", "/designs/thumbs/")
-    : url;
-}
-
 // 16px на телефоне (text-base) — не «покрупнее для красоты», а обязательное:
 // при шрифте меньше 16px iOS Safari сам увеличивает страницу на фокусе поля
 // и обратно не отъезжает, дальше вся форма заполняется на съехавшем экране.
 // С 640px возвращаем прежние 14px.
-const inputCls =
-  "w-full rounded-xl border-[1.5px] border-brand-purple-100 bg-white px-3.5 py-3 text-base outline-none transition-colors focus:border-brand-gold sm:text-sm";
-const labelCls = "mb-1.5 block text-[13px] font-bold";
+const inputCls = "bld__input";
+const labelCls = "bld__label";
 const segBtn = (active: boolean) =>
-  `flex min-w-[120px] flex-1 flex-col items-center gap-0.5 rounded-2xl border-[1.5px] px-4 py-3.5 text-sm font-bold transition-colors ${
-    active
-      ? "border-brand-purple bg-brand-purple-50 text-brand-purple"
-      : "border-brand-purple-100 bg-white hover:border-brand-gold"
-  }`;
+  `bld__seg${active ? " bld__seg--on" : ""}`;
 
 export function BuilderClient({
   salons,
@@ -157,6 +149,16 @@ export function BuilderClient({
   const [type, setType] = useState<"program" | "nominal">(
     resume?.type ?? initialType ?? (initialNominalId ? "nominal" : "program"),
   );
+  /**
+   * Пройден ли входной экран «на сумму / на услугу».
+   *
+   * Сразу true, если покупатель пришёл по прямой ссылке (с карточки
+   * программы, из квиза, из письма о брошенном заказе) — там тип уже выбран
+   * за него, и спрашивать второй раз значит терять человека на ровном месте.
+   */
+  const [introDone, setIntroDone] = useState(
+    Boolean(resume || initialType || initialOptionId || initialNominalId),
+  );
   const [programId, setProgramId] = useState<number | null>(
     resume?.programId ?? initialProgram?.id ?? null,
   );
@@ -167,8 +169,17 @@ export function BuilderClient({
     resume?.nominalId ?? initialNominalId ?? nominals[0]?.id ?? null,
   );
   const [customAmount, setCustomAmount] = useState(resume?.customAmount ?? "");
-  const [designIdx, setDesignIdx] = useState(
-    resume ? Math.min(Math.max(resume.designIdx, 0), designs.length - 1) : 0,
+  /**
+   * Открытка хранится ПО НОМЕРУ, а не по месту в списке. С индексом любое
+   * переупорядочивание или отключение дизайна в админке молча подменяло бы
+   * выбор покупателя — и особенно теперь, когда дизайн выбирается вторым
+   * шагом и решение живёт до самой оплаты.
+   */
+  const [designId, setDesignId] = useState<number | null>(
+    (resume
+      ? designs[Math.min(Math.max(resume.designIdx, 0), designs.length - 1)]
+      : designs[0]
+    )?.id ?? null,
   );
   const [toName, setToName] = useState(resume?.toName ?? "");
   const [fromName, setFromName] = useState(resume?.fromName ?? "");
@@ -218,7 +229,7 @@ export function BuilderClient({
     setOptionId(d.optionId);
     setNominalId(d.nominalId);
     setCustomAmount(d.customAmount);
-    setDesignIdx(Math.min(Math.max(d.designIdx, 0), designs.length - 1));
+    setDesignId(d.designId ?? designs[0]?.id ?? null);
     setToName(d.toName);
     setFromName(d.fromName);
     setMessage(d.message);
@@ -231,6 +242,7 @@ export function BuilderClient({
   };
 
   const resumeContinue = () => {
+    setIntroDone(true);
     if (pendingDraft) applyDraft(pendingDraft);
     setPendingDraft(null);
     setResumeResolved(true);
@@ -286,7 +298,7 @@ export function BuilderClient({
       optionId,
       nominalId,
       customAmount,
-      designIdx,
+      designId,
       toName,
       fromName,
       message,
@@ -314,7 +326,7 @@ export function BuilderClient({
     optionId,
     nominalId,
     customAmount,
-    designIdx,
+    designId,
     toName,
     fromName,
     message,
@@ -353,7 +365,7 @@ export function BuilderClient({
   const program = availablePrograms.find((p) => p.id === programId) ?? null;
   const option = program?.options.find((o) => o.id === optionId) ?? null;
   const nominal = nominals.find((n) => n.id === nominalId) ?? null;
-  const design = designs[designIdx];
+  const design = designs.find((d) => d.id === designId) ?? designs[0];
 
   const availableAmounts = salonId ? (amountsBySalon[salonId] ?? []) : [];
   const custom = customAmount ? Number(customAmount) : null;
@@ -436,14 +448,14 @@ export function BuilderClient({
   const stepValid = (s: Step): boolean => {
     switch (s) {
       case 0:
+        return Boolean(design);
+      case 1:
         if (!salonId) return false;
         return type === "program"
           ? Boolean(option)
           : customAmount
             ? customValid
             : Boolean(nominal);
-      case 1:
-        return Boolean(design);
       case 2:
         return toName.trim().length > 0 && fromName.trim().length > 0;
       case 3:
@@ -548,9 +560,10 @@ export function BuilderClient({
     );
   }
 
+  // Порядок подписей идёт за порядком экранов: открытка теперь первая.
   const stepTitles = [
-    t("step1"),
     t("step2"),
+    t("step1"),
     t("step3"),
     t("step4"),
     t("step5"),
@@ -579,6 +592,43 @@ export function BuilderClient({
   // Ранний выход убирает разночтение: за модалкой физически ничего нет.
   if (!consented) {
     return <ConsentModal html={consentHtml} onAccept={acceptConsent} />;
+  }
+
+  /**
+   * Примеры на плашках входного экрана. Берём из настоящего каталога, а не
+   * пишем числом в разметке: сумма в списке номиналов может измениться, и
+   * рисованный пример разошёлся бы с тем, что покупатель увидит дальше.
+   */
+  const sampleAmount = formatKzt(
+    nominals[Math.min(2, nominals.length - 1)]?.amountKzt ?? 15000,
+  );
+  const firstProgram = programs[0];
+  const sampleProgram = firstProgram
+    ? `${firstProgram.name}${
+        firstProgram.options[0]?.durationMin
+          ? ` · ${firstProgram.options[0].durationMin} мин`
+          : ""
+      }`
+    : "";
+
+  // Входной экран: сумма или услуга. Стоит НИЖЕ проверки согласия — за
+  // модалкой по-прежнему нет ни одного узла, который можно поймать клавишей
+  // Tab. Показываем только тем, кто пришёл без готового выбора.
+  if (!introDone) {
+    return (
+      <BuilderIntro
+        images={designs
+          .map((d) => d.imageUrl)
+          .filter((u): u is string => Boolean(u))
+          .slice(0, 4)}
+        sampleAmount={sampleAmount}
+        sampleProgram={sampleProgram}
+        onPick={(picked) => {
+          setType(picked);
+          setIntroDone(true);
+        }}
+      />
+    );
   }
 
   return (
@@ -618,35 +668,38 @@ export function BuilderClient({
         </div>
       )}
 
-      <div className="mb-7 flex flex-wrap gap-1.5">
+      {/* Оглавление шагов, а не вкладки: тонкая нить с золотой бусиной на
+          текущем — тот же приём, что на дуге поводов. Жирные подчёркивания
+          спорили с открыткой за внимание. */}
+      <ol className="bld__steps">
         {stepTitles.map((title, index) => (
-          <div
+          <li
             key={title}
-            className={`min-w-[90px] flex-1 border-b-[3px] pb-2.5 text-center text-xs font-bold whitespace-nowrap transition-colors ${
-              index === step
-                ? "border-brand-gold text-brand-purple"
-                : index < step
-                  ? "border-brand-purple-600 text-brand-purple-600"
-                  : "border-brand-purple-100 text-brand-purple-950/40"
-            }`}
+            className="bld__stepitem"
+            data-state={
+              index === step ? "on" : index < step ? "done" : "next"
+            }
           >
-            {index < step ? "✓ " : ""}
-            {title}
-          </div>
+            <span className="bld__stepnum">{index + 1}</span>
+            <span className="bld__steptitle">{title}</span>
+          </li>
         ))}
-      </div>
+      </ol>
 
       <div className="grid items-start gap-9 lg:grid-cols-[1fr_400px]">
         {/* key={step}: перемонтаж контейнера при смене шага даёт короткий
             вход .step-enter вместо мгновенной подмены контента */}
-        <div key={step} className="step-enter rounded-2xl border border-brand-purple-100 bg-white p-6 shadow-sm sm:p-8">
-          {/* ШАГ 1: тип + город/филиал */}
-          {step === 0 && (
+        <div key={step} className="step-enter bld__pane">
+          {/* ШАГ 2: филиал и что именно дарим.
+              Сумма спрашивается ПОСЛЕ филиала и только так: в Altegio под
+              каждый номинал заведён свой товар, и наборы у филиалов разные —
+              сумма, выбранная раньше филиала, могла бы оказаться непродаваемой. */}
+          {step === 1 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s1Title")}
               </h3>
-              <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
+              <p className="bld__sub">
                 {t("s1Hint")}
               </p>
 
@@ -702,7 +755,7 @@ export function BuilderClient({
                   </select>
                 </div>
               </div>
-              <p className="mb-6 text-xs text-brand-purple-950/55">
+              <p className="bld__hint bld__hint--block">
                 {t("s1SalonHint")}
               </p>
 
@@ -713,7 +766,7 @@ export function BuilderClient({
                   onClick={() => setType("program")}
                 >
                   🌿 {t("s1Program")}
-                  <small className="font-medium text-brand-purple-950/55">
+                  <small className="bld__seghint">
                     {t("s1ProgramSub")}
                   </small>
                 </button>
@@ -723,7 +776,7 @@ export function BuilderClient({
                   onClick={() => setType("nominal")}
                 >
                   💳 {t("s1Nominal")}
-                  <small className="font-medium text-brand-purple-950/55">
+                  <small className="bld__seghint">
                     {t("s1NominalSub")}
                   </small>
                 </button>
@@ -770,7 +823,7 @@ export function BuilderClient({
                             onClick={() => setOptionId(o.id)}
                           >
                             {optionLabel(o, guests, hourUnit)}
-                            <small className="font-medium text-brand-purple-950/55">
+                            <small className="bld__seghint">
                               {formatKzt(o.priceKzt)}
                             </small>
                           </button>
@@ -796,7 +849,7 @@ export function BuilderClient({
                       >
                         {formatKzt(n.amountKzt)}
                         {n.label && (
-                          <small className="font-medium text-brand-gold-700">
+                          <small className="bld__segprice">
                             {n.label}
                           </small>
                         )}
@@ -858,70 +911,33 @@ export function BuilderClient({
             </>
           )}
 
-          {/* ШАГ 2: дизайн */}
-          {step === 1 && (
+          {/* ШАГ 1: открытка. Дизайн выбирается ПЕРВЫМ — список открыток
+              ни от филиала, ни от типа сертификата не зависит (проверено:
+              getActiveDesigns без единого фильтра), поэтому спрашивать про
+              город раньше, чем про подарок, незачем. */}
+          {step === 0 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s2Title")}
               </h3>
-              <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
+              <p className="bld__sub">
                 {t("s2Hint")}
               </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {designs.map((d, index) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setDesignIdx(index)}
-                    className={`rounded-2xl border-[2.5px] p-1 transition-colors ${
-                      index === designIdx
-                        ? "border-brand-gold"
-                        : "border-transparent hover:border-brand-purple-100"
-                    }`}
-                  >
-                    {d.imageUrl ? (
-                      // В сетке — лёгкое превью (~8 КБ вместо ~60 КБ);
-                      // если превью нет (старые загрузки) — фолбэк на оригинал
-                      // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
-                      <img
-                        src={designThumb(d.imageUrl)}
-                        onError={(e) => {
-                          if (e.currentTarget.src !== new URL(d.imageUrl!, location.href).href) {
-                            e.currentTarget.src = d.imageUrl!;
-                          }
-                        }}
-                        alt={d.name}
-                        loading="lazy"
-                        className="block aspect-[1400/903] w-full rounded-xl border border-brand-purple-100 object-cover"
-                      />
-                    ) : (
-                      <span
-                        aria-hidden
-                        className="block aspect-[1400/903] w-full rounded-xl border border-brand-purple-100"
-                        style={{
-                          background:
-                            d.bgStyle.kind === "gradient"
-                              ? `linear-gradient(${d.bgStyle.angle ?? 135}deg, ${d.bgStyle.from}, ${d.bgStyle.to})`
-                              : d.bgStyle.color,
-                        }}
-                      />
-                    )}
-                    <span className="mt-1.5 block text-center text-xs font-bold text-brand-purple-950/60">
-                      {d.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <BuilderDesigns
+                designs={designs}
+                value={designId}
+                onChange={setDesignId}
+              />
             </>
           )}
 
           {/* ШАГ 3: персонализация */}
           {step === 2 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s3Title")}
               </h3>
-              <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
+              <p className="bld__sub">
                 {t("s3Hint")}
               </p>
               <div className="mb-4 grid gap-3.5 sm:grid-cols-2">
@@ -972,10 +988,10 @@ export function BuilderClient({
           {/* ШАГ 4: доставка */}
           {step === 3 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s4Title")}
               </h3>
-              <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
+              <p className="bld__sub">
                 {t("s4Hint")}
               </p>
               <div className="mb-4">
@@ -991,7 +1007,7 @@ export function BuilderClient({
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
                 />
-                <p className="mt-1.5 text-xs text-brand-purple-950/55">
+                <p className="bld__hint">
                   {t("s4BuyerNote")}
                 </p>
               </div>
@@ -1040,7 +1056,7 @@ export function BuilderClient({
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
                 />
-                <p className="mt-1.5 text-xs text-brand-purple-950/55">
+                <p className="bld__hint">
                   {t("s4ContactNote")}
                 </p>
               </div>
@@ -1050,7 +1066,7 @@ export function BuilderClient({
           {/* ШАГ 5: оплата */}
           {step === 4 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s5Title")}
               </h3>
               <div
@@ -1064,7 +1080,7 @@ export function BuilderClient({
                   <span className="rounded-lg bg-brand-red px-3.5 py-1 text-sm font-extrabold text-white">
                     Kaspi.kz
                   </span>
-                  <small className="font-medium text-brand-purple-950/55">
+                  <small className="bld__seghint">
                     {t("s5KaspiSub")}
                   </small>
                 </button>
@@ -1075,7 +1091,7 @@ export function BuilderClient({
                     onClick={() => setProvider("forte")}
                   >
                     {t("s5Card")}
-                    <small className="font-medium text-brand-purple-950/55">
+                    <small className="bld__seghint">
                       {t("s5CardSub")}
                     </small>
                   </button>
@@ -1092,7 +1108,7 @@ export function BuilderClient({
                     <span className="rounded-lg bg-brand-purple px-3.5 py-1 text-sm font-extrabold text-white">
                       Демо-оплата
                     </span>
-                    <small className="font-medium text-brand-purple-950/55">
+                    <small className="bld__seghint">
                       без списания денег · видно только вам
                     </small>
                   </button>
@@ -1100,12 +1116,12 @@ export function BuilderClient({
               </div>
 
               {/* Промокод */}
-              <div className="mt-6 border-t border-brand-purple-100 pt-5">
+              <div className="bld__promo">
                 <label className={labelCls} htmlFor="b-promo">
                   {t("promoLabel")}
                 </label>
                 {promoValid ? (
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl border-[1.5px] border-brand-gold bg-brand-gold-100/50 px-3.5 py-3 text-sm">
+                  <div className="bld__promook">
                     <span className="font-bold text-brand-purple">
                       {promoApplied.code}
                     </span>
@@ -1140,7 +1156,7 @@ export function BuilderClient({
                       type="button"
                       onClick={applyPromo}
                       disabled={promoChecking || !promoInput.trim()}
-                      className="rounded-full border-[1.5px] border-brand-purple px-6 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple-50 disabled:opacity-50"
+                      className="bld__btn bld__btn--ghost"
                     >
                       {promoChecking ? "…" : t("promoApply")}
                     </button>
@@ -1156,7 +1172,7 @@ export function BuilderClient({
           )}
 
           {step === 4 && (
-            <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-brand-purple-100 bg-brand-purple-50/40 p-4 text-sm text-brand-purple-950">
+            <label className="bld__consent">
               <input
                 type="checkbox"
                 checked={payAgreed}
@@ -1219,11 +1235,11 @@ export function BuilderClient({
             <p className="mt-4 text-sm font-semibold text-brand-red">{error}</p>
           )}
 
-          <div className="mt-7 flex justify-between gap-3">
+          <div className="bld__actions">
             <button
               type="button"
               onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
-              className={`rounded-full border-[1.5px] border-brand-purple px-6 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple-50 ${step === 0 ? "invisible" : ""}`}
+              className={`bld__btn bld__btn--ghost${step === 0 ? " bld__btn--hidden" : ""}`}
             >
               {tCommon("back")}
             </button>
@@ -1231,7 +1247,7 @@ export function BuilderClient({
               <button
                 type="button"
                 onClick={next}
-                className="rounded-full bg-brand-purple px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-purple-600"
+                className="bld__btn bld__btn--go"
               >
                 {tCommon("next")} →
               </button>
@@ -1240,7 +1256,7 @@ export function BuilderClient({
                 type="button"
                 disabled={submitting || !payAgreed}
                 onClick={submit}
-                className="bg-gold-gradient rounded-full px-7 py-3 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-50"
+                className="bld__btn bld__btn--pay"
               >
                 {t("s5Pay", { price: formatKzt(total) })}
               </button>
@@ -1249,7 +1265,7 @@ export function BuilderClient({
         </div>
 
         {/* Живой предпросмотр + сводка */}
-        <aside className="lg:sticky lg:top-24">
+        <aside className="bld__aside">
           <CertPreview
             imageUrl={design.imageUrl}
             bgStyle={design.bgStyle}
@@ -1260,49 +1276,49 @@ export function BuilderClient({
             forLabel={toName ? t("certFor", { name: toName }) : undefined}
             message={message || undefined}
           />
-          <p className="mt-3 text-center text-xs text-brand-purple-950/55">
+          <p className="bld__prevnote">
             {t("previewNote")}
           </p>
-          <dl className="mt-4 rounded-2xl border border-brand-purple-100 bg-brand-purple-50/50 p-5 text-sm">
-            <div className="flex justify-between py-1">
-              <dt className="text-brand-purple-950/60">
+          <dl className="bld__summary">
+            <div className="bld__row">
+              <dt className="bld__rowk">
                 {type === "program" ? t("sumTypeProgram") : t("sumTypeNominal")}
               </dt>
               <dd className="font-semibold">
                 {type === "program" ? (program?.name ?? "—") : formatKzt(price)}
               </dd>
             </div>
-            <div className="flex justify-between py-1">
-              <dt className="text-brand-purple-950/60">{t("sumSalon")}</dt>
+            <div className="bld__row">
+              <dt className="bld__rowk">{t("sumSalon")}</dt>
               <dd className="max-w-[60%] text-right font-semibold">
                 {selectedSalon
                   ? `${selectedSalon.city}, ${selectedSalon.address}`
                   : "—"}
               </dd>
             </div>
-            <div className="flex justify-between py-1">
-              <dt className="text-brand-purple-950/60">{t("sumDesign")}</dt>
+            <div className="bld__row">
+              <dt className="bld__rowk">{t("sumDesign")}</dt>
               <dd className="font-semibold">{design.name}</dd>
             </div>
-            <div className="flex justify-between py-1">
-              <dt className="text-brand-purple-950/60">{t("sumDelivery")}</dt>
+            <div className="bld__row">
+              <dt className="bld__rowk">{t("sumDelivery")}</dt>
               <dd className="font-semibold">
                 {t("s4Email")}
               </dd>
             </div>
             {promoValid && (
-              <div className="flex justify-between py-1 text-brand-gold-700">
+              <div className="bld__row bld__row--promo">
                 <dt>{t("sumPromo", { code: promoApplied.code })}</dt>
                 <dd className="font-semibold">
                   −{formatKzt(promoApplied.discountKzt)}
                 </dd>
               </div>
             )}
-            <div className="mt-2 flex justify-between border-t border-brand-purple-100 pt-3 text-base font-extrabold text-brand-purple">
+            <div className="bld__row bld__row--total">
               <dt>{t("sumTotal")}</dt>
               <dd>{price > 0 ? formatKzt(total) : "—"}</dd>
             </div>
-            <p className="mt-2 text-[11px] text-brand-purple-950/50">
+            <p className="bld__validity">
               {t("validity")}
             </p>
           </dl>
