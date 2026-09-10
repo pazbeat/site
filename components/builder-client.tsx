@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CertPreview } from "./cert-preview";
 import { Link } from "@/i18n/navigation";
 import { BuilderIntro } from "./builder-intro";
+import { BuilderDesigns } from "./builder-designs";
 import { ConsentModal } from "./consent-modal";
 import { optionLabel } from "./program-card";
 import { formatKzt } from "@/lib/format";
@@ -48,7 +49,9 @@ type Props = Readonly<{
 }>;
 
 type Step = 0 | 1 | 2 | 3 | 4;
-const DRAFT_KEY = "imbir-builder-draft";
+/* v2: порядок шагов изменился (дизайн стал первым), и черновик хранит
+   номер шага — старый ключ восстановил бы покупателя не на тот экран. */
+const DRAFT_KEY = "imbir-builder-draft-v2";
 
 /** Снимок конструктора для сохранения черновика в localStorage. */
 type Draft = {
@@ -59,7 +62,7 @@ type Draft = {
   optionId: number | null;
   nominalId: number | null;
   customAmount: string;
-  designIdx: number;
+  designId: number | null;
   toName: string;
   fromName: string;
   message: string;
@@ -85,13 +88,6 @@ function isResumable(d: Draft): boolean {
     d.contact.trim().length > 0 ||
     d.buyerEmail.trim().length > 0
   );
-}
-
-/** Превью дизайна для сетки выбора (public/designs/thumbs, 360px). */
-function designThumb(url: string): string {
-  return url.startsWith("/designs/")
-    ? url.replace("/designs/", "/designs/thumbs/")
-    : url;
 }
 
 // 16px на телефоне (text-base) — не «покрупнее для красоты», а обязательное:
@@ -178,8 +174,17 @@ export function BuilderClient({
     resume?.nominalId ?? initialNominalId ?? nominals[0]?.id ?? null,
   );
   const [customAmount, setCustomAmount] = useState(resume?.customAmount ?? "");
-  const [designIdx, setDesignIdx] = useState(
-    resume ? Math.min(Math.max(resume.designIdx, 0), designs.length - 1) : 0,
+  /**
+   * Открытка хранится ПО НОМЕРУ, а не по месту в списке. С индексом любое
+   * переупорядочивание или отключение дизайна в админке молча подменяло бы
+   * выбор покупателя — и особенно теперь, когда дизайн выбирается вторым
+   * шагом и решение живёт до самой оплаты.
+   */
+  const [designId, setDesignId] = useState<number | null>(
+    (resume
+      ? designs[Math.min(Math.max(resume.designIdx, 0), designs.length - 1)]
+      : designs[0]
+    )?.id ?? null,
   );
   const [toName, setToName] = useState(resume?.toName ?? "");
   const [fromName, setFromName] = useState(resume?.fromName ?? "");
@@ -229,7 +234,7 @@ export function BuilderClient({
     setOptionId(d.optionId);
     setNominalId(d.nominalId);
     setCustomAmount(d.customAmount);
-    setDesignIdx(Math.min(Math.max(d.designIdx, 0), designs.length - 1));
+    setDesignId(d.designId ?? designs[0]?.id ?? null);
     setToName(d.toName);
     setFromName(d.fromName);
     setMessage(d.message);
@@ -298,7 +303,7 @@ export function BuilderClient({
       optionId,
       nominalId,
       customAmount,
-      designIdx,
+      designId,
       toName,
       fromName,
       message,
@@ -326,7 +331,7 @@ export function BuilderClient({
     optionId,
     nominalId,
     customAmount,
-    designIdx,
+    designId,
     toName,
     fromName,
     message,
@@ -365,7 +370,7 @@ export function BuilderClient({
   const program = availablePrograms.find((p) => p.id === programId) ?? null;
   const option = program?.options.find((o) => o.id === optionId) ?? null;
   const nominal = nominals.find((n) => n.id === nominalId) ?? null;
-  const design = designs[designIdx];
+  const design = designs.find((d) => d.id === designId) ?? designs[0];
 
   const availableAmounts = salonId ? (amountsBySalon[salonId] ?? []) : [];
   const custom = customAmount ? Number(customAmount) : null;
@@ -448,14 +453,14 @@ export function BuilderClient({
   const stepValid = (s: Step): boolean => {
     switch (s) {
       case 0:
+        return Boolean(design);
+      case 1:
         if (!salonId) return false;
         return type === "program"
           ? Boolean(option)
           : customAmount
             ? customValid
             : Boolean(nominal);
-      case 1:
-        return Boolean(design);
       case 2:
         return toName.trim().length > 0 && fromName.trim().length > 0;
       case 3:
@@ -560,9 +565,10 @@ export function BuilderClient({
     );
   }
 
+  // Порядок подписей идёт за порядком экранов: открытка теперь первая.
   const stepTitles = [
-    t("step1"),
     t("step2"),
+    t("step1"),
     t("step3"),
     t("step4"),
     t("step5"),
@@ -689,8 +695,11 @@ export function BuilderClient({
         {/* key={step}: перемонтаж контейнера при смене шага даёт короткий
             вход .step-enter вместо мгновенной подмены контента */}
         <div key={step} className="step-enter rounded-2xl border border-brand-purple-100 bg-white p-6 shadow-sm sm:p-8">
-          {/* ШАГ 1: тип + город/филиал */}
-          {step === 0 && (
+          {/* ШАГ 2: филиал и что именно дарим.
+              Сумма спрашивается ПОСЛЕ филиала и только так: в Altegio под
+              каждый номинал заведён свой товар, и наборы у филиалов разные —
+              сумма, выбранная раньше филиала, могла бы оказаться непродаваемой. */}
+          {step === 1 && (
             <>
               <h3 className="font-display text-2xl font-semibold text-brand-purple">
                 {t("s1Title")}
@@ -907,8 +916,11 @@ export function BuilderClient({
             </>
           )}
 
-          {/* ШАГ 2: дизайн */}
-          {step === 1 && (
+          {/* ШАГ 1: открытка. Дизайн выбирается ПЕРВЫМ — список открыток
+              ни от филиала, ни от типа сертификата не зависит (проверено:
+              getActiveDesigns без единого фильтра), поэтому спрашивать про
+              город раньше, чем про подарок, незачем. */}
+          {step === 0 && (
             <>
               <h3 className="font-display text-2xl font-semibold text-brand-purple">
                 {t("s2Title")}
@@ -916,51 +928,11 @@ export function BuilderClient({
               <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
                 {t("s2Hint")}
               </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {designs.map((d, index) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setDesignIdx(index)}
-                    className={`rounded-2xl border-[2.5px] p-1 transition-colors ${
-                      index === designIdx
-                        ? "border-brand-gold"
-                        : "border-transparent hover:border-brand-purple-100"
-                    }`}
-                  >
-                    {d.imageUrl ? (
-                      // В сетке — лёгкое превью (~8 КБ вместо ~60 КБ);
-                      // если превью нет (старые загрузки) — фолбэк на оригинал
-                      // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
-                      <img
-                        src={designThumb(d.imageUrl)}
-                        onError={(e) => {
-                          if (e.currentTarget.src !== new URL(d.imageUrl!, location.href).href) {
-                            e.currentTarget.src = d.imageUrl!;
-                          }
-                        }}
-                        alt={d.name}
-                        loading="lazy"
-                        className="block aspect-[1400/903] w-full rounded-xl border border-brand-purple-100 object-cover"
-                      />
-                    ) : (
-                      <span
-                        aria-hidden
-                        className="block aspect-[1400/903] w-full rounded-xl border border-brand-purple-100"
-                        style={{
-                          background:
-                            d.bgStyle.kind === "gradient"
-                              ? `linear-gradient(${d.bgStyle.angle ?? 135}deg, ${d.bgStyle.from}, ${d.bgStyle.to})`
-                              : d.bgStyle.color,
-                        }}
-                      />
-                    )}
-                    <span className="mt-1.5 block text-center text-xs font-bold text-brand-purple-950/60">
-                      {d.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <BuilderDesigns
+                designs={designs}
+                value={designId}
+                onChange={setDesignId}
+              />
             </>
           )}
 

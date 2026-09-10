@@ -2031,3 +2031,95 @@ h3,
     .pick__card,.pick__glow,.pick__go{transition:none}
     .pick__opt:hover .pick__card--1,.pick__opt:hover .pick__card--2,.pick__opt:hover .pick__card--3,.pick__opt:hover .pick__go{transform:none}
   }
+
+/* ─── Шаг «выберите открытку»: дуга поводов и карусель ───────────────────
+   Дуга несёт ПОВОДЫ, а не цвета: у нас 31 разная картинка, красить их
+   бессмысленно, а покупатель ищет «на день рождения», а не «фиолетовую».
+   Сама дуга — не кольцо точек, а нитка слов, провисающая под собственным
+   весом: кривая задана сдвигом по вертикали, SVG не нужен.            */
+
+
+  /* ── Дуга поводов ──────────────────────────────────────────────────────
+     Не кольцо точек, как в референсе, а нитка слов, провисающая под
+     собственным весом — как бусины на нити. Кривая задана сдвигом каждого
+     слова по вертикали; SVG не нужен.                                    */
+  .dsn__arc{display:flex;justify-content:center;align-items:flex-start;flex-wrap:nowrap;
+       gap:clamp(.5rem,2.2vw,1.9rem);margin:0 0 clamp(1.5rem,3svh,2.25rem);
+       overflow-x:auto;scrollbar-width:none;padding:6px 4px 34px}
+  .dsn__arc::-webkit-scrollbar{display:none}
+  .dsn__occ{all:unset;cursor:pointer;white-space:nowrap;position:relative;
+       font-size:clamp(11px,1.35vw,13px);font-weight:500;letter-spacing:.03em;
+       color:var(--ink-soft);padding:6px 2px;
+       transition:color .3s cubic-bezier(.22,.61,.36,1),transform .45s cubic-bezier(.22,.61,.36,1)}
+  .dsn__occ:nth-child(1){transform:translateY(0)}
+  .dsn__occ:nth-child(2){transform:translateY(13px)}
+  .dsn__occ:nth-child(3){transform:translateY(22px)}
+  .dsn__occ:nth-child(4){transform:translateY(22px)}
+  .dsn__occ:nth-child(5){transform:translateY(13px)}
+  .dsn__occ:nth-child(6){transform:translateY(0)}
+  .dsn__occ:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:4px;border-radius:6px}
+  /* Выбранный повод — золотой, с точкой-бусиной под словом. */
+  .occ[aria-selected="true"]{color:var(--gold-dim);font-weight:600}
+  .occ[aria-selected="true"]::after{content:"";position:absolute;left:50%;bottom:-9px;
+    width:5px;height:5px;margin-left:-2.5px;border-radius:50%;
+    background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+    box-shadow:0 0 10px rgba(182,146,68,.7)}
+  @media (hover:hover){.dsn__occ:hover{color:var(--color-brand-purple)}}
+
+  /* ── Сцена с открыткой ─────────────────────────────────────────────── */
+  .dsn__stage{position:relative;display:grid;place-items:center;
+         min-height:clamp(250px,38svh,380px);margin-bottom:1.25rem}
+  .dsn__glow{position:absolute;width:min(86%,620px);aspect-ratio:1;border-radius:50%;
+        pointer-events:none;filter:blur(30px);opacity:1;
+        background:radial-gradient(circle,rgba(182,146,68,.42),rgba(182,146,68,.14) 45%,transparent 70%)}
+
+  .dsn__rail{position:relative;display:flex;align-items:center;justify-content:center;
+        gap:clamp(.75rem,2.5vw,1.75rem);width:100%}
+  .dsn__slot{flex:0 0 auto;border-radius:16px;overflow:hidden;position:relative;
+        transition:opacity .4s cubic-bezier(.22,.61,.36,1),transform .4s cubic-bezier(.22,.61,.36,1),filter .4s cubic-bezier(.22,.61,.36,1)}
+  .dsn__slot img{display:block;width:100%;height:100%;object-fit:cover}
+  /* Соседи подглядывают, но не спорят с главной. */
+  .dsn__slot--side{width:clamp(64px,14vw,132px);aspect-ratio:5/3;opacity:.4;
+              filter:blur(1px);transform:scale(.94);
+              box-shadow:0 14px 22px -14px rgba(37,8,47,.3)}
+  .dsn__slot--main{width:clamp(230px,48vw,440px);aspect-ratio:5/3;
+              box-shadow:0 2px 4px rgba(37,8,47,.14),0 12px 20px -8px rgba(37,8,47,.18),
+                         0 34px 44px -22px rgba(37,8,47,.24),0 70px 90px -50px rgba(37,8,47,.34)}
+  /* Кромка вместо рамки — тот же приём, что на первом экране. */
+  .dsn__slot--main::after{content:"";position:absolute;inset:0;border-radius:16px;
+    pointer-events:none;
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.45),inset -1px -1.5px 0 rgba(37,8,47,.3)}
+
+  .dsn__nav{all:unset;position:absolute;top:50%;margin-top:-21px;width:42px;height:42px;
+       border-radius:50%;display:grid;place-items:center;cursor:pointer;z-index:2;
+       background:rgba(255,255,255,.92);color:var(--color-brand-purple);font-size:15px;
+       box-shadow:0 8px 20px -8px rgba(37,8,47,.35);
+       transition:transform .25s cubic-bezier(.22,.61,.36,1)}
+  .dsn__nav--prev{left:clamp(2px,6vw,86px)}.dsn__nav--next{right:clamp(2px,6vw,86px)}
+  .dsn__nav:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
+  @media (hover:hover){.dsn__nav:hover{transform:scale(1.08)}}
+
+  .dsn__meta{text-align:center;margin-bottom:1.5rem}
+  .dsn__cardname{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.3rem,2.6vw,1.8rem);
+            color:var(--color-brand-purple);display:block;line-height:1.15}
+  .dsn__count{display:block;margin-top:6px;font-size:11px;letter-spacing:.14em;
+         text-transform:uppercase;color:var(--ink-soft)}
+
+  .dsn__dots{display:flex;justify-content:center;gap:7px;margin-bottom:1.75rem}
+  .dsn__dot{width:6px;height:6px;border-radius:50%;background:rgba(77,41,93,.22);
+       transition:background .3s cubic-bezier(.22,.61,.36,1),transform .3s cubic-bezier(.22,.61,.36,1)}
+  .dot[data-on="1"]{background:var(--gold);transform:scale(1.35)}
+
+  /* Телефон лёжа — по ВЫСОТЕ, не по ширине. */
+  @media (max-height:520px) and (orientation:landscape){
+    .dsn__arc{margin-bottom:1rem;padding-bottom:16px}
+    .dsn__stage{min-height:150px;margin-bottom:.75rem}
+    .dsn__slot--main{width:min(38vw,250px)}
+    .dsn__slot--side{width:clamp(48px,9vw,84px)}
+    .dsn__meta{margin-bottom:.75rem}.dsn__cardname{font-size:1.1rem}
+    .dsn__dots{margin-bottom:.9rem}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .dsn__occ,.dsn__slot,.dsn__nav,.dsn__dot,.btn{transition:none}
+    .dsn__nav:hover,.btn:hover{transform:none}
+  }
