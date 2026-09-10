@@ -1909,201 +1909,125 @@ h3,
   }
 }
 
+/* ─── Входной экран конструктора: сумму или услугу ───────────────────────
+   Ни одной рамки. Объём даёт наклон, одна тень в четыре слоя и мягкое
+   сияние — тот же приём, что на кнопке подарка. Смысл несёт сам предмет:
+   слева веер из трёх открыток (получатель будет выбирать), справа одна
+   карта, повёрнутая к зрителю (выбор сделан за него).
+   Заголовок намеренно тихий: это шаг покупки, а не главная страница — если
+   он крупнее предмета, покупатель выбирает текст, а не карту.            */
 
-/* ─── Входной экран конструктора: сумма или услуга ────────────────────────
-   Две половины во весь экран, между ними золотая волосяная линия — тот же
-   приём, что на карточках сертификатов. Левая фиолетовая, правая белая:
-   выбор читается как выбор, а не как две одинаковые плитки.            */
+.pick{position:relative;overflow-x:clip;
+        padding:clamp(2rem,5svh,3.5rem) clamp(1.25rem,4vw,3rem) clamp(3rem,7svh,4.5rem)}
+  @supports not (overflow:clip){.pick{overflow-x:hidden}}
+  .pick__inner{max-width:1060px;margin-inline:auto}
 
-.builder-intro {
-  display: grid;
-  grid-template-columns: 1fr;
-  /* Разделитель делаем зазором с золотой подложкой, а не border: так линия
-     одинаковой толщины и по вертикали, и по горизонтали при перестроении. */
-  gap: 1px;
-  background: var(--color-brand-gold);
-  border-radius: 1.25rem;
-  overflow: hidden;
-  border: 1px solid var(--color-brand-gold);
-}
+  /* Шапка намеренно тихая: это шаг в покупке, а не главная страница.
+     Предмет должен быть крупнее заголовка — иначе выбирают текст, а не карту. */
+  .pick__head{text-align:center;margin-bottom:clamp(2rem,4svh,3rem)}
+  .pick__step{font-size:10px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;
+        color:var(--gold-dim);margin:0 0 10px}
+  .pick__title{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.75rem,3.4vw,2.5rem);
+         line-height:1.1;color:var(--plum-950);margin:0}
+  .pick__lede{font-size:14px;line-height:1.6;color:var(--ink-soft);max-width:44ch;
+        margin:10px auto 0}
 
-.intro-half {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.75rem;
-  padding: 2.5rem 1.5rem 2.75rem;
-  text-align: center;
-  cursor: pointer;
-  transition: background-color 0.25s ease;
-}
+  .pick__scene{display:grid;grid-template-columns:1fr;gap:clamp(3rem,7svh,4rem);
+         justify-items:center}
 
-.intro-half--dark {
-  background: var(--color-brand-purple);
-  color: #fff;
-}
-.intro-half--light {
-  background: #fff;
-  color: var(--color-brand-purple);
-}
-.intro-half--dark:hover,
-.intro-half--dark:focus-visible {
-  background: var(--color-brand-purple-600);
-}
-.intro-half--light:hover,
-.intro-half--light:focus-visible {
-  background: var(--color-brand-purple-50);
-}
-.intro-half:focus-visible {
-  outline: 2px solid var(--color-brand-gold);
-  outline-offset: -4px;
-}
+  .pick__opt{all:unset;display:block;cursor:pointer;width:100%;max-width:400px;
+       border-radius:20px;-webkit-tap-highlight-color:transparent}
+  .pick__opt:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:10px}
 
-/* Карточка-открытка. Пропорции сертификата, тонкая золотая рамка. */
-.intro-card {
-  position: relative;
-  display: block;
-  width: min(100%, 22rem);
-  aspect-ratio: 5 / 3;
-  border-radius: 0.9rem;
-  overflow: hidden;
-  border: 1px solid var(--color-brand-gold);
-  background: var(--color-brand-purple-950);
-  transition: transform 0.35s ease;
-}
-.intro-half:hover .intro-card {
-  transform: translateY(-4px) rotate(-1deg);
-}
-.intro-card__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-/* Сумма на карточке — крупно, шрифтом заголовков. Знака ₸ у Cormorant нет,
-   поэтому надпись набирается Montserrat целиком (та же причина, что в PDF). */
-.intro-card__sum,
-.intro-card__label {
-  position: absolute;
-  inset: auto 0 0 0;
-  padding: 0.5rem 0.75rem 0.7rem;
-  font-family: var(--font-body), system-ui, sans-serif;
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: #fff;
-  background: linear-gradient(to top, rgb(0 0 0 / 0.55), transparent);
-}
-.intro-card__label {
-  font-size: 0.8rem;
-  letter-spacing: 0.02em;
-}
+  /* display:block обязателен: это <span>, а у строчного элемента нет ни
+     ширины, ни высоты — сцена схлопывалась в ноль, и карты не рисовались. */
+  .pick__stage{display:block;position:relative;width:100%;aspect-ratio:5/3;perspective:1400px}
 
-.intro-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.65rem;
-  max-width: 26rem;
-}
-.intro-name {
-  font-family: var(--font-display), Georgia, serif;
-  font-size: clamp(1.9rem, 6vw, 2.9rem);
-  line-height: 1.05;
-  font-weight: 600;
-  text-wrap: balance;
-}
-.intro-text {
-  font-size: 0.9rem;
-  line-height: 1.55;
-  opacity: 0.75;
-  text-wrap: pretty;
-}
+  /* Мягкое сияние под предметом — тот же приём, что на кнопке подарка. */
+  .pick__glow{position:absolute;inset:-22% -18% -14%;border-radius:50%;pointer-events:none;
+        filter:blur(30px);opacity:.75;
+        transition:opacity .5s cubic-bezier(.22,.61,.36,1),transform .6s cubic-bezier(.22,.61,.36,1)}
+  .pick__opt--sum .pick__glow{background:radial-gradient(circle,rgba(182,146,68,.34),transparent 66%)}
+  .pick__opt--prog .pick__glow{background:radial-gradient(circle,rgba(123,50,168,.28),transparent 66%)}
 
-/* Кнопка видна ВСЕГДА: на телефоне наведения нет, и «покажем по hover»
-   означало бы, что половина покупателей не понимает, куда нажимать. */
-.intro-go {
-  margin-top: 0.5rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 3rem;
-  padding: 0 1.9rem;
-  border-radius: 999px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-.intro-go--gold {
-  background: var(--color-brand-gold);
-  color: var(--color-brand-purple-950);
-}
-.intro-go--purple {
-  background: var(--color-brand-purple);
-  color: #fff;
-}
-.intro-half:hover .intro-go {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgb(77 41 93 / 0.25);
-}
+  .pick__deck{position:absolute;inset:0;transform-style:preserve-3d}
+  .pick__card{position:absolute;inset:0;border-radius:16px;
+        transition:transform .45s cubic-bezier(.22,.61,.36,1),box-shadow .45s cubic-bezier(.22,.61,.36,1)}
+  .pick__card img{width:100%;height:100%;object-fit:cover;border-radius:16px;display:block}
 
-/* Две колонки — с планшета. Раньше по ширине телефона: на 360px половины
-   сжимались до нечитаемых. */
-@media (min-width: 768px) {
-  .builder-intro {
-    grid-template-columns: 1fr 1fr;
-  }
-  .intro-half {
-    padding: 3.5rem 2rem 4rem;
-    justify-content: center;
-    min-height: 30rem;
-  }
-}
+  /* Одна честная тень в четыре слоя вместо россыпи эффектов. */
+  .pick__card--1{transform:rotateX(6deg) rotateY(-9deg);
+      box-shadow:0 2px 4px rgba(37,8,47,.14),
+                 0 12px 20px -8px rgba(37,8,47,.18),
+                 0 34px 44px -22px rgba(37,8,47,.24),
+                 0 70px 90px -50px rgba(37,8,47,.34)}
+  .pick__opt--prog .pick__card--1{transform:rotateX(6deg) rotateY(9deg)}
+  .pick__card--2{transform:rotateX(6deg) rotateY(-9deg) rotate(-7.5deg) translate(-30px,-15px) scale(.95);
+      opacity:.7;box-shadow:0 24px 34px -22px rgba(37,8,47,.28)}
+  .pick__card--3{transform:rotateX(6deg) rotateY(-9deg) rotate(-14deg) translate(-56px,-29px) scale(.90);
+      opacity:.42;box-shadow:0 22px 30px -22px rgba(37,8,47,.24)}
 
-/* Телефон лёжа. Правим по ВЫСОТЕ, а не по ширине: альбомный телефон
-   (780–950px) иначе попадает в планшетную ветку и требует прокрутки на
-   каждой половине. Здесь карточка уходит вбок от текста. */
-@media (max-height: 520px) and (orientation: landscape) {
-  .builder-intro {
-    grid-template-columns: 1fr 1fr;
-  }
-  .intro-half {
-    min-height: 0;
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.1rem 1rem;
-    text-align: left;
-  }
-  .intro-card {
-    width: 9rem;
-    flex: 0 0 auto;
-  }
-  .intro-body {
-    align-items: flex-start;
-  }
-  .intro-name {
-    font-size: 1.35rem;
-  }
-  .intro-text {
-    font-size: 0.78rem;
-  }
-  .intro-go {
-    min-height: 2.4rem;
-    padding: 0 1.2rem;
-  }
-}
+  /* Кромка вместо рамки: свет сверху-слева, тень снизу-справа.
+     Замкнутого контура нет — читается как толщина, а не как обводка. */
+  .pick__edge{position:absolute;inset:0;border-radius:16px;pointer-events:none;
+        box-shadow:inset 1px 1px 0 rgba(255,255,255,.45),
+                   inset -1px -1.5px 0 rgba(37,8,47,.30)}
 
-@media (prefers-reduced-motion: reduce) {
-  .intro-half,
-  .intro-card,
-  .intro-go {
-    transition: none;
+  /* Сумма набрана Montserrat целиком: у Cormorant нет знака ₸. */
+  .pick__plate{position:absolute;left:18px;bottom:16px;padding:7px 13px;border-radius:999px;
+         font-weight:600;font-size:13px;color:var(--plum-950);
+         background:rgba(255,255,255,.92);backdrop-filter:blur(4px);
+         box-shadow:0 8px 18px -8px rgba(37,8,47,.4)}
+  .pick__plate--small{font-size:10px;letter-spacing:.09em;text-transform:uppercase}
+
+  .pick__cap{display:block;margin-top:34px;text-align:center}
+  .pick__name{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.6rem,3vw,2.1rem);
+        line-height:1.05;color:var(--color-brand-purple);display:block}
+  .pick__note{display:block;font-size:13.5px;line-height:1.6;color:var(--ink-soft);max-width:34ch;
+        margin:9px auto 0;min-height:3.2em}
+  .pick__go{display:inline-flex;align-items:center;justify-content:center;margin-top:18px;
+      min-height:46px;padding:0 30px;border-radius:999px;
+      font-size:11px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+      transition:transform .25s cubic-bezier(.22,.61,.36,1),box-shadow .25s cubic-bezier(.22,.61,.36,1)}
+  .pick__opt--sum .pick__go{background:linear-gradient(115deg,var(--gold),var(--gold-hi) 50%,var(--gold));
+                color:var(--plum-950);box-shadow:0 10px 24px -12px rgba(182,146,68,.65)}
+  .pick__opt--prog .pick__go{background:var(--color-brand-purple);color:#fff;
+                 box-shadow:0 10px 24px -12px rgba(77,41,93,.5)}
+
+  @media (hover:hover) and (pointer:fine){
+    .pick__opt:hover .pick__card--1{transform:rotateX(3deg) rotateY(-5deg) translateY(-10px) scale(1.025)}
+    .pick__opt--prog:hover .pick__card--1{transform:rotateX(3deg) rotateY(5deg) translateY(-10px) scale(1.025)}
+    .pick__opt:hover .pick__card--2{transform:rotateX(6deg) rotateY(-9deg) rotate(-9deg) translate(-30px,-16px) scale(.955)}
+    .pick__opt:hover .pick__card--3{transform:rotateX(6deg) rotateY(-9deg) rotate(-16deg) translate(-56px,-30px) scale(.915)}
+    .pick__opt:hover .pick__glow{opacity:1;transform:scale(1.06)}
+    .pick__opt:hover .pick__go{transform:translateY(-2px)}
   }
-  .intro-half:hover .intro-card,
-  .intro-half:hover .intro-go {
-    transform: none;
+
+  @media (min-width:760px){
+    .pick__scene{grid-template-columns:1fr 1fr;gap:clamp(2rem,5vw,4.5rem);align-items:start}
+    .pick__opt{max-width:none}
   }
-}
+
+  /* Телефон лёжа — по ВЫСОТЕ, не по ширине. */
+  @media (max-height:520px) and (orientation:landscape){
+    .pick{padding:1rem 1rem 1.5rem}
+    .pick__head{margin-bottom:1rem}
+    .pick__title{font-size:1.4rem}
+    .pick__lede{display:none}
+    .pick__scene{grid-template-columns:1fr 1fr;gap:1.5rem}
+    .pick__cap{margin-top:18px}
+    .pick__name{font-size:1.15rem}
+    .pick__note{font-size:11px;max-width:30ch;margin-top:5px}
+    .pick__go{margin-top:10px;min-height:38px;padding:0 20px;font-size:10px}
+    .pick__plate{font-size:10px;padding:5px 9px;left:12px;bottom:11px}
+  }
+  @media (max-width:420px){
+    .pick__card--1,.pick__opt--prog .pick__card--1{transform:rotateX(5deg) rotateY(-5deg)}
+    .pick__opt--prog .pick__card--1{transform:rotateX(5deg) rotateY(5deg)}
+    .pick__card--2{transform:rotateX(5deg) rotateY(-5deg) rotate(-5deg) translate(-13px,-7px) scale(.955)}
+    .pick__card--3{transform:rotateX(5deg) rotateY(-5deg) rotate(-9.5deg) translate(-25px,-14px) scale(.915)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .pick__card,.pick__glow,.pick__go{transition:none}
+    .pick__opt:hover .pick__card--1,.pick__opt:hover .pick__card--2,.pick__opt:hover .pick__card--3,.pick__opt:hover .pick__go{transform:none}
+  }

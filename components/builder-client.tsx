@@ -593,14 +593,35 @@ export function BuilderClient({
     return <ConsentModal html={consentHtml} onAccept={acceptConsent} />;
   }
 
+  /**
+   * Примеры на плашках входного экрана. Берём из настоящего каталога, а не
+   * пишем числом в разметке: сумма в списке номиналов может измениться, и
+   * рисованный пример разошёлся бы с тем, что покупатель увидит дальше.
+   */
+  const sampleAmount = formatKzt(
+    nominals[Math.min(2, nominals.length - 1)]?.amountKzt ?? 15000,
+  );
+  const firstProgram = programs[0];
+  const sampleProgram = firstProgram
+    ? `${firstProgram.name}${
+        firstProgram.options[0]?.durationMin
+          ? ` · ${firstProgram.options[0].durationMin} мин`
+          : ""
+      }`
+    : "";
+
   // Входной экран: сумма или услуга. Стоит НИЖЕ проверки согласия — за
   // модалкой по-прежнему нет ни одного узла, который можно поймать клавишей
   // Tab. Показываем только тем, кто пришёл без готового выбора.
   if (!introDone) {
     return (
       <BuilderIntro
-        nominalImage={designs[11]?.imageUrl ?? designs[0]?.imageUrl ?? undefined}
-        programImage={designs[8]?.imageUrl ?? designs[1]?.imageUrl ?? undefined}
+        images={designs
+          .map((d) => d.imageUrl)
+          .filter((u): u is string => Boolean(u))
+          .slice(0, 4)}
+        sampleAmount={sampleAmount}
+        sampleProgram={sampleProgram}
         onPick={(picked) => {
           setType(picked);
           setIntroDone(true);
