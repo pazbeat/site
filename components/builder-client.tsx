@@ -95,11 +95,6 @@ function isResumable(d: Draft): boolean {
 // при шрифте меньше 16px iOS Safari сам увеличивает страницу на фокусе поля
 // и обратно не отъезжает, дальше вся форма заполняется на съехавшем экране.
 // С 640px возвращаем прежние 14px.
-const inputCls = "bld__input";
-const labelCls = "bld__label";
-const segBtn = (active: boolean) =>
-  `bld__seg${active ? " bld__seg--on" : ""}`;
-
 export function BuilderClient({
   salons,
   programs,
@@ -170,6 +165,9 @@ export function BuilderClient({
     resume?.nominalId ?? initialNominalId ?? nominals[0]?.id ?? null,
   );
   const [customAmount, setCustomAmount] = useState(resume?.customAmount ?? "");
+  /** Своя сумма раскрывается по требованию — но остаётся раскрытой, если
+   *  покупатель вернулся на шаг с уже введённой суммой. */
+  const [customOpen, setCustomOpen] = useState(Boolean(resume?.customAmount));
   /**
    * Открытка хранится ПО НОМЕРУ, а не по месту в списке. С индексом любое
    * переупорядочивание или отключение дизайна в админке молча подменяло бы
@@ -377,6 +375,24 @@ export function BuilderClient({
   const option = program?.options.find((o) => o.id === optionId) ?? null;
   const nominal = nominals.find((n) => n.id === nominalId) ?? null;
   const design = designs.find((d) => d.id === designId) ?? designs[0];
+
+  /**
+   * Карусель номиналов. Отдельного состояния под неё нет намеренно: позиция
+   * ВЫВОДИТСЯ из выбранного номинала, поэтому карусель и заказ не могут
+   * разойтись — а именно так и разошлись однажды карусель открыток с
+   * предпросмотром, когда позиция хранилась сама по себе.
+   */
+  const nominalIndex = Math.max(
+    0,
+    nominals.findIndex((n) => n.id === nominalId),
+  );
+  const nominalAt = (offset: number) =>
+    nominals[(nominalIndex + offset + nominals.length) % nominals.length];
+  const moveNominal = (delta: number) => {
+    setNominalId(nominalAt(delta).id);
+    setCustomAmount("");
+    setCustomOpen(false);
+  };
 
   const availableAmounts = salonId ? (amountsBySalon[salonId] ?? []) : [];
   const custom = customAmount ? Number(customAmount) : null;
@@ -697,7 +713,13 @@ export function BuilderClient({
         ))}
       </ol>
 
-      <div className="grid items-start gap-9 lg:grid-cols-[1fr_400px]">
+      {/* Каждый шаг занимает всю ширину — правой колонки с вечным
+          предпросмотром больше нет. Она превращала любой экран в придаток к
+          сводке пустого заказа: на выборе открытки одна и та же картинка
+          показывалась дважды и обе выходили мелкими. Предпросмотр остался
+          там, где он что-то решает: на «Подписи» (имена ложатся на карточку)
+          и на «Оплате» (итог перед списанием). */}
+      <div className="bld__flow">
         {/* key={step}: перемонтаж контейнера при смене шага даёт короткий
             вход .step-enter вместо мгновенной подмены контента */}
         <div key={step} className="step-enter bld__pane">
@@ -707,207 +729,255 @@ export function BuilderClient({
               сумма, выбранная раньше филиала, могла бы оказаться непродаваемой. */}
           {step === 1 && (
             <>
-              <h3 className="bld__h">
-                {t("s1Title")}
-              </h3>
-              <p className="bld__sub">
-                {t("s1Hint")}
+              <div className="bld__head">
+                <p className="bld__eyebrow">{t("stepOf", { n: 2 })}</p>
+                <h2 className="bld__title">
+                  {type === "nominal" ? t("s1TitleNominal") : t("s1TitleProgram")}
+                </h2>
+                <p className="bld__lede">{t("s1SalonHint")}</p>
+              </div>
+
+              {/* Тип уже выбран на входном экране — не спрашиваем второй раз,
+                  а даём тихо передумать одной строкой. Два больших переключателя
+                  здесь повторяли тот же вопрос и превращали экран в анкету. */}
+              <p className="bld__swap">
+                {type === "nominal" ? t("s1IsNominal") : t("s1IsProgram")}{" "}
+                <button
+                  type="button"
+                  className="bld__swaplink"
+                  onClick={() => setType(type === "nominal" ? "program" : "nominal")}
+                >
+                  {type === "nominal" ? t("s1ToProgram") : t("s1ToNominal")}
+                </button>
               </p>
 
-              <div className="mb-5 grid gap-3.5 sm:grid-cols-2">
-                <div>
-                  <label className={labelCls} htmlFor="b-city">
-                    {t("s1City")}
-                  </label>
-                  <select
-                    id="b-city"
-                    className={inputCls}
-                    value={selectedSalon?.cityKey ?? ""}
-                    onChange={(e) => {
-                      const cityFirst = salons.find(
-                        (s) => s.cityKey === e.target.value,
-                      );
+              {/* ── Город ───────────────────────────────────────────────── */}
+              <p className="bld__sect">{t("s1City")}</p>
+              <div className="pil">
+                {cities.map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className="pil__it"
+                    data-on={selectedSalon?.cityKey === key ? "1" : undefined}
+                    onClick={() => {
+                      const cityFirst = salons.find((s) => s.cityKey === key);
                       setSalonId(cityFirst?.id ?? null);
                       setProgramId(null);
                       setOptionId(null);
                     }}
                   >
-                    <option value="" disabled>
-                      —
-                    </option>
-                    {cities.map(([key, label]) => (
-                      <option key={key} value={key}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls} htmlFor="b-salon">
-                    {t("s1Salon")}
-                  </label>
-                  <select
-                    id="b-salon"
-                    className={inputCls}
-                    value={salonId ?? ""}
-                    disabled={!selectedSalon}
-                    onChange={(e) => setSalonId(Number(e.target.value))}
-                  >
-                    <option value="" disabled>
-                      —
-                    </option>
-                    {salons
-                      .filter((s) => s.cityKey === selectedSalon?.cityKey)
-                      .map((salon) => (
-                        <option key={salon.id} value={salon.id}>
-                          {salon.address}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-              <p className="bld__hint bld__hint--block">
-                {t("s1SalonHint")}
-              </p>
-
-              <div className="mb-6 flex flex-wrap gap-2.5">
-                <button
-                  type="button"
-                  className={segBtn(type === "program")}
-                  onClick={() => setType("program")}
-                >
-                  🌿 {t("s1Program")}
-                  <small className="bld__seghint">
-                    {t("s1ProgramSub")}
-                  </small>
-                </button>
-                <button
-                  type="button"
-                  className={segBtn(type === "nominal")}
-                  onClick={() => setType("nominal")}
-                >
-                  💳 {t("s1Nominal")}
-                  <small className="bld__seghint">
-                    {t("s1NominalSub")}
-                  </small>
-                </button>
+                    {label}
+                  </button>
+                ))}
               </div>
 
-              {type === "program" ? (
+              {/* ── Филиал ──────────────────────────────────────────────── */}
+              {selectedSalon && (
                 <>
-                  <div className="mb-4">
-                    <label className={labelCls} htmlFor="b-program">
-                      {t("s1SelectProgram")}
-                    </label>
-                    <select
-                      id="b-program"
-                      className={inputCls}
-                      value={programId ?? ""}
-                      disabled={!selectedSalon}
-                      onChange={(e) => {
-                        const p = availablePrograms.find(
-                          (x) => x.id === Number(e.target.value),
-                        );
-                        setProgramId(p?.id ?? null);
-                        setOptionId(p?.options[0]?.id ?? null);
-                      }}
-                    >
-                      <option value="" disabled>
-                        —
-                      </option>
-                      {availablePrograms.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
+                  <p className="bld__sect">{t("s1Salon")}</p>
+                  <div className="brc">
+                    {salons
+                      .filter((s) => s.cityKey === selectedSalon.cityKey)
+                      .map((salon) => (
+                        <button
+                          key={salon.id}
+                          type="button"
+                          className="brc__it"
+                          data-on={salon.id === salonId ? "1" : undefined}
+                          onClick={() => setSalonId(salon.id)}
+                        >
+                          <span className="brc__name">{salon.name}</span>
+                          <span className="brc__addr">{salon.address}</span>
+                        </button>
                       ))}
-                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* ── Сумма или программа ─────────────────────────────────── */}
+              {!selectedSalon ? (
+                <p className="bld__wait">{t("s1PickSalonFirst")}</p>
+              ) : type === "program" ? (
+                <>
+                  <p className="bld__sect">{t("s1SelectProgram")}</p>
+                  <div className="prg">
+                    {availablePrograms.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="prg__it"
+                        data-on={p.id === programId ? "1" : undefined}
+                        onClick={() => {
+                          setProgramId(p.id);
+                          setOptionId(p.options[0]?.id ?? null);
+                        }}
+                      >
+                        <span className="prg__name">{p.name}</span>
+                        <span className="prg__from">
+                          {tCommon("from", {
+                            price: formatKzt(
+                              Math.min(...p.options.map((o) => o.priceKzt)),
+                            ),
+                          })}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                   {program && (
-                    <div>
-                      <span className={labelCls}>{t("s1SelectOption")}</span>
-                      <div className="flex flex-wrap gap-2.5">
+                    <>
+                      <p className="bld__sect">{t("s1SelectOption")}</p>
+                      <div className="pil">
                         {program.options.map((o) => (
                           <button
                             key={o.id}
                             type="button"
-                            className={segBtn(o.id === optionId)}
+                            className="pil__it"
+                            data-on={o.id === optionId ? "1" : undefined}
                             onClick={() => setOptionId(o.id)}
                           >
                             {optionLabel(o, guests, hourUnit)}
-                            <small className="bld__seghint">
-                              {formatKzt(o.priceKzt)}
-                            </small>
+                            <small>{formatKzt(o.priceKzt)}</small>
                           </button>
                         ))}
                       </div>
-                    </div>
+                    </>
                   )}
                 </>
               ) : (
                 <>
-                  <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                    {nominals.map((n) => (
+                  {/* Номиналы каруселью: сумма — главное решение этого шага,
+                      и сетка мелких плиток низводила его до строки в анкете.
+                      Карта одна, крупная, с золотой кромкой — как открытка
+                      на предыдущем шаге. */}
+                  <p className="bld__sect">{t("s1SelectAmount")}</p>
+                  <div className="amt">
+                    <div className="amt__rail">
+                      {nominals.length > 1 && (
+                        <button
+                          type="button"
+                          className="amt__nav amt__nav--prev"
+                          aria-label={t("designs.prev")}
+                          onClick={() => moveNominal(-1)}
+                        >
+                          ‹
+                        </button>
+                      )}
+                      {nominals.length > 1 && (
+                        <span className="amt__slot amt__slot--side" aria-hidden="true">
+                          <span className="amt__card">
+                            <span className="amt__sum">
+                              {formatKzt(nominalAt(-1).amountKzt)}
+                            </span>
+                          </span>
+                        </span>
+                      )}
+                      <span className="amt__slot amt__slot--main">
+                        <span className="amt__card">
+                          <span className="amt__edge" aria-hidden="true" />
+                          <span className="amt__brand">{tCommon("brand")}</span>
+                          <span className="amt__sum">
+                            {formatKzt(nominalAt(0).amountKzt)}
+                          </span>
+                          {nominalAt(0).label && (
+                            <span className="amt__tag">{nominalAt(0).label}</span>
+                          )}
+                        </span>
+                      </span>
+                      {nominals.length > 1 && (
+                        <span className="amt__slot amt__slot--side" aria-hidden="true">
+                          <span className="amt__card">
+                            <span className="amt__sum">
+                              {formatKzt(nominalAt(1).amountKzt)}
+                            </span>
+                          </span>
+                        </span>
+                      )}
+                      {nominals.length > 1 && (
+                        <button
+                          type="button"
+                          className="amt__nav amt__nav--next"
+                          aria-label={t("designs.next")}
+                          onClick={() => moveNominal(1)}
+                        >
+                          ›
+                        </button>
+                      )}
+                    </div>
+
+                    {nominals.length > 1 && (
+                      <div className="amt__dots" aria-hidden="true">
+                        {nominals.map((n, i) => (
+                          <span
+                            key={n.id}
+                            className="amt__dot"
+                            data-on={i === nominalIndex && !customAmount ? "1" : undefined}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Своя сумма — не поле в форме, а второй способ выбора,
+                        и он раскрывается по требованию. */}
+                    <div className="amt__own">
                       <button
-                        key={n.id}
                         type="button"
-                        className={segBtn(
-                          !customAmount && n.id === nominalId,
-                        )}
+                        className="amt__ownlink"
+                        data-on={customOpen ? "1" : undefined}
                         onClick={() => {
-                          setNominalId(n.id);
-                          setCustomAmount("");
+                          if (customOpen) setCustomAmount("");
+                          setCustomOpen(!customOpen);
                         }}
                       >
-                        {formatKzt(n.amountKzt)}
-                        {n.label && (
-                          <small className="bld__segprice">
-                            {n.label}
-                          </small>
-                        )}
+                        {customOpen ? t("s1OwnCancel") : t("s1OwnOpen")}
                       </button>
-                    ))}
+                      {customOpen && (
+                        <div className="amt__ownbox">
+                          <label className="bld__label" htmlFor="b-custom">
+                            {t("s1Custom", {
+                              min: formatKzt(bounds.min),
+                              max: formatKzt(bounds.max),
+                            })}
+                          </label>
+                          <input
+                            id="b-custom"
+                            type="number"
+                            list="b-amounts"
+                            min={bounds.min}
+                            max={bounds.max}
+                            step={500}
+                            className="bld__input"
+                            value={customAmount}
+                            onChange={(e) => setCustomAmount(e.target.value)}
+                          />
+                          <datalist id="b-amounts">
+                            {availableAmounts.map((a) => (
+                              <option key={a} value={a} />
+                            ))}
+                          </datalist>
+                          {customAmount && !customValid && (
+                            <p className="mt-1.5 text-xs font-semibold text-brand-red">
+                              {custom !== null &&
+                              custom >= bounds.min &&
+                              custom <= bounds.max
+                                ? t("errAmountUnavailable")
+                                : t("errAmount", {
+                                    min: formatKzt(bounds.min),
+                                    max: formatKzt(bounds.max),
+                                  })}
+                            </p>
+                          )}
+                          {availableAmounts.length > 0 && (
+                            <p className="bld__hint">
+                              {t("amountsHint", {
+                                list: availableAmounts.map(formatKzt).join(", "),
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <label className={labelCls} htmlFor="b-custom">
-                    {t("s1Custom", {
-                      min: formatKzt(bounds.min),
-                      max: formatKzt(bounds.max),
-                    })}
-                  </label>
-                  <input
-                    id="b-custom"
-                    type="number"
-                    list="b-amounts"
-                    min={bounds.min}
-                    max={bounds.max}
-                    step={500}
-                    className={inputCls}
-                    value={customAmount}
-                    onChange={(e) => setCustomAmount(e.target.value)}
-                  />
-                  <datalist id="b-amounts">
-                    {availableAmounts.map((a) => (
-                      <option key={a} value={a} />
-                    ))}
-                  </datalist>
-                  {customAmount && !customValid && (
-                    <p className="mt-1.5 text-xs font-semibold text-brand-red">
-                      {custom !== null &&
-                      custom >= bounds.min &&
-                      custom <= bounds.max
-                        ? t("errAmountUnavailable")
-                        : t("errAmount", {
-                            min: formatKzt(bounds.min),
-                            max: formatKzt(bounds.max),
-                          })}
-                    </p>
-                  )}
-                  {availableAmounts.length > 0 && (
-                    <p className="mt-1.5 text-xs text-brand-purple/60">
-                      {t("amountsHint", {
-                        list: availableAmounts.map(formatKzt).join(", "),
-                      })}
-                    </p>
-                  )}
                 </>
               )}
 
@@ -915,7 +985,7 @@ export function BuilderClient({
                 href={priceHref(locale as "ru" | "kk" | "en")}
                 target="_blank"
                 rel="noopener"
-                className="mt-6 inline-block text-sm font-semibold text-brand-gold-700 underline decoration-brand-gold/40 underline-offset-4 transition-colors hover:text-brand-gold"
+                className="bld__pricelink"
               >
                 📄 {t("priceLink")}
               </a>
@@ -928,12 +998,11 @@ export function BuilderClient({
               город раньше, чем про подарок, незачем. */}
           {step === 0 && (
             <>
-              <h3 className="bld__h">
-                {t("s2Title")}
-              </h3>
-              <p className="bld__sub">
-                {t("s2Hint")}
-              </p>
+              <div className="bld__head">
+                <p className="bld__eyebrow">{t("stepOf", { n: 1 })}</p>
+                <h2 className="bld__title">{t("s2Title")}</h2>
+                <p className="bld__lede">{t("s2Hint")}</p>
+              </div>
               <BuilderDesigns
                 designs={designs}
                 value={designId}
@@ -945,131 +1014,151 @@ export function BuilderClient({
           {/* ШАГ 3: персонализация */}
           {step === 2 && (
             <>
-              <h3 className="bld__h">
-                {t("s3Title")}
-              </h3>
-              <p className="bld__sub">
-                {t("s3Hint")}
-              </p>
-              <div className="mb-4 grid gap-3.5 sm:grid-cols-2">
-                <div>
-                  <label className={labelCls} htmlFor="b-to">
-                    {t("s3To")} <span className="text-brand-red">*</span>
-                  </label>
-                  <input
-                    id="b-to"
-                    className={inputCls}
-                    maxLength={80}
-                    required
-                    value={toName}
-                    onChange={(e) => setToName(e.target.value)}
-                  />
+              <div className="bld__head">
+                <p className="bld__eyebrow">{t("stepOf", { n: 3 })}</p>
+                <h2 className="bld__title">{t("s3Title")}</h2>
+                <p className="bld__lede">{t("s3Hint")}</p>
+              </div>
+
+              {/* Предпросмотр стоит ровно здесь и больше нигде: это
+                  единственный шаг, где вводимое сразу ложится на карточку.
+                  В вечной колонке справа он показывал одно и то же на всех
+                  экранах и только отнимал ширину. */}
+              <div className="bld__card">
+                <CertPreview
+                  imageUrl={design.imageUrl}
+                  bgStyle={design.bgStyle}
+                  textColor={design.textColor}
+                  giftLabel={t("certGift")}
+                  title={previewTitle}
+                  subtitle={previewSubtitle}
+                  forLabel={toName ? t("certFor", { name: toName }) : undefined}
+                  message={message || undefined}
+                />
+                <p className="bld__prevnote">{t("previewNote")}</p>
+              </div>
+
+              <div className="fld">
+                <div className="fld__pair">
+                  <div>
+                    <label className="bld__label" htmlFor="b-to">
+                      {t("s3To")} <span className="text-brand-red">*</span>
+                    </label>
+                    <input
+                      id="b-to"
+                      className="bld__input"
+                      maxLength={80}
+                      required
+                      value={toName}
+                      onChange={(e) => setToName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="bld__label" htmlFor="b-from">
+                      {t("s3From")} <span className="text-brand-red">*</span>
+                    </label>
+                    <input
+                      id="b-from"
+                      className="bld__input"
+                      maxLength={80}
+                      required
+                      value={fromName}
+                      onChange={(e) => setFromName(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className={labelCls} htmlFor="b-from">
-                    {t("s3From")} <span className="text-brand-red">*</span>
+                  <label className="bld__label" htmlFor="b-msg">
+                    {t("s3Message")}
                   </label>
-                  <input
-                    id="b-from"
-                    className={inputCls}
-                    maxLength={80}
-                    required
-                    value={fromName}
-                    onChange={(e) => setFromName(e.target.value)}
+                  <textarea
+                    id="b-msg"
+                    className="bld__input bld__input--area"
+                    maxLength={120}
+                    placeholder={t("s3MessagePh")}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
                   />
+                  <p className="fld__count">{message.length}/120</p>
                 </div>
               </div>
-              <label className={labelCls} htmlFor="b-msg">
-                {t("s3Message")}
-              </label>
-              <textarea
-                id="b-msg"
-                className={`${inputCls} min-h-[90px] resize-y`}
-                maxLength={120}
-                placeholder={t("s3MessagePh")}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-              />
-              <p className="mt-1 text-right text-[11px] text-brand-purple-950/50">
-                {message.length}/120
-              </p>
             </>
           )}
 
           {/* ШАГ 4: доставка */}
           {step === 3 && (
             <>
-              <h3 className="bld__h">
-                {t("s4Title")}
-              </h3>
-              <p className="bld__sub">
-                {t("s4Hint")}
-              </p>
-              <div className="mb-4">
-                <label className={labelCls} htmlFor="b-buyer">
-                  {t("s4BuyerEmail")} <span className="text-brand-red">*</span>
-                </label>
-                <input
-                  id="b-buyer"
-                  type="email"
-                  placeholder="name@mail.kz"
-                  className={inputCls}
-                  required
-                  value={buyerEmail}
-                  onChange={(e) => setBuyerEmail(e.target.value)}
-                />
-                <p className="bld__hint">
-                  {t("s4BuyerNote")}
-                </p>
+              <div className="bld__head">
+                <p className="bld__eyebrow">{t("stepOf", { n: 4 })}</p>
+                <h2 className="bld__title">{t("s4Title")}</h2>
+                <p className="bld__lede">{t("s4Hint")}</p>
               </div>
-              <div className="mb-4 flex flex-wrap gap-2.5">
+
+              <p className="bld__sect">{t("s4When")}</p>
+              <div className="pil">
                 <button
                   type="button"
-                  className={segBtn(when === "now")}
+                  className="pil__it"
+                  data-on={when === "now" ? "1" : undefined}
                   onClick={() => setWhen("now")}
                 >
-                  ⚡ {t("s4Now")}
+                  {t("s4Now")}
                 </button>
                 <button
                   type="button"
-                  className={segBtn(when === "scheduled")}
+                  className="pil__it"
+                  data-on={when === "scheduled" ? "1" : undefined}
                   onClick={() => setWhen("scheduled")}
                 >
-                  📅 {t("s4Scheduled")}
+                  {t("s4Scheduled")}
                 </button>
               </div>
-              {when === "scheduled" && (
-                <div className="mb-4">
-                  <label className={labelCls} htmlFor="b-when">
-                    {t("s4DateTime")}
+
+              <div className="fld">
+                {when === "scheduled" && (
+                  <div>
+                    <label className="bld__label" htmlFor="b-when">
+                      {t("s4DateTime")}
+                    </label>
+                    <input
+                      id="b-when"
+                      type="datetime-local"
+                      className="bld__input"
+                      value={scheduledAt}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="bld__label" htmlFor="b-buyer">
+                    {t("s4BuyerEmail")} <span className="text-brand-red">*</span>
                   </label>
                   <input
-                    id="b-when"
-                    type="datetime-local"
-                    className={inputCls}
-                    value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
+                    id="b-buyer"
+                    type="email"
+                    placeholder="name@mail.kz"
+                    className="bld__input"
+                    required
+                    value={buyerEmail}
+                    onChange={(e) => setBuyerEmail(e.target.value)}
                   />
+                  <p className="bld__hint">{t("s4BuyerNote")}</p>
                 </div>
-              )}
-              <div>
-                <label className={labelCls} htmlFor="b-contact">
-                  {t("s4ContactEmail")}{" "}
-                  <span className="font-normal text-brand-purple-950/45">
-                    {t("s4Optional")}
-                  </span>
-                </label>
-                <input
-                  id="b-contact"
-                  type="email"
-                  placeholder="name@mail.kz"
-                  className={inputCls}
-                  value={contact}
-                  onChange={(e) => setContact(e.target.value)}
-                />
-                <p className="bld__hint">
-                  {t("s4ContactNote")}
-                </p>
+                <div>
+                  <label className="bld__label" htmlFor="b-contact">
+                    {t("s4ContactEmail")}{" "}
+                    <span className="bld__opt">{t("s4Optional")}</span>
+                  </label>
+                  <input
+                    id="b-contact"
+                    type="email"
+                    placeholder="name@mail.kz"
+                    className="bld__input"
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                  />
+                  <p className="bld__hint">{t("s4ContactNote")}</p>
+                </div>
               </div>
             </>
           )}
@@ -1077,34 +1166,76 @@ export function BuilderClient({
           {/* ШАГ 5: оплата */}
           {step === 4 && (
             <>
-              <h3 className="bld__h">
-                {t("s5Title")}
-              </h3>
-              <div
-                className={`mt-5 grid gap-3.5 ${cardEnabled ? "sm:grid-cols-2" : ""}`}
-              >
+              <div className="bld__head">
+                <p className="bld__eyebrow">{t("stepOf", { n: 5 })}</p>
+                <h2 className="bld__title">{t("s5Title")}</h2>
+              </div>
+
+              {/* Сводка стоит перед способом оплаты, а не сбоку: это
+                  последнее место, где ещё можно заметить чужой филиал или не
+                  ту сумму. */}
+              <dl className="sum">
+                <div className="sum__row">
+                  <dt className="sum__k">
+                    {type === "program" ? t("sumTypeProgram") : t("sumTypeNominal")}
+                  </dt>
+                  <dd>
+                    {type === "program"
+                      ? (program?.name ?? "—")
+                      : price > 0
+                        ? formatKzt(price)
+                        : "—"}
+                  </dd>
+                </div>
+                <div className="sum__row">
+                  <dt className="sum__k">{t("sumSalon")}</dt>
+                  <dd>
+                    {selectedSalon
+                      ? `${selectedSalon.city}, ${selectedSalon.address}`
+                      : "—"}
+                  </dd>
+                </div>
+                <div className="sum__row">
+                  <dt className="sum__k">{t("sumDesign")}</dt>
+                  <dd>{design.name}</dd>
+                </div>
+                <div className="sum__row">
+                  <dt className="sum__k">{t("sumDelivery")}</dt>
+                  <dd>{buyerEmail.trim() || t("s4Email")}</dd>
+                </div>
+                {promoValid && (
+                  <div className="sum__row sum__row--promo">
+                    <dt>{t("sumPromo", { code: promoApplied.code })}</dt>
+                    <dd>−{formatKzt(promoApplied.discountKzt)}</dd>
+                  </div>
+                )}
+                <div className="sum__row sum__row--total">
+                  <dt>{t("sumTotal")}</dt>
+                  <dd>{price > 0 ? formatKzt(total) : "—"}</dd>
+                </div>
+                <p className="sum__note">{t("validity")}</p>
+              </dl>
+
+              <p className="bld__sect">{t("s5How")}</p>
+              <div className="pay">
                 <button
                   type="button"
-                  className={segBtn(provider === "kaspi")}
+                  className="pay__it"
+                  data-on={provider === "kaspi" ? "1" : undefined}
                   onClick={() => setProvider("kaspi")}
                 >
-                  <span className="rounded-lg bg-brand-red px-3.5 py-1 text-sm font-extrabold text-white">
-                    Kaspi.kz
-                  </span>
-                  <small className="bld__seghint">
-                    {t("s5KaspiSub")}
-                  </small>
+                  <span className="pay__mark pay__mark--kaspi">Kaspi.kz</span>
+                  <span className="pay__note">{t("s5KaspiSub")}</span>
                 </button>
                 {cardEnabled && (
                   <button
                     type="button"
-                    className={segBtn(provider === "forte")}
+                    className="pay__it"
+                    data-on={provider === "forte" ? "1" : undefined}
                     onClick={() => setProvider("forte")}
                   >
-                    {t("s5Card")}
-                    <small className="bld__seghint">
-                      {t("s5CardSub")}
-                    </small>
+                    <span className="pay__mark">{t("s5Card")}</span>
+                    <span className="pay__note">{t("s5CardSub")}</span>
                   </button>
                 )}
                 {/* Демо-оплата: видна только вошедшему администратору, сервер
@@ -1113,24 +1244,20 @@ export function BuilderClient({
                 {demoEnabled && (
                   <button
                     type="button"
-                    className={segBtn(provider === "mock")}
+                    className="pay__it"
+                    data-on={provider === "mock" ? "1" : undefined}
                     onClick={() => setProvider("mock")}
                   >
-                    <span className="rounded-lg bg-brand-purple px-3.5 py-1 text-sm font-extrabold text-white">
-                      Демо-оплата
-                    </span>
-                    <small className="bld__seghint">
+                    <span className="pay__mark pay__mark--demo">Демо-оплата</span>
+                    <span className="pay__note">
                       без списания денег · видно только вам
-                    </small>
+                    </span>
                   </button>
                 )}
               </div>
 
               {/* Промокод */}
               <div className="bld__promo">
-                <label className={labelCls} htmlFor="b-promo">
-                  {t("promoLabel")}
-                </label>
                 {promoValid ? (
                   <div className="bld__promook">
                     <span className="font-bold text-brand-purple">
@@ -1150,28 +1277,33 @@ export function BuilderClient({
                     </button>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    <input
-                      id="b-promo"
-                      className={`${inputCls} flex-1`}
-                      placeholder={t("promoPlaceholder")}
-                      value={promoInput}
-                      maxLength={40}
-                      autoCapitalize="characters"
-                      onChange={(e) => {
-                        setPromoInput(e.target.value);
-                        setPromoError("");
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={applyPromo}
-                      disabled={promoChecking || !promoInput.trim()}
-                      className="bld__btn bld__btn--ghost"
-                    >
-                      {promoChecking ? "…" : t("promoApply")}
-                    </button>
-                  </div>
+                  <>
+                    <label className="bld__label" htmlFor="b-promo">
+                      {t("promoLabel")}
+                    </label>
+                    <div className="bld__promorow">
+                      <input
+                        id="b-promo"
+                        className="bld__input"
+                        placeholder={t("promoPlaceholder")}
+                        value={promoInput}
+                        maxLength={40}
+                        autoCapitalize="characters"
+                        onChange={(e) => {
+                          setPromoInput(e.target.value);
+                          setPromoError("");
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={applyPromo}
+                        disabled={promoChecking || !promoInput.trim()}
+                        className="bld__btn bld__btn--ghost"
+                      >
+                        {promoChecking ? "…" : t("promoApply")}
+                      </button>
+                    </div>
+                  </>
                 )}
                 {promoError && (
                   <p className="mt-1.5 text-xs font-semibold text-brand-red">
@@ -1275,69 +1407,6 @@ export function BuilderClient({
           </div>
         </div>
 
-        {/* Живой предпросмотр + сводка */}
-        <aside className="bld__aside">
-          <CertPreview
-            imageUrl={design.imageUrl}
-            bgStyle={design.bgStyle}
-            textColor={design.textColor}
-            giftLabel={t("certGift")}
-            title={previewTitle}
-            subtitle={previewSubtitle}
-            forLabel={toName ? t("certFor", { name: toName }) : undefined}
-            message={message || undefined}
-          />
-          <p className="bld__prevnote">
-            {t("previewNote")}
-          </p>
-          <dl className="bld__summary">
-            <div className="bld__row">
-              <dt className="bld__rowk">
-                {type === "program" ? t("sumTypeProgram") : t("sumTypeNominal")}
-              </dt>
-              <dd className="font-semibold">
-                {type === "program"
-                  ? (program?.name ?? "—")
-                  : price > 0
-                    ? formatKzt(price)
-                    : "—"}
-              </dd>
-            </div>
-            <div className="bld__row">
-              <dt className="bld__rowk">{t("sumSalon")}</dt>
-              <dd className="max-w-[60%] text-right font-semibold">
-                {selectedSalon
-                  ? `${selectedSalon.city}, ${selectedSalon.address}`
-                  : "—"}
-              </dd>
-            </div>
-            <div className="bld__row">
-              <dt className="bld__rowk">{t("sumDesign")}</dt>
-              <dd className="font-semibold">{design.name}</dd>
-            </div>
-            <div className="bld__row">
-              <dt className="bld__rowk">{t("sumDelivery")}</dt>
-              <dd className="font-semibold">
-                {t("s4Email")}
-              </dd>
-            </div>
-            {promoValid && (
-              <div className="bld__row bld__row--promo">
-                <dt>{t("sumPromo", { code: promoApplied.code })}</dt>
-                <dd className="font-semibold">
-                  −{formatKzt(promoApplied.discountKzt)}
-                </dd>
-              </div>
-            )}
-            <div className="bld__row bld__row--total">
-              <dt>{t("sumTotal")}</dt>
-              <dd>{price > 0 ? formatKzt(total) : "—"}</dd>
-            </div>
-            <p className="bld__validity">
-              {t("validity")}
-            </p>
-          </dl>
-        </aside>
       </div>
     </>
   );
