@@ -2073,16 +2073,21 @@ h3,
         pointer-events:none;filter:blur(30px);opacity:1;
         background:radial-gradient(circle,rgba(182,146,68,.42),rgba(182,146,68,.14) 45%,transparent 70%)}
 
+  /* Размеры карусели считаются от САМОЙ ленты, а не от окна. Раньше здесь
+     стояли vw: на широком экране лента растягивалась под всю ширину окна, а
+     живёт она в левой колонке грида (1fr при 400px соседа) — правая
+     открытка вылезала под сводку заказа. Боковые поля равны кнопке со
+     стрелкой, чтобы стрелки не ложились на открытки. */
   .dsn__rail{position:relative;display:flex;align-items:center;justify-content:center;
-        gap:clamp(.75rem,2.5vw,1.75rem);width:100%}
+        gap:clamp(.5rem,2%,1.5rem);width:100%;padding-inline:46px}
   .dsn__slot{flex:0 0 auto;border-radius:16px;overflow:hidden;position:relative;
         transition:opacity .4s cubic-bezier(.22,.61,.36,1),transform .4s cubic-bezier(.22,.61,.36,1),filter .4s cubic-bezier(.22,.61,.36,1)}
   .dsn__slot img{display:block;width:100%;height:100%;object-fit:cover}
   /* Соседи подглядывают, но не спорят с главной. */
-  .dsn__slot--side{width:clamp(64px,14vw,132px);aspect-ratio:5/3;opacity:.4;
+  .dsn__slot--side{width:min(132px,16%);aspect-ratio:5/3;opacity:.4;
               filter:blur(1px);transform:scale(.94);
               box-shadow:0 14px 22px -14px rgba(37,8,47,.3)}
-  .dsn__slot--main{width:clamp(230px,48vw,440px);aspect-ratio:5/3;
+  .dsn__slot--main{width:min(440px,52%);aspect-ratio:5/3;
               box-shadow:0 2px 4px rgba(37,8,47,.14),0 12px 20px -8px rgba(37,8,47,.18),
                          0 34px 44px -22px rgba(37,8,47,.24),0 70px 90px -50px rgba(37,8,47,.34)}
   /* Кромка вместо рамки — тот же приём, что на первом экране. */
@@ -2095,9 +2100,15 @@ h3,
        background:rgba(255,255,255,.92);color:var(--color-brand-purple);font-size:15px;
        box-shadow:0 8px 20px -8px rgba(37,8,47,.35);
        transition:transform .25s cubic-bezier(.22,.61,.36,1)}
-  .dsn__nav--prev{left:clamp(2px,6vw,86px)}.dsn__nav--next{right:clamp(2px,6vw,86px)}
+  .dsn__nav--prev{left:0}.dsn__nav--next{right:0}
   .dsn__nav:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
   @media (hover:hover){.dsn__nav:hover{transform:scale(1.08)}}
+
+  @media (max-width:560px){
+    .dsn__rail{padding-inline:40px}
+    .dsn__slot--side{display:none}
+    .dsn__slot--main{width:100%;max-width:340px}
+  }
 
   .dsn__meta{text-align:center;margin-bottom:1.5rem}
   .dsn__cardname{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.3rem,2.6vw,1.8rem);
@@ -2114,8 +2125,8 @@ h3,
   @media (max-height:520px) and (orientation:landscape){
     .dsn__arc{margin-bottom:1rem;padding-bottom:16px}
     .dsn__stage{min-height:150px;margin-bottom:.75rem}
-    .dsn__slot--main{width:min(38vw,250px)}
-    .dsn__slot--side{width:clamp(48px,9vw,84px)}
+    .dsn__slot--main{width:min(250px,46%)}
+    .dsn__slot--side{width:min(84px,14%)}
     .dsn__meta{margin-bottom:.75rem}.dsn__cardname{font-size:1.1rem}
     .dsn__dots{margin-bottom:.9rem}
   }

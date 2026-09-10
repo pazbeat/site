@@ -10,6 +10,7 @@ import { ConsentModal } from "./consent-modal";
 import { optionLabel } from "./program-card";
 import { formatKzt } from "@/lib/format";
 import { priceHref } from "@/lib/price-list";
+import { groupDesigns } from "@/lib/designs";
 import type {
   BuilderResume,
   DesignDto,
@@ -178,7 +179,11 @@ export function BuilderClient({
   const [designId, setDesignId] = useState<number | null>(
     (resume
       ? designs[Math.min(Math.max(resume.designIdx, 0), designs.length - 1)]
-      : designs[0]
+      : // Первая открытка ПЕРВОГО повода, а не первая в списке: карусель
+        // открывается там же, где стоит бусина на дуге. designs[0] лежит в
+        // «Просто так» — корзине для всего, что не привязано к дате, и шаг
+        // начинался с неё.
+        groupDesigns(designs)[0]?.designs[0] ?? designs[0]
     )?.id ?? null,
   );
   const [toName, setToName] = useState(resume?.toName ?? "");
@@ -1291,7 +1296,11 @@ export function BuilderClient({
                 {type === "program" ? t("sumTypeProgram") : t("sumTypeNominal")}
               </dt>
               <dd className="font-semibold">
-                {type === "program" ? (program?.name ?? "—") : formatKzt(price)}
+                {type === "program"
+                  ? (program?.name ?? "—")
+                  : price > 0
+                    ? formatKzt(price)
+                    : "—"}
               </dd>
             </div>
             <div className="bld__row">
