@@ -1,0 +1,125 @@
+# Стек на ОСНОВНОМ сервере (ps.imbir.kz, 89.219.32.72).
+#
+# Три отличия от docker-compose.yml, который работает на hoster.kz, и у
+# каждого своя причина.
+#
+# 1. Образ здесь НЕ собирается — приезжает готовым (`docker save` → `docker
+#    load`). На той машине 3.8 ГБ памяти и НЕТ ПОДКАЧКИ ВООБЩЕ, а рядом живёт
+#    node_red: через него идут оплаты и нашего сайта, и действующего.
+#    `next build` берёт под два гигабайта; при нехватке ядро выбирает жертву
+#    по размеру процесса, а не по вине, и ею вполне может стать платёжный
+#    мост. Замерено: в работе весь наш стек занимает ~300 МБ, так что дело
+#    только в сборке — её там и не делаем.
+#
+# 2. Наружу не смотрит ничего. 80 и 443 на машине заняты чужим Nginx Proxy
+#    Manager, и лезть в него не нужно: снаружи нас публикует Cloudflare
+#    Tunnel — контейнер `cloudflared` сам звонит в Cloudflare и держит связь.
+#    Открытых портов не требуется вовсе, сертификат тоже не нужен — HTTPS
+#    заканчивается на Cloudflare. Порт 127.0.0.1:3001 открыт только для
+#    проверки с самой машины.
+#
+# 3. Своя сеть, ни с кем не общая. Тоннель ходит к приложению по имени
+#    сервиса внутри этой сети, поэтому в общую сеть машины (где прокси,
+#    node_red и чужой постгрес) мы не входим совсем. Соседям наша база не
+#    видна.
+#
+# Запуск:
+#   cd /opt/imbir/site
+#   docker compose -f docker-compose.main.yml --env-file .env.production up -d
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-imbir}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-imbir}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-imbir} -d ${POSTGRES_DB:-imbir}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: site-app:latest
+    container_name: imbir-site-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-imbir}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-imbir}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
+      AUTH_URL: ${SITE_URL:?set SITE_URL}
+      AUTH_TRUST_HOST: "true"
+      CODE_ENCRYPTION_KEY: ${CODE_ENCRYPTION_KEY:?set CODE_ENCRYPTION_KEY}
+      SITE_URL: ${SITE_URL:?set SITE_URL}
+      # Перечислены с `:?` те, без которых стенд обязан НЕ подняться. Молча
+      # деградировать здесь дороже, чем упасть: без LEGACY_PAY_BASE Kaspi
+      # отдаёт неоплачиваемую ссылку, а добор оплат выключается совсем — и
+      # сайт при этом выглядит работающим.
+      LEGACY_PAY_BASE: ${LEGACY_PAY_BASE:?set LEGACY_PAY_BASE}
+      RESEND_API_KEY: ${RESEND_API_KEY:?set RESEND_API_KEY}
+      ALTEGIO_TEST: ${ALTEGIO_TEST:?set ALTEGIO_TEST}
+      ALTEGIO_SYNC: ${ALTEGIO_SYNC:?set ALTEGIO_SYNC}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MANAGER_EMAIL: ${MANAGER_EMAIL:-}
+      KASPI_PAY_LINK_SLUG: ${KASPI_PAY_LINK_SLUG:-}
+      KASPI_PAY_SERVICE_ID: ${KASPI_PAY_SERVICE_ID:-}
+      KASPI_PAY_ORDER_FIELD_ID: ${KASPI_PAY_ORDER_FIELD_ID:-}
+      KASPI_PAY_MERCHANT_ID: ${KASPI_PAY_MERCHANT_ID:-}
+      KASPI_PAY_TERMINAL: ${KASPI_PAY_TERMINAL:-}
+      KASPI_BRIDGE_TOKEN: ${KASPI_BRIDGE_TOKEN:-}
+      FORTE_USERNAME: ${FORTE_USERNAME:-}
+      FORTE_PASSWORD: ${FORTE_PASSWORD:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      RUN_SEED: "0"
+      BACKUP_DIR: /backups
+    volumes:
+      - backups:/backups
+      - ${APPLE_WALLET_DIR:-./secrets/wallet}:/wallet:ro
+    ports:
+      # Только с самой машины, для проверки. Снаружи недоступен.
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/ru').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-imbir}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-imbir}
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: "90"
+    volumes:
+      - ./scripts:/opt/imbir-scripts:ro
+      - backups:/backups
+    entrypoint: ["sh", "-c", "mkdir -p /backups && chown 1001:1001 /backups; while true; do sh /opt/imbir-scripts/backup-db.sh; sleep 86400; done"]
+
+  # Публикация наружу. Токен тоннеля лежит отдельным файлом, а не в
+  # .env.production: тот перенесён с прежнего сервера побайтово, и трогать
+  # его лишний раз незачем.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file:
+      - .env.tunnel
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  backups:

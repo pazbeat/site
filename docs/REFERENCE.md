@@ -14,10 +14,11 @@
 |---|---|
 | Код | https://github.com/pazbeat/site.git |
 | Основная ветка | `main`, текущая рабочая — `redesign` |
-| Боевой стенд | https://new.imbir.kz (hoster.kz, Астана, 185.129.51.231) |
-| Что на сервере | Docker Compose (app + db + backup), nginx, Let's Encrypt, за Cloudflare |
-| Каталог | `/opt/imbir/site`, окружение — `.env.production` рядом |
-| Деплой | `git pull` + `docker compose --env-file .env.production up -d --build` |
+| Боевой стенд | https://new.imbir.kz — **с 2026-09-10 на основном сервере** `ps.imbir.kz` (89.219.32.72), пользователь `ubuntu`, ключ `imbir_sert` |
+| Что на сервере | Docker Compose (app + db + backup + **cloudflared**), наружу через **Cloudflare Tunnel** — открытых портов нет, сертификат не нужен |
+| Каталог | `/opt/imbir/site`, окружение — `.env.production` рядом, токен тоннеля — `.env.tunnel` |
+| Деплой | образ **собирается не там**: `docker save` на машине сборки → `docker load` на сервере → `docker compose -f docker-compose.main.yml --env-file .env.production up -d` |
+| Прежний сервер | hoster.kz, Астана, 185.129.51.231, ключ `imbir_deploy` — **остановлен, но целый**: данные в томах `site_pgdata`/`site_backups`, поднимается одной командой |
 | Локальная БД | Docker-контейнер `imbir-pg` (postgres:16-alpine) |
 
 **Внимание:** на стенде включён боевой Resend — заказы, созданные там, шлют
