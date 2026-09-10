@@ -357,8 +357,6 @@ export function BuilderClient({
 
   const selectedSalon = salons.find((s) => s.id === salonId) ?? null;
   // Ключ города — русский (совпадает с ProgramDto.cities), подпись — локализованная
-  const cities = [...new Map(salons.map((s) => [s.cityKey, s.city])).entries()];
-
   // Филиал фильтрует доступные программы (PRD §5.1.3)
   const availablePrograms = useMemo(
     () =>
@@ -374,6 +372,28 @@ export function BuilderClient({
   const program = availablePrograms.find((p) => p.id === programId) ?? null;
   const option = program?.options.find((o) => o.id === optionId) ?? null;
   const nominal = nominals.find((n) => n.id === nominalId) ?? null;
+  /**
+   * Филиалы, где выбранное действительно продаётся. У программы может быть
+   * задан список городов; тогда предлагать филиал вне этого списка нельзя —
+   * покупатель оплатил бы то, чего в филиале нет. Наборы сумм у всех
+   * продаваемых филиалов одинаковы, поэтому номинал список не сужает.
+   *
+   * Программа берётся из ПОЛНОГО списка, а не из отфильтрованного филиалом:
+   * иначе получилось бы кольцо — филиал сужает программы, программы сужают
+   * филиалы, и первый же выбор обнулял бы сам себя.
+   */
+  const salonsForChoice = useMemo(() => {
+    const chosen = programs.find((p) => p.id === programId) ?? null;
+    if (type === "program" && chosen && chosen.cities.length > 0) {
+      return salons.filter((s) => chosen.cities.includes(s.cityKey));
+    }
+    return salons;
+  }, [salons, programs, programId, type]);
+
+  const cities = [
+    ...new Map(salonsForChoice.map((s) => [s.cityKey, s.city])).entries(),
+  ];
+
   const design = designs.find((d) => d.id === designId) ?? designs[0];
 
   /**
@@ -472,7 +492,9 @@ export function BuilderClient({
       case 0:
         return Boolean(design);
       case 1:
-        if (!salonId) return false;
+        // Филиала здесь ещё нет — он спрашивается на шаге доставки. Своя
+        // сумма проверяется по границам, а её продаваемость в конкретном
+        // филиале — там же, где филиал и выбирают (шаг 3).
         return type === "program"
           ? Boolean(option)
           : customAmount
@@ -481,6 +503,12 @@ export function BuilderClient({
       case 2:
         return toName.trim().length > 0 && fromName.trim().length > 0;
       case 3:
+        if (!salonId) return false;
+        // Своя сумма проверяется ЗДЕСЬ ещё раз: до выбора филиала список
+        // продаваемых сумм неизвестен, и без этой проверки можно было бы
+        // оплатить номинал, которого в Altegio у филиала нет.
+        if (type === "nominal" && customAmount && !customValid) return false;
+        if (type === "program" && !option) return false;
         // Обязателен только адрес покупателя: почту получателя он часто не
         // знает. Указал — проверяем, чтобы опечатка не увела сертификат.
         if (!/\S+@\S+\.\S+/.test(buyerEmail)) return false;
@@ -733,7 +761,9 @@ export function BuilderClient({
                 <h2 className="bld__title">
                   {type === "nominal" ? t("s1TitleNominal") : t("s1TitleProgram")}
                 </h2>
-                <p className="bld__lede">{t("s1SalonHint")}</p>
+                <p className="bld__lede">
+                  {type === "nominal" ? t("s1LedeNominal") : t("s1LedeProgram")}
+                </p>
               </div>
 
               {/* Тип уже выбран на входном экране — не спрашиваем второй раз,
@@ -750,54 +780,8 @@ export function BuilderClient({
                 </button>
               </p>
 
-              {/* ── Город ───────────────────────────────────────────────── */}
-              <p className="bld__sect">{t("s1City")}</p>
-              <div className="pil">
-                {cities.map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className="pil__it"
-                    data-on={selectedSalon?.cityKey === key ? "1" : undefined}
-                    onClick={() => {
-                      const cityFirst = salons.find((s) => s.cityKey === key);
-                      setSalonId(cityFirst?.id ?? null);
-                      setProgramId(null);
-                      setOptionId(null);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {/* ── Филиал ──────────────────────────────────────────────── */}
-              {selectedSalon && (
-                <>
-                  <p className="bld__sect">{t("s1Salon")}</p>
-                  <div className="brc">
-                    {salons
-                      .filter((s) => s.cityKey === selectedSalon.cityKey)
-                      .map((salon) => (
-                        <button
-                          key={salon.id}
-                          type="button"
-                          className="brc__it"
-                          data-on={salon.id === salonId ? "1" : undefined}
-                          onClick={() => setSalonId(salon.id)}
-                        >
-                          <span className="brc__name">{salon.name}</span>
-                          <span className="brc__addr">{salon.address}</span>
-                        </button>
-                      ))}
-                  </div>
-                </>
-              )}
-
               {/* ── Сумма или программа ─────────────────────────────────── */}
-              {!selectedSalon ? (
-                <p className="bld__wait">{t("s1PickSalonFirst")}</p>
-              ) : type === "program" ? (
+              {type === "program" ? (
                 <>
                   <p className="bld__sect">{t("s1SelectProgram")}</p>
                   <div className="prg">
@@ -900,7 +884,9 @@ export function BuilderClient({
                       </li>
                     </ul>
 
-                    <p className="amt__big">
+                    {/* key={price}: React перемонтирует узел при смене суммы,
+                        и анимация появления проигрывается заново. */}
+                    <p className="amt__big" key={price}>
                       {price > 0 ? formatKzt(price) : "—"}
                     </p>
                   </div>
@@ -1068,6 +1054,56 @@ export function BuilderClient({
                 <h2 className="bld__title">{t("s4Title")}</h2>
                 <p className="bld__lede">{t("s4Hint")}</p>
               </div>
+
+              {/* ── Город и филиал ──────────────────────────────────────
+                  Филиал спрашивается здесь, а не на шаге суммы: набор сумм у
+                  продаваемых филиалов одинаковый (проверено выгрузкой
+                  каталога), поэтому выбирать город раньше подарка незачем —
+                  а шаг подарка от этого получал полэкрана анкеты. Если у
+                  программы задан список городов, здесь остаются только те
+                  филиалы, где она есть: выбор, сделанный раньше, сужает
+                  предложенное позже, а не наоборот. */}
+              <p className="bld__sect">{t("s1City")}</p>
+              <div className="pil">
+                {cities.map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className="pil__it"
+                    data-on={selectedSalon?.cityKey === key ? "1" : undefined}
+                    onClick={() => {
+                      const cityFirst = salonsForChoice.find(
+                        (x) => x.cityKey === key,
+                      );
+                      setSalonId(cityFirst?.id ?? null);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {selectedSalon && (
+                <>
+                  <p className="bld__sect">{t("s1Salon")}</p>
+                  <div className="brc">
+                    {salonsForChoice
+                      .filter((x) => x.cityKey === selectedSalon.cityKey)
+                      .map((x) => (
+                        <button
+                          key={x.id}
+                          type="button"
+                          className="brc__it"
+                          data-on={x.id === salonId ? "1" : undefined}
+                          onClick={() => setSalonId(x.id)}
+                        >
+                          <span className="brc__name">{x.name}</span>
+                          <span className="brc__addr">{x.address}</span>
+                        </button>
+                      ))}
+                  </div>
+                </>
+              )}
 
               <p className="bld__sect">{t("s4When")}</p>
               <div className="pil">

@@ -2390,74 +2390,113 @@ h3,
 
   /* ── Веер номиналов ──────────────────────────────────────────────────
      Слева открытка покупателя, справа все суммы дугой, ещё правее —
-     выбранная крупно. До этого были две неудачные попытки: карусель по одной
-     карте (до пятой суммы четыре нажатия) и лента (листать). Здесь весь
-     набор виден разом и выбирается одним нажатием.
+     выбранная крупно. До этого были три неудачные попытки: карусель по одной
+     карте (до пятой суммы четыре нажатия), лента (листать) и тот же веер,
+     зажатый в колонку 920px — он выглядел мелким придатком.
+
+     Здесь блок ВЫХОДИТ за колонку шага на всю ширину окна: сумма — главное
+     решение всего конструктора, и она должна занимать экран, а не строку.
      Сумма набрана Montserrat целиком: у Cormorant нет знака ₸.          */
-  .amt{display:grid;gap:clamp(1rem,3vw,2.25rem);align-items:center;
+  /* Выход за колонку шага: ширина ограничена окном, а центровка сделана
+     сдвигом от середины родителя — так блок не может выехать за экран при
+     любой ширине колонки, в отличие от вычисленных отрицательных полей. */
+  .amt{margin-top:clamp(1rem,3svh,2rem);
+       position:relative;left:50%;transform:translateX(-50%);
+       width:min(100vw - 2rem, 1360px);
+       display:grid;gap:clamp(1rem,3vw,3rem);align-items:center;
        grid-template-columns:minmax(0,1fr);justify-items:center}
-  @media (min-width:760px){
-    .amt{grid-template-columns:minmax(0,1.15fr) auto minmax(0,.85fr);justify-items:stretch}
+  @media (min-width:860px){
+    .amt{grid-template-columns:minmax(0,1.1fr) auto minmax(0,.9fr);justify-items:stretch}
   }
 
-  .amt__stage{position:relative;display:grid;place-items:center;width:100%}
-  .amt__glow{position:absolute;width:min(92%,460px);aspect-ratio:1;border-radius:50%;
-       pointer-events:none;filter:blur(30px);
-       background:radial-gradient(circle,rgba(182,146,68,.34),rgba(182,146,68,.1) 46%,transparent 70%)}
-  .amt__card{position:relative;display:block;width:min(100%,420px);aspect-ratio:5/3;
-       border-radius:16px;overflow:hidden;
+  .amt__stage{position:relative;display:grid;place-items:center;width:100%;
+       perspective:1400px}
+  .amt__glow{position:absolute;width:min(96%,620px);aspect-ratio:1;border-radius:50%;
+       pointer-events:none;filter:blur(34px);
+       background:radial-gradient(circle,rgba(182,146,68,.38),rgba(182,146,68,.12) 46%,transparent 70%);
+       animation:amt-breathe 7s ease-in-out infinite}
+  @keyframes amt-breathe{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.07);opacity:1}}
+
+  .amt__card{position:relative;display:block;width:min(100%,560px);aspect-ratio:5/3;
+       border-radius:18px;overflow:hidden;
+       transform:rotateX(5deg) rotateY(-6deg);
+       transition:transform .55s cubic-bezier(.22,.61,.36,1),
+                  box-shadow .55s cubic-bezier(.22,.61,.36,1);
        box-shadow:0 2px 4px rgba(37,8,47,.14),
-                  0 12px 20px -8px rgba(37,8,47,.18),
-                  0 34px 44px -22px rgba(37,8,47,.24),
-                  0 70px 90px -50px rgba(37,8,47,.34)}
+                  0 14px 24px -8px rgba(37,8,47,.2),
+                  0 40px 54px -24px rgba(37,8,47,.26),
+                  0 84px 104px -54px rgba(37,8,47,.36)}
   .amt__card img{display:block;width:100%;height:100%;object-fit:cover}
   /* Кромка вместо рамки — тот же приём, что на открытках и филиалах. */
-  .amt__edge{position:absolute;inset:0;border-radius:16px;pointer-events:none;
-       box-shadow:inset 1px 1px 0 rgba(255,255,255,.45),inset -1px -1.5px 0 rgba(37,8,47,.3)}
+  .amt__edge{position:absolute;inset:0;border-radius:18px;pointer-events:none;
+       box-shadow:inset 1px 1px 0 rgba(255,255,255,.5),inset -1px -1.5px 0 rgba(37,8,47,.32)}
+  @media (hover:hover) and (pointer:fine){
+    .amt__stage:hover .amt__card{transform:rotateX(2deg) rotateY(-2deg) translateY(-8px) scale(1.02)}
+  }
 
   /* Дуга. Сдвиг и наклон каждой суммы приходят инлайновым стилем из
      компонента: номиналы заводятся в админке, и правила на фиксированное
      количество разъехались бы на шестом. */
   .amt__scale{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;
-       gap:clamp(2px,.6vw,7px);align-items:flex-start}
-  .amt__scale li{transform-origin:left center;transition:transform .4s cubic-bezier(.22,.61,.36,1)}
+       gap:clamp(4px,.9vw,12px);align-items:flex-start}
+  .amt__scale li{transform-origin:left center;
+       transition:transform .5s cubic-bezier(.22,.61,.36,1)}
   .amt__val{all:unset;cursor:pointer;display:flex;flex-direction:column;
-       white-space:nowrap;padding:3px 6px;border-radius:8px;
-       font-size:clamp(12px,1.3vw,15px);font-weight:500;letter-spacing:.01em;
-       color:rgba(43,23,52,.5);
-       transition:color .3s cubic-bezier(.22,.61,.36,1),
-                  font-weight .3s cubic-bezier(.22,.61,.36,1)}
+       white-space:nowrap;padding:4px 8px;border-radius:10px;
+       font-size:clamp(13px,1.5vw,19px);font-weight:500;letter-spacing:.01em;
+       color:rgba(43,23,52,.42);
+       transition:color .35s cubic-bezier(.22,.61,.36,1),
+                  transform .35s cubic-bezier(.22,.61,.36,1)}
   .amt__val small{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
        color:var(--gold-dim)}
   .amt__val:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:2px}
-  @media (hover:hover) and (pointer:fine){.amt__val:hover{color:var(--color-brand-purple)}}
-  /* Выбранная — тёмная и с золотой бусиной слева, как повод на дуге открыток. */
-  .amt__val[data-on="1"]{position:relative;color:var(--plum-950);font-weight:700}
-  .amt__val[data-on="1"]::before{content:"";position:absolute;left:-12px;top:50%;
-       width:5px;height:5px;margin-top:-2.5px;border-radius:50%;
+  @media (hover:hover) and (pointer:fine){
+    .amt__val:hover{color:var(--color-brand-purple);transform:translateX(4px)}
+  }
+  /* Выбранная — тёмная, крупнее и с золотой бусиной слева, как повод на дуге. */
+  .amt__val[data-on="1"]{position:relative;color:var(--plum-950);font-weight:700;
+       transform:scale(1.14)}
+  .amt__val[data-on="1"]::before{content:"";position:absolute;left:-14px;top:50%;
+       width:6px;height:6px;margin-top:-3px;border-radius:50%;
        background:linear-gradient(180deg,var(--gold-hi),var(--gold));
-       box-shadow:0 0 10px rgba(182,146,68,.7)}
+       box-shadow:0 0 12px rgba(182,146,68,.8)}
   .amt__val--own{color:var(--gold-dim);font-weight:600;
        text-decoration:underline;text-decoration-color:rgba(182,146,68,.35);
-       text-underline-offset:4px}
+       text-underline-offset:5px}
 
-  /* Выбранная сумма крупно — итог этого шага, читается через всю комнату. */
-  .amt__big{margin:0;font-weight:700;letter-spacing:-.03em;line-height:1;
-       font-size:clamp(1.9rem,5.5vw,3.4rem);color:var(--plum-950);white-space:nowrap}
-  @media (max-width:759px){
-    .amt{gap:1.25rem}
+  /* Выбранная сумма крупно — итог этого шага, читается через всю комнату.
+     Узел перемонтируется при смене суммы (key={price}), поэтому анимация
+     появления проигрывается заново на каждый выбор. */
+  .amt__big{margin:0;font-weight:700;letter-spacing:-.035em;line-height:.95;
+       font-size:clamp(2.4rem,7.5vw,5.2rem);color:var(--plum-950);white-space:nowrap;
+       animation:amt-pop .5s cubic-bezier(.22,.61,.36,1) both}
+  @keyframes amt-pop{
+    from{opacity:0;transform:translateY(18px) scale(.9);filter:blur(3px)}
+    to{opacity:1;transform:none;filter:none}
+  }
+
+  @media (max-width:859px){
+    .amt{gap:1.5rem}
     /* На узком экране дуга ложится плашмя: наклонённые числа столбиком
        занимают экран и читаются боком. */
-    .amt__scale{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:6px 14px}
+    .amt__scale{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:8px 12px}
     .amt__scale li{transform:none !important}
-    .amt__val{padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.8);
-       box-shadow:inset 0 0 0 1px rgba(77,41,93,.1);align-items:center}
-    .amt__val[data-on="1"]{background:#fff;box-shadow:inset 0 0 0 1.5px var(--gold)}
+    .amt__val{padding:9px 16px;border-radius:999px;background:rgba(255,255,255,.85);
+       align-items:center;font-size:14px;
+       box-shadow:inset 0 0 0 1px rgba(77,41,93,.1),0 6px 14px -10px rgba(37,8,47,.3)}
+    .amt__val[data-on="1"]{background:#fff;transform:none;
+       box-shadow:inset 0 0 0 1.5px var(--gold),0 10px 22px -12px rgba(37,8,47,.4)}
     .amt__val[data-on="1"]::before{display:none}
+    .amt__card{transform:none}
     .amt__big{text-align:center}
   }
 
-  .amt__ownbox{max-width:420px;margin:1.5rem auto 0;text-align:left}
+  @media (prefers-reduced-motion:reduce){
+    .amt__glow{animation:none}
+    .amt__big{animation:none}
+  }
+
+  .amt__ownbox{max-width:420px;margin:1.75rem auto 0;text-align:left}
 
   .bld__pricelink{display:block;text-align:center;margin-top:clamp(2rem,5svh,3rem);
         font-size:13.5px;font-weight:600;color:var(--gold-dim);
