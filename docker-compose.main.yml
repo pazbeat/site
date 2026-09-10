@@ -27,9 +27,23 @@
 #   cd /opt/imbir/site
 #   docker compose -f docker-compose.main.yml --env-file .env.production up -d
 
+# Метки принадлежности. Ставятся на каждый контейнер, чтобы в `docker ps`,
+# в `docker inspect` и в Portainer было сразу видно, чьё это и что трогать
+# нельзя. На машине рядом живёт хозяйство действующего сайта, и путать их
+# нельзя: у соседей свой postgres, и наш `site-db-1` от него по имени почти
+# не отличался.
+x-imbir: &imbir-labels
+  kz.imbir.проект: "Сайт подарочных сертификатов new.imbir.kz"
+  kz.imbir.владелец: "Imbir Thai Spa"
+  kz.imbir.каталог: "/opt/imbir/site"
+  kz.imbir.внимание: "БОЕВОЙ. Не останавливать и не удалять без согласования"
+  kz.imbir.связь: "izecreamchik@gmail.com"
+
 services:
   db:
     image: postgres:16-alpine
+    container_name: imbir-sert-db
+    labels: *imbir-labels
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-imbir}
@@ -45,7 +59,8 @@ services:
 
   app:
     image: site-app:latest
-    container_name: imbir-site-app
+    container_name: imbir-sert-app
+    labels: *imbir-labels
     restart: unless-stopped
     depends_on:
       db:
@@ -95,6 +110,8 @@ services:
 
   backup:
     image: postgres:16-alpine
+    container_name: imbir-sert-backup
+    labels: *imbir-labels
     restart: unless-stopped
     depends_on:
       db:
@@ -113,6 +130,8 @@ services:
   # его лишний раз незачем.
   cloudflared:
     image: cloudflare/cloudflared:latest
+    container_name: imbir-sert-tunnel
+    labels: *imbir-labels
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     env_file:
