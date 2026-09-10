@@ -376,14 +376,17 @@ export function BuilderClient({
   const nominal = nominals.find((n) => n.id === nominalId) ?? null;
   const design = designs.find((d) => d.id === designId) ?? designs[0];
 
-  /** Прокрутка ленты номиналов стрелками — на ширину карты с зазором. */
-  const amtRailRef = useRef<HTMLDivElement>(null);
-  const scrollAmounts = (dir: 1 | -1) => {
-    const rail = amtRailRef.current;
-    if (!rail) return;
-    const card = rail.firstElementChild as HTMLElement | null;
-    const step = card ? card.offsetWidth + 14 : 280;
-    rail.scrollBy({ left: dir * step, behavior: "smooth" });
+  /**
+   * Веер номиналов: каждая сумма сдвигается вправо и наклоняется по дуге.
+   * Кривая считается здесь, а не в CSS через nth-child, потому что номиналы
+   * заводятся в админке и их число заранее неизвестно — набор правил на
+   * фиксированное количество разъехался бы на шестом.
+   */
+  const arcStyle = (i: number, total: number) => {
+    const k = total > 1 ? i / (total - 1) : 0.5;
+    return {
+      transform: `translateX(${(Math.sin(k * Math.PI) * 52).toFixed(1)}px) rotate(${((k - 0.5) * 30).toFixed(1)}deg)`,
+    };
   };
 
   const availableAmounts = salonId ? (amountsBySalon[salonId] ?? []) : [];
@@ -849,76 +852,63 @@ export function BuilderClient({
                       прямоугольник. */}
                   <p className="bld__sect">{t("s1SelectAmount")}</p>
                   <div className="amt">
-                    <button
-                      type="button"
-                      className="amt__nav amt__nav--prev"
-                      aria-label={t("designs.prev")}
-                      onClick={() => scrollAmounts(-1)}
-                    >
-                      ‹
-                    </button>
-                    <div className="amt__rail" ref={amtRailRef}>
-                      {nominals.map((n) => (
-                        <button
-                          key={n.id}
-                          type="button"
-                          className="amt__it"
-                          data-on={
-                            !customAmount && n.id === nominalId ? "1" : undefined
-                          }
-                          onClick={() => {
-                            setNominalId(n.id);
-                            setCustomAmount("");
-                            setCustomOpen(false);
-                          }}
-                        >
-                          {design.imageUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
-                            <img src={design.imageUrl} alt="" className="amt__art" />
-                          )}
-                          <span className="amt__veil" aria-hidden="true" />
-                          <span className="amt__edge" aria-hidden="true" />
-                          <span className="amt__sum">{formatKzt(n.amountKzt)}</span>
-                          {n.label && <span className="amt__tag">{n.label}</span>}
-                        </button>
-                      ))}
-
-                      {/* Своя сумма — такая же карта в ленте, а не поле под ней:
-                          это тот же выбор, просто без готового числа. */}
-                      <button
-                        type="button"
-                        className="amt__it amt__it--own"
-                        data-on={customOpen ? "1" : undefined}
-                        onClick={() => setCustomOpen(true)}
-                      >
-                        <span className="amt__ownsum">
-                          {customValid ? formatKzt(custom!) : t("s1OwnOpen")}
-                        </span>
-                        <span className="amt__ownnote">
-                          {t("s1OwnNote", {
-                            min: formatKzt(bounds.min),
-                            max: formatKzt(bounds.max),
-                          })}
-                        </span>
-                      </button>
+                    {/* Слева — открытка покупателя: она и есть будущий
+                        сертификат, номинал ложится на неё. */}
+                    <div className="amt__stage">
+                      <span className="amt__glow" aria-hidden="true" />
+                      <span className="amt__card">
+                        {design.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
+                          <img src={design.imageUrl} alt={design.name} />
+                        )}
+                        <span className="amt__edge" aria-hidden="true" />
+                      </span>
                     </div>
-                    <button
-                      type="button"
-                      className="amt__nav amt__nav--next"
-                      aria-label={t("designs.next")}
-                      onClick={() => scrollAmounts(1)}
-                    >
-                      ›
-                    </button>
+
+                    {/* Справа — веер номиналов дугой. Все суммы видны разом и
+                        выбираются одним нажатием: лента требовала листать, а
+                        карусель — по нажатию на каждую следующую сумму. */}
+                    <ul className="amt__scale">
+                      {nominals.map((n, i) => (
+                        <li key={n.id} style={arcStyle(i, nominals.length + 1)}>
+                          <button
+                            type="button"
+                            className="amt__val"
+                            data-on={
+                              !customAmount && n.id === nominalId ? "1" : undefined
+                            }
+                            onClick={() => {
+                              setNominalId(n.id);
+                              setCustomAmount("");
+                              setCustomOpen(false);
+                            }}
+                          >
+                            {n.amountKzt.toLocaleString("ru-RU").replace(/ /g, " ")}
+                            {n.label && <small>{n.label}</small>}
+                          </button>
+                        </li>
+                      ))}
+                      <li style={arcStyle(nominals.length, nominals.length + 1)}>
+                        <button
+                          type="button"
+                          className="amt__val amt__val--own"
+                          data-on={customOpen ? "1" : undefined}
+                          onClick={() => setCustomOpen(true)}
+                        >
+                          {t("s1OwnOpen")}
+                        </button>
+                      </li>
+                    </ul>
+
+                    <p className="amt__big">
+                      {price > 0 ? formatKzt(price) : "—"}
+                    </p>
                   </div>
 
                   {customOpen && (
                     <div className="amt__ownbox">
                       <label className="bld__label" htmlFor="b-custom">
-                        {t("s1Custom", {
-                          min: formatKzt(bounds.min),
-                          max: formatKzt(bounds.max),
-                        })}
+                        {t("s1OwnOpen")}
                       </label>
                       <input
                         id="b-custom"
@@ -936,6 +926,12 @@ export function BuilderClient({
                           <option key={a} value={a} />
                         ))}
                       </datalist>
+                      <p className="bld__hint">
+                        {t("s1OwnNote", {
+                          min: formatKzt(bounds.min),
+                          max: formatKzt(bounds.max),
+                        })}
+                      </p>
                       {customAmount && !customValid && (
                         <p className="mt-1.5 text-xs font-semibold text-brand-red">
                           {custom !== null &&
@@ -1106,6 +1102,7 @@ export function BuilderClient({
                       value={scheduledAt}
                       onChange={(e) => setScheduledAt(e.target.value)}
                     />
+                    <p className="bld__hint">{t("s4TimeZone")}</p>
                   </div>
                 )}
                 <div>

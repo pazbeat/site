@@ -2171,36 +2171,6 @@ h3,
   .bld__hint{font-size:12px;line-height:1.55;color:var(--ink-soft);margin-top:6px}
   .bld__hint--block{margin:0 0 1.5rem}
 
-  /* ── Поля ───────────────────────────────────────────────────────────
-     16px на телефоне — не «покрупнее для красоты», а обязательное: при
-     размере меньше 16px iOS Safari увеличивает страницу на фокусе поля и
-     обратно не отъезжает, и вся форма дальше заполняется на съехавшем
-     экране. С 640px возвращаем 14px. */
-  /* Подписи полей набраны как есть, без uppercase: половина из них —
-     целые фразы («Или укажите свою сумму (18 000 ₸ — 500 000 ₸)», «Дата и
-     время доставки (Asia/Almaty)»), и капитель превращает их в крик. */
-  .bld__label{display:block;margin-bottom:7px;font-size:12px;font-weight:600;
-       letter-spacing:.015em;color:rgba(43,23,52,.62)}
-  .bld__input{width:100%;border:0;border-radius:14px;padding:13px 15px;
-       font:inherit;font-size:16px;line-height:1.4;color:var(--ink);outline:none;
-       background:rgba(255,255,255,.86);
-       box-shadow:inset 0 0 0 1px rgba(77,41,93,.13);
-       transition:box-shadow .25s cubic-bezier(.22,.61,.36,1),background-color .25s cubic-bezier(.22,.61,.36,1)}
-  .bld__input::placeholder{color:rgba(43,23,52,.34)}
-  /* Кольцо фокуса обязательно: штатный outline снят, и без него проход
-     по форме с клавиатуры становится слепым. */
-  .bld__input:focus-visible{background:#fff;
-       box-shadow:inset 0 0 0 1.5px var(--gold),0 0 0 4px rgba(182,146,68,.18)}
-  @media (min-width:640px){.bld__input{font-size:14px}}
-  @media (hover:hover) and (pointer:fine){.bld__input:hover{background:#fff}}
-  select.bld__input{appearance:none;padding-right:38px;cursor:pointer;
-       background-image:linear-gradient(45deg,transparent 50%,rgba(77,41,93,.55) 50%),
-                        linear-gradient(135deg,rgba(77,41,93,.55) 50%,transparent 50%);
-       background-position:calc(100% - 19px) calc(50% + 1px),calc(100% - 14.5px) calc(50% + 1px);
-       background-size:5px 5px,5px 5px;background-repeat:no-repeat}
-  textarea.bld__input{resize:vertical}
-
-
   /* ── Промокод ── */
   .bld__promo{margin-top:1.6rem;padding-top:1.4rem;
        border-top:1px solid rgba(77,41,93,.11)}
@@ -2216,39 +2186,97 @@ h3,
        background:rgba(255,255,255,.7);
        box-shadow:inset 0 0 0 1px rgba(77,41,93,.11)}
 
+  /* ── Поля ввода ──────────────────────────────────────────────────────
+     Прежние были плоскими прямоугольниками с рамкой в один пиксель — те
+     самые «поля из формы», из-за которых шаг выглядел анкетой рядом с
+     объёмными открытками. Здесь у поля есть толщина: светлый блик по
+     верхнему краю, мягкая тень под ним и золотое кольцо на фокусе.
+
+     16px на телефоне обязательны: при меньшем размере iOS Safari
+     увеличивает страницу на фокусе поля и обратно не отъезжает.        */
+  .bld__label{display:block;margin-bottom:9px;font-size:11px;font-weight:700;
+       letter-spacing:.14em;text-transform:uppercase;color:rgba(43,23,52,.5)}
+  .bld__opt{font-weight:500;letter-spacing:.04em;text-transform:none;color:rgba(43,23,52,.4)}
+
+  .bld__input{width:100%;border:0;border-radius:18px;padding:17px 20px;
+       font:inherit;font-size:16px;line-height:1.35;color:var(--ink);outline:none;
+       background:#fff;
+       box-shadow:inset 0 1px 0 rgba(255,255,255,.9),
+                  inset 0 0 0 1px rgba(77,41,93,.09),
+                  0 1px 2px rgba(37,8,47,.04),
+                  0 8px 18px -12px rgba(37,8,47,.22);
+       transition:box-shadow .28s cubic-bezier(.22,.61,.36,1),
+                  transform .28s cubic-bezier(.22,.61,.36,1)}
+  .bld__input::placeholder{color:rgba(43,23,52,.3)}
+  @media (hover:hover) and (pointer:fine){
+    .bld__input:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.9),
+                  inset 0 0 0 1px rgba(182,146,68,.4),
+                  0 1px 2px rgba(37,8,47,.04),
+                  0 10px 22px -12px rgba(37,8,47,.26)}
+  }
+  /* Кольцо фокуса обязательно: штатный outline снят, без него проход по
+     форме с клавиатуры становится слепым. */
+  .bld__input:focus-visible{transform:translateY(-1px);
+       box-shadow:inset 0 0 0 1.5px var(--gold),
+                  0 0 0 4px rgba(182,146,68,.16),
+                  0 12px 26px -14px rgba(37,8,47,.3)}
+  @media (min-width:640px){.bld__input{font-size:15px}}
+  .bld__input--area{min-height:112px;resize:vertical;border-radius:18px}
+  select.bld__input{appearance:none;cursor:pointer;padding-right:44px;
+       background-image:linear-gradient(45deg,transparent 50%,rgba(77,41,93,.5) 50%),
+                        linear-gradient(135deg,rgba(77,41,93,.5) 50%,transparent 50%);
+       background-position:calc(100% - 23px) calc(50% + 1px),calc(100% - 18px) calc(50% + 1px);
+       background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+
   /* ── Кнопки шага ────────────────────────────────────────────────────
-     «Назад» на первом шаге скрыт через .invisible, но место занимает —
-     иначе «Далее» прыгает влево при переходе со второго шага на первый. */
-  .bld__actions{display:flex;justify-content:space-between;gap:12px;margin-top:1.9rem}
-  .bld__btn{all:unset;box-sizing:border-box;cursor:pointer;
+     «Назад» на первом шаге скрыт классом, но место занимает — иначе
+     «Далее» прыгает влево при возврате со второго шага на первый. */
+  .bld__actions{display:flex;justify-content:space-between;align-items:center;gap:14px;
+       margin-top:clamp(2rem,5svh,3rem)}
+  .bld__btn{all:unset;box-sizing:border-box;cursor:pointer;position:relative;overflow:hidden;
        display:inline-flex;align-items:center;justify-content:center;
-       min-height:46px;padding:0 clamp(20px,3vw,30px);border-radius:999px;
-       font-size:12px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;
+       min-height:54px;padding:0 clamp(24px,3.5vw,38px);border-radius:999px;
+       font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
        text-align:center;
-       transition:transform .25s cubic-bezier(.22,.61,.36,1),
-                  box-shadow .25s cubic-bezier(.22,.61,.36,1),
-                  background-color .25s cubic-bezier(.22,.61,.36,1)}
-  .bld__btn:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
-  .bld__btn:disabled{opacity:.45;cursor:not-allowed}
+       transition:transform .28s cubic-bezier(.22,.61,.36,1),
+                  box-shadow .28s cubic-bezier(.22,.61,.36,1),
+                  background-color .28s cubic-bezier(.22,.61,.36,1),
+                  color .28s cubic-bezier(.22,.61,.36,1)}
+  .bld__btn:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:4px}
+  .bld__btn:disabled{opacity:.4;cursor:not-allowed;transform:none !important;box-shadow:none}
   /* Своя скрывалка, а не утилита .invisible: `all:unset` возвращает
      visibility к inherit, а неслоёное правило перебивает @layer utilities
      Tailwind — кнопка «Назад» осталась бы видимой на первом шаге. */
   .bld__btn--hidden{visibility:hidden}
+
   .bld__btn--ghost{color:var(--color-brand-purple);
-       box-shadow:inset 0 0 0 1.5px rgba(77,41,93,.28)}
-  .bld__btn--go{background:var(--color-brand-purple);color:#fff;
-       box-shadow:0 10px 24px -12px rgba(77,41,93,.55)}
+       box-shadow:inset 0 0 0 1.5px rgba(77,41,93,.22)}
+  .bld__btn--go{color:#fff;
+       background:linear-gradient(135deg,var(--plum-700) 0%,var(--color-brand-purple) 55%,var(--plum-950) 100%);
+       box-shadow:0 1px 0 rgba(255,255,255,.14) inset,
+                  0 14px 30px -14px rgba(77,41,93,.75)}
   /* Итоговая кнопка — единственное золото на экране: последний шаг. */
-  .bld__btn--pay{background:linear-gradient(115deg,var(--gold),var(--gold-hi) 50%,var(--gold));
-       color:var(--plum-950);letter-spacing:.08em;
-       box-shadow:0 12px 26px -12px rgba(182,146,68,.7)}
+  .bld__btn--pay{color:var(--plum-950);letter-spacing:.09em;
+       background:linear-gradient(135deg,var(--gold) 0%,var(--gold-hi) 46%,var(--gold) 100%);
+       box-shadow:0 1px 0 rgba(255,255,255,.5) inset,
+                  0 14px 32px -14px rgba(182,146,68,.85)}
+  /* Блик проходит по кнопке при наведении — тем же приёмом, что на карте
+     номинала; на тач-устройствах не запускается вовсе. */
+  .bld__btn--pay::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:45%;
+       pointer-events:none;transform:skewX(-18deg);
+       background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent)}
   @media (hover:hover) and (pointer:fine){
-    .bld__btn--ghost:hover{box-shadow:inset 0 0 0 1.5px var(--color-brand-purple)}
+    .bld__btn--ghost:hover{color:#fff;background:var(--color-brand-purple);
+         box-shadow:0 12px 26px -14px rgba(77,41,93,.6)}
     .bld__btn--go:hover,.bld__btn--pay:hover{transform:translateY(-2px)}
+    .bld__btn--go:hover{box-shadow:0 1px 0 rgba(255,255,255,.14) inset,
+         0 18px 36px -14px rgba(77,41,93,.85)}
+    .bld__btn--pay:hover{box-shadow:0 1px 0 rgba(255,255,255,.5) inset,
+         0 18px 38px -14px rgba(182,146,68,1)}
+    .bld__btn--pay:hover::after{animation:bld-sheen .75s cubic-bezier(.22,.61,.36,1)}
   }
-  .bld__btn:active{transform:translateY(0) scale(.985)}
-
-
+  @keyframes bld-sheen{to{left:115%}}
+  .bld__btn:active{transform:translateY(0) scale(.98)}
 
   /* Телефон лёжа — по ВЫСОТЕ, не по ширине: по ширине альбомный телефон
      попадает в планшетную ветку и получает вертикальную вёрстку. */
@@ -2360,82 +2388,76 @@ h3,
   .prg__it[data-on="1"]{background:#fff;
         box-shadow:inset 0 0 0 1.5px var(--gold),0 14px 30px -18px rgba(37,8,47,.45)}
 
-  /* ── Лента номиналов ─────────────────────────────────────────────────
-     Суммы сравнивают между собой, поэтому они лежат лентой и видны разом, а
-     не по одной под стрелками: раньше до каждой следующей нужно было
-     отдельное нажатие. Карта несёт ВЫБРАННУЮ открытку — покупатель видит
-     ровно то, что получит. Сумма набрана Montserrat целиком: у Cormorant
-     нет знака ₸.                                                        */
-  .amt{position:relative}
-  .amt__rail{display:flex;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;
-        scroll-snap-type:x mandatory;scroll-padding-inline:52px;
-        padding:10px 52px 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-  .amt__rail::-webkit-scrollbar{display:none}
+  /* ── Веер номиналов ──────────────────────────────────────────────────
+     Слева открытка покупателя, справа все суммы дугой, ещё правее —
+     выбранная крупно. До этого были две неудачные попытки: карусель по одной
+     карте (до пятой суммы четыре нажатия) и лента (листать). Здесь весь
+     набор виден разом и выбирается одним нажатием.
+     Сумма набрана Montserrat целиком: у Cormorant нет знака ₸.          */
+  .amt{display:grid;gap:clamp(1rem,3vw,2.25rem);align-items:center;
+       grid-template-columns:minmax(0,1fr);justify-items:center}
+  @media (min-width:760px){
+    .amt{grid-template-columns:minmax(0,1.15fr) auto minmax(0,.85fr);justify-items:stretch}
+  }
 
-  .amt__it{all:unset;box-sizing:border-box;cursor:pointer;position:relative;
-        flex:0 0 min(272px,64%);scroll-snap-align:center;
-        aspect-ratio:5/3;border-radius:16px;overflow:hidden;
-        display:flex;flex-direction:column;justify-content:flex-end;
-        padding:16px 18px;color:#fff;
-        background:linear-gradient(145deg,var(--plum-800) 0%,var(--plum-950) 60%,#1c0726 100%);
-        box-shadow:0 2px 4px rgba(37,8,47,.14),
-                   0 12px 20px -8px rgba(37,8,47,.18),
-                   0 24px 34px -22px rgba(37,8,47,.26);
-        transition:transform .3s cubic-bezier(.22,.61,.36,1),
-                   box-shadow .3s cubic-bezier(.22,.61,.36,1)}
-  .amt__art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-  /* Затемнение снизу: без него сумма ложится на светлый край открытки и
-     пропадает — у половины макетов там крупная собственная надпись. */
-  .amt__veil{position:absolute;inset:0;pointer-events:none;
-        background:linear-gradient(to top,rgba(37,8,47,.92) 0%,rgba(37,8,47,.72) 34%,rgba(37,8,47,.12) 68%,transparent 100%)}
+  .amt__stage{position:relative;display:grid;place-items:center;width:100%}
+  .amt__glow{position:absolute;width:min(92%,460px);aspect-ratio:1;border-radius:50%;
+       pointer-events:none;filter:blur(30px);
+       background:radial-gradient(circle,rgba(182,146,68,.34),rgba(182,146,68,.1) 46%,transparent 70%)}
+  .amt__card{position:relative;display:block;width:min(100%,420px);aspect-ratio:5/3;
+       border-radius:16px;overflow:hidden;
+       box-shadow:0 2px 4px rgba(37,8,47,.14),
+                  0 12px 20px -8px rgba(37,8,47,.18),
+                  0 34px 44px -22px rgba(37,8,47,.24),
+                  0 70px 90px -50px rgba(37,8,47,.34)}
+  .amt__card img{display:block;width:100%;height:100%;object-fit:cover}
+  /* Кромка вместо рамки — тот же приём, что на открытках и филиалах. */
   .amt__edge{position:absolute;inset:0;border-radius:16px;pointer-events:none;
-        box-shadow:inset 1px 1px 0 rgba(255,255,255,.28),inset -1px -1.5px 0 rgba(0,0,0,.3)}
-  .amt__sum{position:relative;font-weight:700;letter-spacing:-.02em;
-        font-size:clamp(1.25rem,9cqw,2.1rem);line-height:1;
-        text-shadow:0 2px 12px rgba(0,0,0,.45)}
-  .amt__it{container-type:inline-size}
-  .amt__tag{position:relative;align-self:flex-start;margin-top:9px;
-        padding:4px 11px;border-radius:999px;font-size:10px;font-weight:700;
-        letter-spacing:.12em;text-transform:uppercase;color:var(--plum-950);
-        background:linear-gradient(115deg,var(--gold),var(--gold-hi) 50%,var(--gold))}
-  .amt__it:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
-  @media (hover:hover) and (pointer:fine){
-    .amt__it:hover{transform:translateY(-4px);
-        box-shadow:0 2px 4px rgba(37,8,47,.14),
-                   0 18px 30px -10px rgba(37,8,47,.28),
-                   0 40px 54px -26px rgba(37,8,47,.34)}
+       box-shadow:inset 1px 1px 0 rgba(255,255,255,.45),inset -1px -1.5px 0 rgba(37,8,47,.3)}
+
+  /* Дуга. Сдвиг и наклон каждой суммы приходят инлайновым стилем из
+     компонента: номиналы заводятся в админке, и правила на фиксированное
+     количество разъехались бы на шестом. */
+  .amt__scale{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;
+       gap:clamp(2px,.6vw,7px);align-items:flex-start}
+  .amt__scale li{transform-origin:left center;transition:transform .4s cubic-bezier(.22,.61,.36,1)}
+  .amt__val{all:unset;cursor:pointer;display:flex;flex-direction:column;
+       white-space:nowrap;padding:3px 6px;border-radius:8px;
+       font-size:clamp(12px,1.3vw,15px);font-weight:500;letter-spacing:.01em;
+       color:rgba(43,23,52,.5);
+       transition:color .3s cubic-bezier(.22,.61,.36,1),
+                  font-weight .3s cubic-bezier(.22,.61,.36,1)}
+  .amt__val small{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+       color:var(--gold-dim)}
+  .amt__val:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:2px}
+  @media (hover:hover) and (pointer:fine){.amt__val:hover{color:var(--color-brand-purple)}}
+  /* Выбранная — тёмная и с золотой бусиной слева, как повод на дуге открыток. */
+  .amt__val[data-on="1"]{position:relative;color:var(--plum-950);font-weight:700}
+  .amt__val[data-on="1"]::before{content:"";position:absolute;left:-12px;top:50%;
+       width:5px;height:5px;margin-top:-2.5px;border-radius:50%;
+       background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+       box-shadow:0 0 10px rgba(182,146,68,.7)}
+  .amt__val--own{color:var(--gold-dim);font-weight:600;
+       text-decoration:underline;text-decoration-color:rgba(182,146,68,.35);
+       text-underline-offset:4px}
+
+  /* Выбранная сумма крупно — итог этого шага, читается через всю комнату. */
+  .amt__big{margin:0;font-weight:700;letter-spacing:-.03em;line-height:1;
+       font-size:clamp(1.9rem,5.5vw,3.4rem);color:var(--plum-950);white-space:nowrap}
+  @media (max-width:759px){
+    .amt{gap:1.25rem}
+    /* На узком экране дуга ложится плашмя: наклонённые числа столбиком
+       занимают экран и читаются боком. */
+    .amt__scale{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:6px 14px}
+    .amt__scale li{transform:none !important}
+    .amt__val{padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.8);
+       box-shadow:inset 0 0 0 1px rgba(77,41,93,.1);align-items:center}
+    .amt__val[data-on="1"]{background:#fff;box-shadow:inset 0 0 0 1.5px var(--gold)}
+    .amt__val[data-on="1"]::before{display:none}
+    .amt__big{text-align:center}
   }
-  /* Выбранная поднимается и получает золотую кромку — тот же приём, что у
-     филиалов и открыток. */
-  .amt__it[data-on="1"]{transform:translateY(-4px)}
-  .amt__it[data-on="1"] .amt__edge{
-        box-shadow:inset 0 0 0 2px var(--gold),inset 1px 1px 0 rgba(255,255,255,.3)}
 
-  /* «Своя сумма» — такая же карта в ленте, только без картинки. */
-  .amt__it--own{justify-content:center;align-items:center;text-align:center;gap:6px;
-        background:rgba(255,255,255,.86);color:var(--color-brand-purple);
-        box-shadow:inset 0 0 0 1px rgba(77,41,93,.12),0 12px 20px -12px rgba(37,8,47,.2)}
-  .amt__it--own .amt__edge{display:none}
-  .amt__it--own[data-on="1"]{background:#fff;
-        box-shadow:inset 0 0 0 1.5px var(--gold),0 18px 30px -16px rgba(37,8,47,.4)}
-  .amt__ownsum{font-size:clamp(1rem,7cqw,1.45rem);font-weight:700;letter-spacing:-.01em}
-  .amt__ownnote{font-size:11.5px;font-weight:500;color:var(--ink-soft)}
-
-  .amt__nav{all:unset;position:absolute;top:50%;margin-top:-21px;width:42px;height:42px;
-        border-radius:50%;display:grid;place-items:center;cursor:pointer;z-index:2;
-        background:rgba(255,255,255,.94);color:var(--color-brand-purple);font-size:15px;
-        box-shadow:0 8px 20px -8px rgba(37,8,47,.35);
-        transition:transform .25s cubic-bezier(.22,.61,.36,1)}
-  .amt__nav--prev{left:0}.amt__nav--next{right:0}
-  .amt__nav:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
-  @media (hover:hover){.amt__nav:hover{transform:scale(1.08)}}
-
-  .amt__ownbox{max-width:420px;margin:1.25rem auto 0;text-align:left}
-
-  @media (max-width:560px){
-    .amt__rail{padding-inline:44px;scroll-padding-inline:44px}
-    .amt__it{flex-basis:min(240px,74%)}
-  }
+  .amt__ownbox{max-width:420px;margin:1.5rem auto 0;text-align:left}
 
   .bld__pricelink{display:block;text-align:center;margin-top:clamp(2rem,5svh,3rem);
         font-size:13.5px;font-weight:600;color:var(--gold-dim);
@@ -2450,7 +2472,7 @@ h3,
     .bld__lede{display:none}
     .bld__swap{margin-bottom:1rem}
     .bld__sect{margin-top:1rem}
-    .amt__it{flex-basis:min(220px,32%)}
+    .amt__card{width:min(100%,260px)}
   }
 
   /* ── Поля ввода: подпись и вопрос, а не строка анкеты ────────────────
@@ -2461,8 +2483,6 @@ h3,
   .fld__pair{display:grid;gap:1.4rem;grid-template-columns:1fr}
   @media (min-width:560px){.fld__pair{grid-template-columns:1fr 1fr}}
   .fld__count{margin-top:6px;text-align:right;font-size:11px;color:rgba(43,23,52,.45)}
-  .bld__opt{font-weight:400;color:rgba(43,23,52,.45)}
-  .bld__input--area{min-height:96px;resize:vertical}
 
   /* Живой предпросмотр — только на шаге подписи. */
   .bld__card{max-width:440px;margin:0 auto clamp(1.75rem,4svh,2.5rem)}
