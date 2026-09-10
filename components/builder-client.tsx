@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CertPreview } from "./cert-preview";
 import { Link } from "@/i18n/navigation";
+import { BuilderIntro } from "./builder-intro";
 import { ConsentModal } from "./consent-modal";
 import { optionLabel } from "./program-card";
 import { formatKzt } from "@/lib/format";
@@ -157,6 +158,16 @@ export function BuilderClient({
   const [type, setType] = useState<"program" | "nominal">(
     resume?.type ?? initialType ?? (initialNominalId ? "nominal" : "program"),
   );
+  /**
+   * Пройден ли входной экран «на сумму / на услугу».
+   *
+   * Сразу true, если покупатель пришёл по прямой ссылке (с карточки
+   * программы, из квиза, из письма о брошенном заказе) — там тип уже выбран
+   * за него, и спрашивать второй раз значит терять человека на ровном месте.
+   */
+  const [introDone, setIntroDone] = useState(
+    Boolean(resume || initialType || initialOptionId || initialNominalId),
+  );
   const [programId, setProgramId] = useState<number | null>(
     resume?.programId ?? initialProgram?.id ?? null,
   );
@@ -231,6 +242,7 @@ export function BuilderClient({
   };
 
   const resumeContinue = () => {
+    setIntroDone(true);
     if (pendingDraft) applyDraft(pendingDraft);
     setPendingDraft(null);
     setResumeResolved(true);
@@ -579,6 +591,22 @@ export function BuilderClient({
   // Ранний выход убирает разночтение: за модалкой физически ничего нет.
   if (!consented) {
     return <ConsentModal html={consentHtml} onAccept={acceptConsent} />;
+  }
+
+  // Входной экран: сумма или услуга. Стоит НИЖЕ проверки согласия — за
+  // модалкой по-прежнему нет ни одного узла, который можно поймать клавишей
+  // Tab. Показываем только тем, кто пришёл без готового выбора.
+  if (!introDone) {
+    return (
+      <BuilderIntro
+        nominalImage={designs[11]?.imageUrl ?? designs[0]?.imageUrl ?? undefined}
+        programImage={designs[8]?.imageUrl ?? designs[1]?.imageUrl ?? undefined}
+        onPick={(picked) => {
+          setType(picked);
+          setIntroDone(true);
+        }}
+      />
+    );
   }
 
   return (

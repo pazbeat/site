@@ -1909,3 +1909,201 @@ h3,
   }
 }
 
+
+/* ─── Входной экран конструктора: сумма или услуга ────────────────────────
+   Две половины во весь экран, между ними золотая волосяная линия — тот же
+   приём, что на карточках сертификатов. Левая фиолетовая, правая белая:
+   выбор читается как выбор, а не как две одинаковые плитки.            */
+
+.builder-intro {
+  display: grid;
+  grid-template-columns: 1fr;
+  /* Разделитель делаем зазором с золотой подложкой, а не border: так линия
+     одинаковой толщины и по вертикали, и по горизонтали при перестроении. */
+  gap: 1px;
+  background: var(--color-brand-gold);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  border: 1px solid var(--color-brand-gold);
+}
+
+.intro-half {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.75rem;
+  padding: 2.5rem 1.5rem 2.75rem;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+}
+
+.intro-half--dark {
+  background: var(--color-brand-purple);
+  color: #fff;
+}
+.intro-half--light {
+  background: #fff;
+  color: var(--color-brand-purple);
+}
+.intro-half--dark:hover,
+.intro-half--dark:focus-visible {
+  background: var(--color-brand-purple-600);
+}
+.intro-half--light:hover,
+.intro-half--light:focus-visible {
+  background: var(--color-brand-purple-50);
+}
+.intro-half:focus-visible {
+  outline: 2px solid var(--color-brand-gold);
+  outline-offset: -4px;
+}
+
+/* Карточка-открытка. Пропорции сертификата, тонкая золотая рамка. */
+.intro-card {
+  position: relative;
+  display: block;
+  width: min(100%, 22rem);
+  aspect-ratio: 5 / 3;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  border: 1px solid var(--color-brand-gold);
+  background: var(--color-brand-purple-950);
+  transition: transform 0.35s ease;
+}
+.intro-half:hover .intro-card {
+  transform: translateY(-4px) rotate(-1deg);
+}
+.intro-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Сумма на карточке — крупно, шрифтом заголовков. Знака ₸ у Cormorant нет,
+   поэтому надпись набирается Montserrat целиком (та же причина, что в PDF). */
+.intro-card__sum,
+.intro-card__label {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 0.5rem 0.75rem 0.7rem;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #fff;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.55), transparent);
+}
+.intro-card__label {
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
+
+.intro-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  max-width: 26rem;
+}
+.intro-name {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.9rem, 6vw, 2.9rem);
+  line-height: 1.05;
+  font-weight: 600;
+  text-wrap: balance;
+}
+.intro-text {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  opacity: 0.75;
+  text-wrap: pretty;
+}
+
+/* Кнопка видна ВСЕГДА: на телефоне наведения нет, и «покажем по hover»
+   означало бы, что половина покупателей не понимает, куда нажимать. */
+.intro-go {
+  margin-top: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0 1.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.intro-go--gold {
+  background: var(--color-brand-gold);
+  color: var(--color-brand-purple-950);
+}
+.intro-go--purple {
+  background: var(--color-brand-purple);
+  color: #fff;
+}
+.intro-half:hover .intro-go {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgb(77 41 93 / 0.25);
+}
+
+/* Две колонки — с планшета. Раньше по ширине телефона: на 360px половины
+   сжимались до нечитаемых. */
+@media (min-width: 768px) {
+  .builder-intro {
+    grid-template-columns: 1fr 1fr;
+  }
+  .intro-half {
+    padding: 3.5rem 2rem 4rem;
+    justify-content: center;
+    min-height: 30rem;
+  }
+}
+
+/* Телефон лёжа. Правим по ВЫСОТЕ, а не по ширине: альбомный телефон
+   (780–950px) иначе попадает в планшетную ветку и требует прокрутки на
+   каждой половине. Здесь карточка уходит вбок от текста. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .builder-intro {
+    grid-template-columns: 1fr 1fr;
+  }
+  .intro-half {
+    min-height: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 1rem;
+    text-align: left;
+  }
+  .intro-card {
+    width: 9rem;
+    flex: 0 0 auto;
+  }
+  .intro-body {
+    align-items: flex-start;
+  }
+  .intro-name {
+    font-size: 1.35rem;
+  }
+  .intro-text {
+    font-size: 0.78rem;
+  }
+  .intro-go {
+    min-height: 2.4rem;
+    padding: 0 1.2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-half,
+  .intro-card,
+  .intro-go {
+    transition: none;
+  }
+  .intro-half:hover .intro-card,
+  .intro-half:hover .intro-go {
+    transform: none;
+  }
+}

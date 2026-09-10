@@ -253,7 +253,16 @@
     "promoRemove": "Remove",
     "promoApplied": "Discount {amount}",
     "promoInvalid": "Promo code is not valid",
-    "lead": "Five steps — and the certificate reaches the recipient by email as a beautiful PDF with a QR code."
+    "lead": "Five steps — and the certificate reaches the recipient by email as a beautiful PDF with a QR code.",
+    "intro": {
+      "title": "What are we gifting?",
+      "nominalName": "By amount",
+      "nominalText": "The recipient chooses what to spend it on — a massage, a spa ritual or a treatment. Valid for three months at every salon in the network.",
+      "programName": "A specific service",
+      "programText": "You pick the exact programme — a 90-minute Thai massage, for example. All the recipient has to do is come in.",
+      "choose": "Choose",
+      "programExample": "Thai massage · 90 minutes"
+    }
   },
   "Gift": {
     "eyebrow": "A gift for you",
