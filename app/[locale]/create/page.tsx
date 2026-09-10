@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { setRequestLocale, getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 import { BuilderClient } from "@/components/builder-client";
@@ -60,8 +59,6 @@ export default async function CreatePage({
 
   const demoEnabled =
     mockEnabled() && (await currentAdmin()) !== null;
-  const t = await getTranslations("Builder");
-  const tNav = await getTranslations("Nav");
 
   const [salons, programs, nominals, designs, bounds, consentDoc] =
     await Promise.all([
@@ -107,20 +104,6 @@ export default async function CreatePage({
 
   return (
     <main className="flex-1">
-      {/* Тёмная полоса-заголовок */}
-      <section className="bg-page-hero pt-14 pb-16 text-white sm:pt-16">
-        <div className="mx-auto max-w-6xl px-5">
-          <p className="mb-5 text-xs tracking-[0.14em] text-white/50 uppercase">
-            <Link href="/" className="text-brand-gold-300 hover:underline">
-              {tNav("home")}
-            </Link>{" "}
-            · {t("eyebrow")}
-          </p>
-          <h1 className="font-display text-5xl font-medium sm:text-6xl">{t("title")}</h1>
-          <p className="mt-5 max-w-xl text-white/75">{t("lead")}</p>
-        </div>
-      </section>
-
       <div className="bld">
         <div className="mx-auto max-w-6xl px-5 py-14 sm:py-16">
         <BuilderClient

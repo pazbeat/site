@@ -205,6 +205,7 @@
     "s1SelectOption": "Вариант",
     "s1SelectAmount": "Номинал",
     "s1OwnOpen": "Своя сумма",
+    "s1OwnNote": "от {min} до {max}",
     "s1OwnCancel": "Вернуться к номиналам",
     "s1Custom": "Или введите свою сумму ({min}–{max})",
     "priceLink": "Ознакомиться с прайсом и всеми программами (PDF)",

@@ -376,22 +376,14 @@ export function BuilderClient({
   const nominal = nominals.find((n) => n.id === nominalId) ?? null;
   const design = designs.find((d) => d.id === designId) ?? designs[0];
 
-  /**
-   * Карусель номиналов. Отдельного состояния под неё нет намеренно: позиция
-   * ВЫВОДИТСЯ из выбранного номинала, поэтому карусель и заказ не могут
-   * разойтись — а именно так и разошлись однажды карусель открыток с
-   * предпросмотром, когда позиция хранилась сама по себе.
-   */
-  const nominalIndex = Math.max(
-    0,
-    nominals.findIndex((n) => n.id === nominalId),
-  );
-  const nominalAt = (offset: number) =>
-    nominals[(nominalIndex + offset + nominals.length) % nominals.length];
-  const moveNominal = (delta: number) => {
-    setNominalId(nominalAt(delta).id);
-    setCustomAmount("");
-    setCustomOpen(false);
+  /** Прокрутка ленты номиналов стрелками — на ширину карты с зазором. */
+  const amtRailRef = useRef<HTMLDivElement>(null);
+  const scrollAmounts = (dir: 1 | -1) => {
+    const rail = amtRailRef.current;
+    if (!rail) return;
+    const card = rail.firstElementChild as HTMLElement | null;
+    const step = card ? card.offsetWidth + 14 : 280;
+    rail.scrollBy({ left: dir * step, behavior: "smooth" });
   };
 
   const availableAmounts = salonId ? (amountsBySalon[salonId] ?? []) : [];
@@ -609,18 +601,6 @@ export function BuilderClient({
         : undefined
       : t("sumTypeNominal");
 
-  // Пока согласие не дано — на странице нет ничего, кроме модалки.
-  //
-  // Раньше конструктор рендерился под ней всегда, и до полей можно было
-  // добраться клавишей Tab, ни разу не поставив галочку. Оформить заказ так
-  // всё равно было нельзя (кнопка оплаты открывает вторую модалку, а submit
-  // вызывается только из неё), но утверждение «без галочки дальше не пройти»
-  // становилось опровержимым — а именно его фиксирует нотариальный протокол.
-  // Ранний выход убирает разночтение: за модалкой физически ничего нет.
-  if (!consented) {
-    return <ConsentModal html={consentHtml} onAccept={acceptConsent} />;
-  }
-
   /**
    * Примеры на плашках входного экрана. Берём из настоящего каталога, а не
    * пишем числом в разметке: сумма в списке номиналов может измениться, и
@@ -638,9 +618,13 @@ export function BuilderClient({
       }`
     : "";
 
-  // Входной экран: сумма или услуга. Стоит НИЖЕ проверки согласия — за
-  // модалкой по-прежнему нет ни одного узла, который можно поймать клавишей
-  // Tab. Показываем только тем, кто пришёл без готового выбора.
+  // Входной экран: сумма или услуга. Он стоит ПЕРЕД согласием намеренно.
+  // Модалка первым же экраном встречала человека, который ещё ничего не
+  // выбрал и не понимал, с чем соглашается. Здесь он не вводит ни одного
+  // своего данного — только говорит, что дарит; согласие спрашивается сразу
+  // после, до самого конструктора и до любого поля. Гарантия та же: ниже
+  // стоит ранний выход по !consented, и за модалкой нет ни одного узла,
+  // который можно поймать клавишей Tab.
   if (!introDone) {
     return (
       <BuilderIntro
@@ -656,6 +640,18 @@ export function BuilderClient({
         }}
       />
     );
+  }
+
+  // Пока согласие не дано — на странице нет ничего, кроме модалки.
+  //
+  // Раньше конструктор рендерился под ней всегда, и до полей можно было
+  // добраться клавишей Tab, ни разу не поставив галочку. Оформить заказ так
+  // всё равно было нельзя (кнопка оплаты открывает вторую модалку, а submit
+  // вызывается только из неё), но утверждение «без галочки дальше не пройти»
+  // становилось опровержимым — а именно его фиксирует нотариальный протокол.
+  // Ранний выход убирает разночтение: за модалкой физически ничего нет.
+  if (!consented) {
+    return <ConsentModal html={consentHtml} onAccept={acceptConsent} />;
   }
 
   return (
@@ -846,138 +842,121 @@ export function BuilderClient({
                 </>
               ) : (
                 <>
-                  {/* Номиналы каруселью: сумма — главное решение этого шага,
-                      и сетка мелких плиток низводила его до строки в анкете.
-                      Карта одна, крупная, с золотой кромкой — как открытка
-                      на предыдущем шаге. */}
+                  {/* Номиналы лентой, а не по одному под стрелками: суммы
+                      сравнивают между собой, и ради каждой следующей не должно
+                      быть отдельного нажатия. Карта несёт ВЫБРАННУЮ открытку —
+                      покупатель видит ровно то, что получит, а не безликий
+                      прямоугольник. */}
                   <p className="bld__sect">{t("s1SelectAmount")}</p>
                   <div className="amt">
-                    <div className="amt__rail">
-                      {nominals.length > 1 && (
+                    <button
+                      type="button"
+                      className="amt__nav amt__nav--prev"
+                      aria-label={t("designs.prev")}
+                      onClick={() => scrollAmounts(-1)}
+                    >
+                      ‹
+                    </button>
+                    <div className="amt__rail" ref={amtRailRef}>
+                      {nominals.map((n) => (
                         <button
+                          key={n.id}
                           type="button"
-                          className="amt__nav amt__nav--prev"
-                          aria-label={t("designs.prev")}
-                          onClick={() => moveNominal(-1)}
+                          className="amt__it"
+                          data-on={
+                            !customAmount && n.id === nominalId ? "1" : undefined
+                          }
+                          onClick={() => {
+                            setNominalId(n.id);
+                            setCustomAmount("");
+                            setCustomOpen(false);
+                          }}
                         >
-                          ‹
-                        </button>
-                      )}
-                      {nominals.length > 1 && (
-                        <span className="amt__slot amt__slot--side" aria-hidden="true">
-                          <span className="amt__card">
-                            <span className="amt__sum">
-                              {formatKzt(nominalAt(-1).amountKzt)}
-                            </span>
-                          </span>
-                        </span>
-                      )}
-                      <span className="amt__slot amt__slot--main">
-                        <span className="amt__card">
-                          <span className="amt__edge" aria-hidden="true" />
-                          <span className="amt__brand">{tCommon("brand")}</span>
-                          <span className="amt__sum">
-                            {formatKzt(nominalAt(0).amountKzt)}
-                          </span>
-                          {nominalAt(0).label && (
-                            <span className="amt__tag">{nominalAt(0).label}</span>
+                          {design.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
+                            <img src={design.imageUrl} alt="" className="amt__art" />
                           )}
-                        </span>
-                      </span>
-                      {nominals.length > 1 && (
-                        <span className="amt__slot amt__slot--side" aria-hidden="true">
-                          <span className="amt__card">
-                            <span className="amt__sum">
-                              {formatKzt(nominalAt(1).amountKzt)}
-                            </span>
-                          </span>
-                        </span>
-                      )}
-                      {nominals.length > 1 && (
-                        <button
-                          type="button"
-                          className="amt__nav amt__nav--next"
-                          aria-label={t("designs.next")}
-                          onClick={() => moveNominal(1)}
-                        >
-                          ›
+                          <span className="amt__veil" aria-hidden="true" />
+                          <span className="amt__edge" aria-hidden="true" />
+                          <span className="amt__sum">{formatKzt(n.amountKzt)}</span>
+                          {n.label && <span className="amt__tag">{n.label}</span>}
                         </button>
-                      )}
-                    </div>
+                      ))}
 
-                    {nominals.length > 1 && (
-                      <div className="amt__dots" aria-hidden="true">
-                        {nominals.map((n, i) => (
-                          <span
-                            key={n.id}
-                            className="amt__dot"
-                            data-on={i === nominalIndex && !customAmount ? "1" : undefined}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Своя сумма — не поле в форме, а второй способ выбора,
-                        и он раскрывается по требованию. */}
-                    <div className="amt__own">
+                      {/* Своя сумма — такая же карта в ленте, а не поле под ней:
+                          это тот же выбор, просто без готового числа. */}
                       <button
                         type="button"
-                        className="amt__ownlink"
+                        className="amt__it amt__it--own"
                         data-on={customOpen ? "1" : undefined}
-                        onClick={() => {
-                          if (customOpen) setCustomAmount("");
-                          setCustomOpen(!customOpen);
-                        }}
+                        onClick={() => setCustomOpen(true)}
                       >
-                        {customOpen ? t("s1OwnCancel") : t("s1OwnOpen")}
+                        <span className="amt__ownsum">
+                          {customValid ? formatKzt(custom!) : t("s1OwnOpen")}
+                        </span>
+                        <span className="amt__ownnote">
+                          {t("s1OwnNote", {
+                            min: formatKzt(bounds.min),
+                            max: formatKzt(bounds.max),
+                          })}
+                        </span>
                       </button>
-                      {customOpen && (
-                        <div className="amt__ownbox">
-                          <label className="bld__label" htmlFor="b-custom">
-                            {t("s1Custom", {
-                              min: formatKzt(bounds.min),
-                              max: formatKzt(bounds.max),
-                            })}
-                          </label>
-                          <input
-                            id="b-custom"
-                            type="number"
-                            list="b-amounts"
-                            min={bounds.min}
-                            max={bounds.max}
-                            step={500}
-                            className="bld__input"
-                            value={customAmount}
-                            onChange={(e) => setCustomAmount(e.target.value)}
-                          />
-                          <datalist id="b-amounts">
-                            {availableAmounts.map((a) => (
-                              <option key={a} value={a} />
-                            ))}
-                          </datalist>
-                          {customAmount && !customValid && (
-                            <p className="mt-1.5 text-xs font-semibold text-brand-red">
-                              {custom !== null &&
-                              custom >= bounds.min &&
-                              custom <= bounds.max
-                                ? t("errAmountUnavailable")
-                                : t("errAmount", {
-                                    min: formatKzt(bounds.min),
-                                    max: formatKzt(bounds.max),
-                                  })}
-                            </p>
-                          )}
-                          {availableAmounts.length > 0 && (
-                            <p className="bld__hint">
-                              {t("amountsHint", {
-                                list: availableAmounts.map(formatKzt).join(", "),
+                    </div>
+                    <button
+                      type="button"
+                      className="amt__nav amt__nav--next"
+                      aria-label={t("designs.next")}
+                      onClick={() => scrollAmounts(1)}
+                    >
+                      ›
+                    </button>
+                  </div>
+
+                  {customOpen && (
+                    <div className="amt__ownbox">
+                      <label className="bld__label" htmlFor="b-custom">
+                        {t("s1Custom", {
+                          min: formatKzt(bounds.min),
+                          max: formatKzt(bounds.max),
+                        })}
+                      </label>
+                      <input
+                        id="b-custom"
+                        type="number"
+                        list="b-amounts"
+                        min={bounds.min}
+                        max={bounds.max}
+                        step={500}
+                        className="bld__input"
+                        value={customAmount}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                      />
+                      <datalist id="b-amounts">
+                        {availableAmounts.map((a) => (
+                          <option key={a} value={a} />
+                        ))}
+                      </datalist>
+                      {customAmount && !customValid && (
+                        <p className="mt-1.5 text-xs font-semibold text-brand-red">
+                          {custom !== null &&
+                          custom >= bounds.min &&
+                          custom <= bounds.max
+                            ? t("errAmountUnavailable")
+                            : t("errAmount", {
+                                min: formatKzt(bounds.min),
+                                max: formatKzt(bounds.max),
                               })}
-                            </p>
-                          )}
-                        </div>
+                        </p>
+                      )}
+                      {availableAmounts.length > 0 && (
+                        <p className="bld__hint">
+                          {t("amountsHint", {
+                            list: availableAmounts.map(formatKzt).join(", "),
+                          })}
+                        </p>
                       )}
                     </div>
-                  </div>
+                  )}
                 </>
               )}
 

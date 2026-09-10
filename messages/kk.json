@@ -205,6 +205,7 @@
     "s1SelectOption": "Нұсқа",
     "s1SelectAmount": "Номинал",
     "s1OwnOpen": "Өз сомам",
+    "s1OwnNote": "{min} — {max}",
     "s1OwnCancel": "Номиналдарға оралу",
     "s1Custom": "Немесе өз сомаңызды енгізіңіз ({min}–{max})",
     "priceLink": "Прайспен және барлық бағдарламалармен танысу (PDF)",

@@ -2360,75 +2360,81 @@ h3,
   .prg__it[data-on="1"]{background:#fff;
         box-shadow:inset 0 0 0 1.5px var(--gold),0 14px 30px -18px rgba(37,8,47,.45)}
 
-  /* ── Карусель номиналов ──────────────────────────────────────────────
-     Сумма — главное решение этого шага, и сетка мелких плиток низводила его
-     до строки в анкете. Устройство то же, что у карусели открыток: одна
-     крупная карта, соседи подглядывают, размеры считаются от самой ленты, а
-     не от окна. Сумма набрана Montserrat целиком: у Cormorant нет знака ₸. */
-  .amt{margin-top:.25rem}
-  .amt__rail{position:relative;display:flex;align-items:center;justify-content:center;
-        gap:clamp(.5rem,2%,1.5rem);width:100%;padding-inline:46px}
-  .amt__slot{flex:0 0 auto;position:relative;
-        transition:opacity .4s cubic-bezier(.22,.61,.36,1),transform .4s cubic-bezier(.22,.61,.36,1),
-                   filter .4s cubic-bezier(.22,.61,.36,1)}
-  .amt__slot--side{width:min(150px,20%);opacity:.35;filter:blur(1px);transform:scale(.92)}
-  .amt__slot--main{width:min(380px,54%)}
+  /* ── Лента номиналов ─────────────────────────────────────────────────
+     Суммы сравнивают между собой, поэтому они лежат лентой и видны разом, а
+     не по одной под стрелками: раньше до каждой следующей нужно было
+     отдельное нажатие. Карта несёт ВЫБРАННУЮ открытку — покупатель видит
+     ровно то, что получит. Сумма набрана Montserrat целиком: у Cormorant
+     нет знака ₸.                                                        */
+  .amt{position:relative}
+  .amt__rail{display:flex;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;
+        scroll-snap-type:x mandatory;scroll-padding-inline:52px;
+        padding:10px 52px 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .amt__rail::-webkit-scrollbar{display:none}
 
-  .amt__card{position:relative;display:flex;flex-direction:column;justify-content:flex-end;
-        aspect-ratio:8/5;padding:18px 20px;border-radius:16px;overflow:hidden;
-        background:linear-gradient(145deg,var(--plum-800) 0%,var(--plum-950) 55%,#1c0726 100%);
+  .amt__it{all:unset;box-sizing:border-box;cursor:pointer;position:relative;
+        flex:0 0 min(272px,64%);scroll-snap-align:center;
+        aspect-ratio:5/3;border-radius:16px;overflow:hidden;
+        display:flex;flex-direction:column;justify-content:flex-end;
+        padding:16px 18px;color:#fff;
+        background:linear-gradient(145deg,var(--plum-800) 0%,var(--plum-950) 60%,#1c0726 100%);
         box-shadow:0 2px 4px rgba(37,8,47,.14),
                    0 12px 20px -8px rgba(37,8,47,.18),
-                   0 34px 44px -22px rgba(37,8,47,.24),
-                   0 70px 90px -50px rgba(37,8,47,.34)}
-  /* Золотой отблеск наискось — тот же приём, что на кнопке подарка. */
-  .amt__card::before{content:"";position:absolute;inset:-40% -10% auto;height:150%;
-        pointer-events:none;transform:rotate(-18deg);
-        background:linear-gradient(90deg,transparent 0%,rgba(236,201,120,.16) 45%,transparent 70%)}
-  .amt__slot--side .amt__card{box-shadow:0 14px 22px -14px rgba(37,8,47,.3)}
-  /* Кромка вместо рамки: свет сверху-слева, тень снизу-справа. */
+                   0 24px 34px -22px rgba(37,8,47,.26);
+        transition:transform .3s cubic-bezier(.22,.61,.36,1),
+                   box-shadow .3s cubic-bezier(.22,.61,.36,1)}
+  .amt__art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  /* Затемнение снизу: без него сумма ложится на светлый край открытки и
+     пропадает — у половины макетов там крупная собственная надпись. */
+  .amt__veil{position:absolute;inset:0;pointer-events:none;
+        background:linear-gradient(to top,rgba(37,8,47,.92) 0%,rgba(37,8,47,.72) 34%,rgba(37,8,47,.12) 68%,transparent 100%)}
   .amt__edge{position:absolute;inset:0;border-radius:16px;pointer-events:none;
-        box-shadow:inset 1px 1px 0 rgba(236,201,120,.5),inset -1px -1.5px 0 rgba(0,0,0,.35)}
-  .amt__brand{position:absolute;top:16px;left:20px;font-size:9px;font-weight:600;
-        letter-spacing:.24em;text-transform:uppercase;color:rgba(236,201,120,.75)}
-  .amt__sum{position:relative;font-weight:700;letter-spacing:-.02em;color:#fff;
-        font-size:clamp(1.3rem,9.5cqw,3.1rem);line-height:1;
-        text-shadow:0 2px 12px rgba(0,0,0,.35)}
-  /* Кегль суммы считается от ШИРИНЫ КАРТЫ, а не от окна: карта живёт в
-     ленте, ширина которой зависит от колонки. */
-  .amt__card{container-type:inline-size}
-  .amt__slot--side .amt__sum{font-size:clamp(.75rem,11cqw,1.15rem)}
+        box-shadow:inset 1px 1px 0 rgba(255,255,255,.28),inset -1px -1.5px 0 rgba(0,0,0,.3)}
+  .amt__sum{position:relative;font-weight:700;letter-spacing:-.02em;
+        font-size:clamp(1.25rem,9cqw,2.1rem);line-height:1;
+        text-shadow:0 2px 12px rgba(0,0,0,.45)}
+  .amt__it{container-type:inline-size}
   .amt__tag{position:relative;align-self:flex-start;margin-top:9px;
         padding:4px 11px;border-radius:999px;font-size:10px;font-weight:700;
         letter-spacing:.12em;text-transform:uppercase;color:var(--plum-950);
         background:linear-gradient(115deg,var(--gold),var(--gold-hi) 50%,var(--gold))}
+  .amt__it:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
+  @media (hover:hover) and (pointer:fine){
+    .amt__it:hover{transform:translateY(-4px);
+        box-shadow:0 2px 4px rgba(37,8,47,.14),
+                   0 18px 30px -10px rgba(37,8,47,.28),
+                   0 40px 54px -26px rgba(37,8,47,.34)}
+  }
+  /* Выбранная поднимается и получает золотую кромку — тот же приём, что у
+     филиалов и открыток. */
+  .amt__it[data-on="1"]{transform:translateY(-4px)}
+  .amt__it[data-on="1"] .amt__edge{
+        box-shadow:inset 0 0 0 2px var(--gold),inset 1px 1px 0 rgba(255,255,255,.3)}
+
+  /* «Своя сумма» — такая же карта в ленте, только без картинки. */
+  .amt__it--own{justify-content:center;align-items:center;text-align:center;gap:6px;
+        background:rgba(255,255,255,.86);color:var(--color-brand-purple);
+        box-shadow:inset 0 0 0 1px rgba(77,41,93,.12),0 12px 20px -12px rgba(37,8,47,.2)}
+  .amt__it--own .amt__edge{display:none}
+  .amt__it--own[data-on="1"]{background:#fff;
+        box-shadow:inset 0 0 0 1.5px var(--gold),0 18px 30px -16px rgba(37,8,47,.4)}
+  .amt__ownsum{font-size:clamp(1rem,7cqw,1.45rem);font-weight:700;letter-spacing:-.01em}
+  .amt__ownnote{font-size:11.5px;font-weight:500;color:var(--ink-soft)}
 
   .amt__nav{all:unset;position:absolute;top:50%;margin-top:-21px;width:42px;height:42px;
         border-radius:50%;display:grid;place-items:center;cursor:pointer;z-index:2;
-        background:rgba(255,255,255,.92);color:var(--color-brand-purple);font-size:15px;
+        background:rgba(255,255,255,.94);color:var(--color-brand-purple);font-size:15px;
         box-shadow:0 8px 20px -8px rgba(37,8,47,.35);
         transition:transform .25s cubic-bezier(.22,.61,.36,1)}
   .amt__nav--prev{left:0}.amt__nav--next{right:0}
   .amt__nav:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
   @media (hover:hover){.amt__nav:hover{transform:scale(1.08)}}
 
-  .amt__dots{display:flex;justify-content:center;gap:7px;margin-top:1.25rem}
-  .amt__dot{width:6px;height:6px;border-radius:50%;background:rgba(77,41,93,.22);
-        transition:background .3s cubic-bezier(.22,.61,.36,1),transform .3s cubic-bezier(.22,.61,.36,1)}
-  .amt__dot[data-on="1"]{background:var(--gold);transform:scale(1.35)}
-
-  .amt__own{margin-top:1.5rem;text-align:center}
-  .amt__ownlink{all:unset;cursor:pointer;font-size:13px;font-weight:600;color:var(--gold-dim);
-        text-decoration:underline;text-decoration-color:rgba(182,146,68,.4);
-        text-underline-offset:4px}
-  .amt__ownlink[data-on="1"]{color:var(--ink-soft)}
-  .amt__ownlink:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px;border-radius:4px}
-  .amt__ownbox{max-width:420px;margin:1rem auto 0;text-align:left}
+  .amt__ownbox{max-width:420px;margin:1.25rem auto 0;text-align:left}
 
   @media (max-width:560px){
-    .amt__rail{padding-inline:40px}
-    .amt__slot--side{display:none}
-    .amt__slot--main{width:100%;max-width:320px}
+    .amt__rail{padding-inline:44px;scroll-padding-inline:44px}
+    .amt__it{flex-basis:min(240px,74%)}
   }
 
   .bld__pricelink{display:block;text-align:center;margin-top:clamp(2rem,5svh,3rem);
@@ -2444,8 +2450,7 @@ h3,
     .bld__lede{display:none}
     .bld__swap{margin-bottom:1rem}
     .bld__sect{margin-top:1rem}
-    .amt__slot--main{width:min(260px,44%)}
-    .amt__slot--side{width:min(96px,15%)}
+    .amt__it{flex-basis:min(220px,32%)}
   }
 
   /* ── Поля ввода: подпись и вопрос, а не строка анкеты ────────────────

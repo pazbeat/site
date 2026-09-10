@@ -205,6 +205,7 @@
     "s1SelectOption": "Option",
     "s1SelectAmount": "Amount",
     "s1OwnOpen": "Custom amount",
+    "s1OwnNote": "from {min} to {max}",
     "s1OwnCancel": "Back to preset amounts",
     "s1Custom": "Or enter a custom amount ({min}–{max})",
     "priceLink": "View the full price list and all programs (PDF)",
