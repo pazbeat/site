@@ -2059,8 +2059,8 @@ h3,
   .dsn__occ:nth-child(6){transform:translateY(0)}
   .dsn__occ:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:4px;border-radius:6px}
   /* Выбранный повод — золотой, с точкой-бусиной под словом. */
-  .occ[aria-selected="true"]{color:var(--gold-dim);font-weight:600}
-  .occ[aria-selected="true"]::after{content:"";position:absolute;left:50%;bottom:-9px;
+  .dsn__occ[aria-selected="true"]{color:var(--gold-dim);font-weight:600}
+  .dsn__occ[aria-selected="true"]::after{content:"";position:absolute;left:50%;bottom:-9px;
     width:5px;height:5px;margin-left:-2.5px;border-radius:50%;
     background:linear-gradient(180deg,var(--gold-hi),var(--gold));
     box-shadow:0 0 10px rgba(182,146,68,.7)}
@@ -2108,7 +2108,7 @@ h3,
   .dsn__dots{display:flex;justify-content:center;gap:7px;margin-bottom:1.75rem}
   .dsn__dot{width:6px;height:6px;border-radius:50%;background:rgba(77,41,93,.22);
        transition:background .3s cubic-bezier(.22,.61,.36,1),transform .3s cubic-bezier(.22,.61,.36,1)}
-  .dot[data-on="1"]{background:var(--gold);transform:scale(1.35)}
+  .dsn__dot[data-on="1"]{background:var(--gold);transform:scale(1.35)}
 
   /* Телефон лёжа — по ВЫСОТЕ, не по ширине. */
   @media (max-height:520px) and (orientation:landscape){
@@ -2120,6 +2120,174 @@ h3,
     .dsn__dots{margin-bottom:.9rem}
   }
   @media (prefers-reduced-motion:reduce){
-    .dsn__occ,.dsn__slot,.dsn__nav,.dsn__dot,.btn{transition:none}
-    .dsn__nav:hover,.btn:hover{transform:none}
+    .dsn__nav:hover{transform:none}
+  }
+
+/* ─── Конструктор: остальные шаги (филиал и сумма, подпись, доставка, оплата)
+   Те же правила, что на первых двух экранах: ни одной рамки, объём даёт
+   тень и кромка, акцент — золото. Белые коробки с обводкой спорили с
+   открыткой в предпросмотре: рамка вокруг формы читается как второй
+   предмет на экране, где предмет должен быть один.
+   Разметка и логика шагов не тронуты — заменены только классы.        */
+
+.bld{background:radial-gradient(120% 80% at 50% 0%,#fff 0%,var(--plum-50) 55%,#f6eefb 100%)}
+
+  /* ── Оглавление шагов ───────────────────────────────────────────────
+     Не вкладки: нажимать не на что, это подпись «где я сейчас». Тонкая
+     нить с золотой бусиной под текущим — тот же приём, что на дуге
+     поводов, чтобы два соседних экрана читались как один. */
+  .bld__steps{display:flex;flex-wrap:wrap;gap:6px clamp(.85rem,2.4vw,1.6rem);
+        margin:0 0 clamp(1.75rem,4svh,2.5rem);padding:0;list-style:none}
+  .bld__stepitem{display:inline-flex;align-items:baseline;gap:7px;white-space:nowrap;
+        color:rgba(43,23,52,.38);transition:color .3s cubic-bezier(.22,.61,.36,1)}
+  .bld__stepnum{position:relative;font-size:10px;font-weight:700;letter-spacing:.08em;
+        color:inherit;font-variant-numeric:tabular-nums}
+  .bld__steptitle{font-size:12px;font-weight:500;letter-spacing:.03em}
+  .bld__stepitem[data-state="done"]{color:rgba(43,23,52,.6)}
+  .bld__stepitem[data-state="on"]{color:var(--gold-dim)}
+  .bld__stepitem[data-state="on"] .bld__steptitle{font-weight:600}
+  .bld__stepitem[data-state="on"] .bld__stepnum::after{content:"";position:absolute;
+    left:50%;bottom:-8px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;
+    background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+    box-shadow:0 0 10px rgba(182,146,68,.7)}
+
+  /* ── Панель шага ────────────────────────────────────────────────────
+     Коробки нет вовсе: содержимое лежит прямо на подложке. min-width:0
+     обязателен — это ячейка грида, и без него длинный адрес филиала в
+     select растягивает колонку и выдавливает предпросмотр за экран. */
+  .bld__pane{min-width:0}
+
+  .bld__h{font-family:var(--font-display), Georgia, serif;font-weight:500;
+      font-size:clamp(1.45rem,2.8vw,1.9rem);line-height:1.15;color:var(--color-brand-purple);
+      margin:0;text-wrap:balance}
+  .bld__sub{font-size:13.5px;line-height:1.6;color:var(--ink-soft);margin:.5rem 0 1.5rem;
+      max-width:52ch}
+  .bld__hint{font-size:12px;line-height:1.55;color:var(--ink-soft);margin-top:6px}
+  .bld__hint--block{margin:0 0 1.5rem}
+
+  /* ── Поля ───────────────────────────────────────────────────────────
+     16px на телефоне — не «покрупнее для красоты», а обязательное: при
+     размере меньше 16px iOS Safari увеличивает страницу на фокусе поля и
+     обратно не отъезжает, и вся форма дальше заполняется на съехавшем
+     экране. С 640px возвращаем 14px. */
+  /* Подписи полей набраны как есть, без uppercase: половина из них —
+     целые фразы («Или укажите свою сумму (18 000 ₸ — 500 000 ₸)», «Дата и
+     время доставки (Asia/Almaty)»), и капитель превращает их в крик. */
+  .bld__label{display:block;margin-bottom:7px;font-size:12px;font-weight:600;
+       letter-spacing:.015em;color:rgba(43,23,52,.62)}
+  .bld__input{width:100%;border:0;border-radius:14px;padding:13px 15px;
+       font:inherit;font-size:16px;line-height:1.4;color:var(--ink);outline:none;
+       background:rgba(255,255,255,.86);
+       box-shadow:inset 0 0 0 1px rgba(77,41,93,.13);
+       transition:box-shadow .25s cubic-bezier(.22,.61,.36,1),background-color .25s cubic-bezier(.22,.61,.36,1)}
+  .bld__input::placeholder{color:rgba(43,23,52,.34)}
+  /* Кольцо фокуса обязательно: штатный outline снят, и без него проход
+     по форме с клавиатуры становится слепым. */
+  .bld__input:focus-visible{background:#fff;
+       box-shadow:inset 0 0 0 1.5px var(--gold),0 0 0 4px rgba(182,146,68,.18)}
+  @media (min-width:640px){.bld__input{font-size:14px}}
+  @media (hover:hover) and (pointer:fine){.bld__input:hover{background:#fff}}
+  select.bld__input{appearance:none;padding-right:38px;cursor:pointer;
+       background-image:linear-gradient(45deg,transparent 50%,rgba(77,41,93,.55) 50%),
+                        linear-gradient(135deg,rgba(77,41,93,.55) 50%,transparent 50%);
+       background-position:calc(100% - 19px) calc(50% + 1px),calc(100% - 14.5px) calc(50% + 1px);
+       background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+  textarea.bld__input{resize:vertical}
+
+  /* ── Плитки выбора (тип, номинал, вариант, срок, способ оплаты) ─────
+     Кнопка-плитка вместо кнопки с обводкой: выбранная поднимается кромкой
+     и тенью, а не толщиной рамки. */
+  .bld__seg{all:unset;box-sizing:border-box;cursor:pointer;
+       flex:1 1 auto;min-width:118px;display:flex;flex-direction:column;
+       align-items:center;justify-content:center;gap:3px;text-align:center;
+       padding:12px 16px;border-radius:15px;
+       font-size:14px;font-weight:600;color:var(--ink);
+       background:rgba(255,255,255,.82);
+       box-shadow:inset 0 0 0 1px rgba(77,41,93,.11);
+       transition:box-shadow .25s cubic-bezier(.22,.61,.36,1),
+                  background-color .25s cubic-bezier(.22,.61,.36,1),
+                  transform .25s cubic-bezier(.22,.61,.36,1)}
+  .bld__seg:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
+  .bld__seghint{display:block;font-size:11.5px;font-weight:500;line-height:1.35;
+       color:var(--ink-soft)}
+  .bld__segprice{display:block;font-size:11.5px;font-weight:600;color:var(--gold-dim)}
+  @media (hover:hover) and (pointer:fine){
+    .bld__seg:hover{background:#fff;box-shadow:inset 0 0 0 1px rgba(182,146,68,.5)}
+  }
+  .bld__seg--on{background:#fff;color:var(--color-brand-purple);
+       box-shadow:inset 1px 1px 0 rgba(255,255,255,.6),
+                  inset 0 0 0 1.5px var(--gold),
+                  0 10px 22px -14px rgba(37,8,47,.45)}
+  .bld__seg--on .bld__seghint{color:rgba(77,41,93,.72)}
+
+  /* ── Промокод ── */
+  .bld__promo{margin-top:1.6rem;padding-top:1.4rem;
+       border-top:1px solid rgba(77,41,93,.11)}
+  .bld__promook{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+       border-radius:14px;padding:12px 15px;font-size:14px;
+       background:rgba(236,201,120,.14);
+       box-shadow:inset 0 0 0 1px rgba(182,146,68,.45)}
+
+  /* ── Согласие на шаге оплаты ── */
+  .bld__consent{display:flex;align-items:flex-start;gap:12px;cursor:pointer;
+       margin-top:1.6rem;border-radius:15px;padding:15px;
+       font-size:13.5px;line-height:1.55;color:var(--ink);
+       background:rgba(255,255,255,.7);
+       box-shadow:inset 0 0 0 1px rgba(77,41,93,.11)}
+
+  /* ── Кнопки шага ────────────────────────────────────────────────────
+     «Назад» на первом шаге скрыт через .invisible, но место занимает —
+     иначе «Далее» прыгает влево при переходе со второго шага на первый. */
+  .bld__actions{display:flex;justify-content:space-between;gap:12px;margin-top:1.9rem}
+  .bld__btn{all:unset;box-sizing:border-box;cursor:pointer;
+       display:inline-flex;align-items:center;justify-content:center;
+       min-height:46px;padding:0 clamp(20px,3vw,30px);border-radius:999px;
+       font-size:12px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;
+       text-align:center;
+       transition:transform .25s cubic-bezier(.22,.61,.36,1),
+                  box-shadow .25s cubic-bezier(.22,.61,.36,1),
+                  background-color .25s cubic-bezier(.22,.61,.36,1)}
+  .bld__btn:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
+  .bld__btn:disabled{opacity:.45;cursor:not-allowed}
+  /* Своя скрывалка, а не утилита .invisible: `all:unset` возвращает
+     visibility к inherit, а неслоёное правило перебивает @layer utilities
+     Tailwind — кнопка «Назад» осталась бы видимой на первом шаге. */
+  .bld__btn--hidden{visibility:hidden}
+  .bld__btn--ghost{color:var(--color-brand-purple);
+       box-shadow:inset 0 0 0 1.5px rgba(77,41,93,.28)}
+  .bld__btn--go{background:var(--color-brand-purple);color:#fff;
+       box-shadow:0 10px 24px -12px rgba(77,41,93,.55)}
+  /* Итоговая кнопка — единственное золото на экране: последний шаг. */
+  .bld__btn--pay{background:linear-gradient(115deg,var(--gold),var(--gold-hi) 50%,var(--gold));
+       color:var(--plum-950);letter-spacing:.08em;
+       box-shadow:0 12px 26px -12px rgba(182,146,68,.7)}
+  @media (hover:hover) and (pointer:fine){
+    .bld__btn--ghost:hover{box-shadow:inset 0 0 0 1.5px var(--color-brand-purple)}
+    .bld__btn--go:hover,.bld__btn--pay:hover{transform:translateY(-2px)}
+  }
+  .bld__btn:active{transform:translateY(0) scale(.985)}
+
+  /* ── Правая колонка: предпросмотр и сводка ──────────────────────────
+     Липкой становится только с 1024px: ниже она стоит под формой, и
+     position:sticky там ничего не даёт, кроме лишнего слоя. */
+  .bld__aside{min-width:0}
+  @media (min-width:1024px){.bld__aside{position:sticky;top:6rem}}
+  .bld__prevnote{margin-top:12px;text-align:center;font-size:11.5px;color:var(--ink-soft)}
+
+  .bld__summary{margin-top:1.4rem;font-size:14px}
+  .bld__row{display:flex;justify-content:space-between;gap:14px;padding:5px 0}
+  .bld__rowk{color:var(--ink-soft)}
+  .bld__row--promo{color:var(--gold-dim)}
+  .bld__row--total{margin-top:10px;padding-top:12px;
+        border-top:1px solid rgba(77,41,93,.13);
+        font-size:1rem;font-weight:800;color:var(--color-brand-purple)}
+  .bld__validity{margin-top:9px;font-size:11px;line-height:1.5;color:rgba(43,23,52,.5)}
+
+  /* Телефон лёжа — по ВЫСОТЕ, не по ширине: по ширине альбомный телефон
+     попадает в планшетную ветку и получает вертикальную вёрстку. */
+  @media (max-height:520px) and (orientation:landscape){
+    .bld__steps{margin-bottom:1.1rem}
+    .bld__sub{margin-bottom:1rem}
+    .bld__actions{margin-top:1.2rem}
+    .bld__btn{min-height:40px;font-size:11px}
   }

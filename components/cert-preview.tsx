@@ -38,8 +38,12 @@ function ImageCertPreview({
       {/* Художественная открытка целиком, горизонтально */}
       {/* eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна */}
       <img src={imageUrl ?? ""} alt={title} className="block w-full" />
-      {/* Текст поверх низа картинки на фирменной подложке-градиенте */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-brand-purple via-brand-purple/85 to-transparent px-5 pt-12 pb-4 text-white">
+      {/* Текст поверх низа картинки на фирменной подложке-градиенте.
+          Подложка намеренно плотная и высокая: на открытках бренда снизу
+          часто идёт собственная крупная надпись («Улыбок и радости!»), и
+          прежний лёгкий градиент оставлял имя получателя лежать прямо на
+          ней — читались обе строки сразу и ни одна до конца. */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-brand-purple from-45% via-brand-purple/90 via-75% to-transparent px-5 pt-16 pb-4 text-white">
         <div className="flex items-baseline justify-between gap-3">
           <div className="font-display text-lg leading-tight sm:text-xl">
             {title}

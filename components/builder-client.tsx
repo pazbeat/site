@@ -94,15 +94,10 @@ function isResumable(d: Draft): boolean {
 // при шрифте меньше 16px iOS Safari сам увеличивает страницу на фокусе поля
 // и обратно не отъезжает, дальше вся форма заполняется на съехавшем экране.
 // С 640px возвращаем прежние 14px.
-const inputCls =
-  "w-full rounded-xl border-[1.5px] border-brand-purple-100 bg-white px-3.5 py-3 text-base outline-none transition-colors focus:border-brand-gold sm:text-sm";
-const labelCls = "mb-1.5 block text-[13px] font-bold";
+const inputCls = "bld__input";
+const labelCls = "bld__label";
 const segBtn = (active: boolean) =>
-  `flex min-w-[120px] flex-1 flex-col items-center gap-0.5 rounded-2xl border-[1.5px] px-4 py-3.5 text-sm font-bold transition-colors ${
-    active
-      ? "border-brand-purple bg-brand-purple-50 text-brand-purple"
-      : "border-brand-purple-100 bg-white hover:border-brand-gold"
-  }`;
+  `bld__seg${active ? " bld__seg--on" : ""}`;
 
 export function BuilderClient({
   salons,
@@ -673,38 +668,38 @@ export function BuilderClient({
         </div>
       )}
 
-      <div className="mb-7 flex flex-wrap gap-1.5">
+      {/* Оглавление шагов, а не вкладки: тонкая нить с золотой бусиной на
+          текущем — тот же приём, что на дуге поводов. Жирные подчёркивания
+          спорили с открыткой за внимание. */}
+      <ol className="bld__steps">
         {stepTitles.map((title, index) => (
-          <div
+          <li
             key={title}
-            className={`min-w-[90px] flex-1 border-b-[3px] pb-2.5 text-center text-xs font-bold whitespace-nowrap transition-colors ${
-              index === step
-                ? "border-brand-gold text-brand-purple"
-                : index < step
-                  ? "border-brand-purple-600 text-brand-purple-600"
-                  : "border-brand-purple-100 text-brand-purple-950/40"
-            }`}
+            className="bld__stepitem"
+            data-state={
+              index === step ? "on" : index < step ? "done" : "next"
+            }
           >
-            {index < step ? "✓ " : ""}
-            {title}
-          </div>
+            <span className="bld__stepnum">{index + 1}</span>
+            <span className="bld__steptitle">{title}</span>
+          </li>
         ))}
-      </div>
+      </ol>
 
       <div className="grid items-start gap-9 lg:grid-cols-[1fr_400px]">
         {/* key={step}: перемонтаж контейнера при смене шага даёт короткий
             вход .step-enter вместо мгновенной подмены контента */}
-        <div key={step} className="step-enter rounded-2xl border border-brand-purple-100 bg-white p-6 shadow-sm sm:p-8">
+        <div key={step} className="step-enter bld__pane">
           {/* ШАГ 2: филиал и что именно дарим.
               Сумма спрашивается ПОСЛЕ филиала и только так: в Altegio под
               каждый номинал заведён свой товар, и наборы у филиалов разные —
               сумма, выбранная раньше филиала, могла бы оказаться непродаваемой. */}
           {step === 1 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s1Title")}
               </h3>
-              <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
+              <p className="bld__sub">
                 {t("s1Hint")}
               </p>
 
@@ -760,7 +755,7 @@ export function BuilderClient({
                   </select>
                 </div>
               </div>
-              <p className="mb-6 text-xs text-brand-purple-950/55">
+              <p className="bld__hint bld__hint--block">
                 {t("s1SalonHint")}
               </p>
 
@@ -771,7 +766,7 @@ export function BuilderClient({
                   onClick={() => setType("program")}
                 >
                   🌿 {t("s1Program")}
-                  <small className="font-medium text-brand-purple-950/55">
+                  <small className="bld__seghint">
                     {t("s1ProgramSub")}
                   </small>
                 </button>
@@ -781,7 +776,7 @@ export function BuilderClient({
                   onClick={() => setType("nominal")}
                 >
                   💳 {t("s1Nominal")}
-                  <small className="font-medium text-brand-purple-950/55">
+                  <small className="bld__seghint">
                     {t("s1NominalSub")}
                   </small>
                 </button>
@@ -828,7 +823,7 @@ export function BuilderClient({
                             onClick={() => setOptionId(o.id)}
                           >
                             {optionLabel(o, guests, hourUnit)}
-                            <small className="font-medium text-brand-purple-950/55">
+                            <small className="bld__seghint">
                               {formatKzt(o.priceKzt)}
                             </small>
                           </button>
@@ -854,7 +849,7 @@ export function BuilderClient({
                       >
                         {formatKzt(n.amountKzt)}
                         {n.label && (
-                          <small className="font-medium text-brand-gold-700">
+                          <small className="bld__segprice">
                             {n.label}
                           </small>
                         )}
@@ -922,10 +917,10 @@ export function BuilderClient({
               город раньше, чем про подарок, незачем. */}
           {step === 0 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s2Title")}
               </h3>
-              <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
+              <p className="bld__sub">
                 {t("s2Hint")}
               </p>
               <BuilderDesigns
@@ -939,10 +934,10 @@ export function BuilderClient({
           {/* ШАГ 3: персонализация */}
           {step === 2 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s3Title")}
               </h3>
-              <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
+              <p className="bld__sub">
                 {t("s3Hint")}
               </p>
               <div className="mb-4 grid gap-3.5 sm:grid-cols-2">
@@ -993,10 +988,10 @@ export function BuilderClient({
           {/* ШАГ 4: доставка */}
           {step === 3 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s4Title")}
               </h3>
-              <p className="mt-1 mb-5 text-sm text-brand-purple-950/60">
+              <p className="bld__sub">
                 {t("s4Hint")}
               </p>
               <div className="mb-4">
@@ -1012,7 +1007,7 @@ export function BuilderClient({
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
                 />
-                <p className="mt-1.5 text-xs text-brand-purple-950/55">
+                <p className="bld__hint">
                   {t("s4BuyerNote")}
                 </p>
               </div>
@@ -1061,7 +1056,7 @@ export function BuilderClient({
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
                 />
-                <p className="mt-1.5 text-xs text-brand-purple-950/55">
+                <p className="bld__hint">
                   {t("s4ContactNote")}
                 </p>
               </div>
@@ -1071,7 +1066,7 @@ export function BuilderClient({
           {/* ШАГ 5: оплата */}
           {step === 4 && (
             <>
-              <h3 className="font-display text-2xl font-semibold text-brand-purple">
+              <h3 className="bld__h">
                 {t("s5Title")}
               </h3>
               <div
@@ -1085,7 +1080,7 @@ export function BuilderClient({
                   <span className="rounded-lg bg-brand-red px-3.5 py-1 text-sm font-extrabold text-white">
                     Kaspi.kz
                   </span>
-                  <small className="font-medium text-brand-purple-950/55">
+                  <small className="bld__seghint">
                     {t("s5KaspiSub")}
                   </small>
                 </button>
@@ -1096,7 +1091,7 @@ export function BuilderClient({
                     onClick={() => setProvider("forte")}
                   >
                     {t("s5Card")}
-                    <small className="font-medium text-brand-purple-950/55">
+                    <small className="bld__seghint">
                       {t("s5CardSub")}
                     </small>
                   </button>
@@ -1113,7 +1108,7 @@ export function BuilderClient({
                     <span className="rounded-lg bg-brand-purple px-3.5 py-1 text-sm font-extrabold text-white">
                       Демо-оплата
                     </span>
-                    <small className="font-medium text-brand-purple-950/55">
+                    <small className="bld__seghint">
                       без списания денег · видно только вам
                     </small>
                   </button>
@@ -1121,12 +1116,12 @@ export function BuilderClient({
               </div>
 
               {/* Промокод */}
-              <div className="mt-6 border-t border-brand-purple-100 pt-5">
+              <div className="bld__promo">
                 <label className={labelCls} htmlFor="b-promo">
                   {t("promoLabel")}
                 </label>
                 {promoValid ? (
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl border-[1.5px] border-brand-gold bg-brand-gold-100/50 px-3.5 py-3 text-sm">
+                  <div className="bld__promook">
                     <span className="font-bold text-brand-purple">
                       {promoApplied.code}
                     </span>
@@ -1161,7 +1156,7 @@ export function BuilderClient({
                       type="button"
                       onClick={applyPromo}
                       disabled={promoChecking || !promoInput.trim()}
-                      className="rounded-full border-[1.5px] border-brand-purple px-6 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple-50 disabled:opacity-50"
+                      className="bld__btn bld__btn--ghost"
                     >
                       {promoChecking ? "…" : t("promoApply")}
                     </button>
@@ -1177,7 +1172,7 @@ export function BuilderClient({
           )}
 
           {step === 4 && (
-            <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-brand-purple-100 bg-brand-purple-50/40 p-4 text-sm text-brand-purple-950">
+            <label className="bld__consent">
               <input
                 type="checkbox"
                 checked={payAgreed}
@@ -1240,11 +1235,11 @@ export function BuilderClient({
             <p className="mt-4 text-sm font-semibold text-brand-red">{error}</p>
           )}
 
-          <div className="mt-7 flex justify-between gap-3">
+          <div className="bld__actions">
             <button
               type="button"
               onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
-              className={`rounded-full border-[1.5px] border-brand-purple px-6 py-3 text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple-50 ${step === 0 ? "invisible" : ""}`}
+              className={`bld__btn bld__btn--ghost${step === 0 ? " bld__btn--hidden" : ""}`}
             >
               {tCommon("back")}
             </button>
@@ -1252,7 +1247,7 @@ export function BuilderClient({
               <button
                 type="button"
                 onClick={next}
-                className="rounded-full bg-brand-purple px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-purple-600"
+                className="bld__btn bld__btn--go"
               >
                 {tCommon("next")} →
               </button>
@@ -1261,7 +1256,7 @@ export function BuilderClient({
                 type="button"
                 disabled={submitting || !payAgreed}
                 onClick={submit}
-                className="bg-gold-gradient rounded-full px-7 py-3 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-50"
+                className="bld__btn bld__btn--pay"
               >
                 {t("s5Pay", { price: formatKzt(total) })}
               </button>
@@ -1270,7 +1265,7 @@ export function BuilderClient({
         </div>
 
         {/* Живой предпросмотр + сводка */}
-        <aside className="lg:sticky lg:top-24">
+        <aside className="bld__aside">
           <CertPreview
             imageUrl={design.imageUrl}
             bgStyle={design.bgStyle}
@@ -1281,49 +1276,49 @@ export function BuilderClient({
             forLabel={toName ? t("certFor", { name: toName }) : undefined}
             message={message || undefined}
           />
-          <p className="mt-3 text-center text-xs text-brand-purple-950/55">
+          <p className="bld__prevnote">
             {t("previewNote")}
           </p>
-          <dl className="mt-4 rounded-2xl border border-brand-purple-100 bg-brand-purple-50/50 p-5 text-sm">
-            <div className="flex justify-between py-1">
-              <dt className="text-brand-purple-950/60">
+          <dl className="bld__summary">
+            <div className="bld__row">
+              <dt className="bld__rowk">
                 {type === "program" ? t("sumTypeProgram") : t("sumTypeNominal")}
               </dt>
               <dd className="font-semibold">
                 {type === "program" ? (program?.name ?? "—") : formatKzt(price)}
               </dd>
             </div>
-            <div className="flex justify-between py-1">
-              <dt className="text-brand-purple-950/60">{t("sumSalon")}</dt>
+            <div className="bld__row">
+              <dt className="bld__rowk">{t("sumSalon")}</dt>
               <dd className="max-w-[60%] text-right font-semibold">
                 {selectedSalon
                   ? `${selectedSalon.city}, ${selectedSalon.address}`
                   : "—"}
               </dd>
             </div>
-            <div className="flex justify-between py-1">
-              <dt className="text-brand-purple-950/60">{t("sumDesign")}</dt>
+            <div className="bld__row">
+              <dt className="bld__rowk">{t("sumDesign")}</dt>
               <dd className="font-semibold">{design.name}</dd>
             </div>
-            <div className="flex justify-between py-1">
-              <dt className="text-brand-purple-950/60">{t("sumDelivery")}</dt>
+            <div className="bld__row">
+              <dt className="bld__rowk">{t("sumDelivery")}</dt>
               <dd className="font-semibold">
                 {t("s4Email")}
               </dd>
             </div>
             {promoValid && (
-              <div className="flex justify-between py-1 text-brand-gold-700">
+              <div className="bld__row bld__row--promo">
                 <dt>{t("sumPromo", { code: promoApplied.code })}</dt>
                 <dd className="font-semibold">
                   −{formatKzt(promoApplied.discountKzt)}
                 </dd>
               </div>
             )}
-            <div className="mt-2 flex justify-between border-t border-brand-purple-100 pt-3 text-base font-extrabold text-brand-purple">
+            <div className="bld__row bld__row--total">
               <dt>{t("sumTotal")}</dt>
               <dd>{price > 0 ? formatKzt(total) : "—"}</dd>
             </div>
-            <p className="mt-2 text-[11px] text-brand-purple-950/50">
+            <p className="bld__validity">
               {t("validity")}
             </p>
           </dl>

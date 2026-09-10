@@ -121,7 +121,8 @@ export default async function CreatePage({
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:py-16">
+      <div className="bld">
+        <div className="mx-auto max-w-6xl px-5 py-14 sm:py-16">
         <BuilderClient
           salons={orderableSalons.map((s) => toSalonDto(s, locale))}
           programs={programDtos}
@@ -140,6 +141,7 @@ export default async function CreatePage({
           // должна быть доступна случайному посетителю стенда.
           demoEnabled={demoEnabled}
         />
+        </div>
       </div>
     </main>
   );
