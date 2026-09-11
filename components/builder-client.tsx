@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { CertPreview } from "./cert-preview";
 import { Link } from "@/i18n/navigation";
 import { BuilderIntro } from "./builder-intro";
 import { BuilderDesigns } from "./builder-designs";
@@ -959,20 +958,22 @@ export function BuilderClient({
         </div>
       )}
 
-      {/* Оглавление шагов, а не вкладки: тонкая нить с золотой бусиной на
-          текущем — тот же приём, что на дуге поводов. Жирные подчёркивания
-          спорили с открыткой за внимание. */}
-      <ol className="bld__steps">
+      {/* Шкала шагов: пять сегментов, пройденные залиты золотом, текущий
+          заливается наполовину. Серые подписи в строку читались как хлебные
+          крошки и не говорили главного — сколько осталось. Кликать нечего:
+          это указатель, а не вкладки, переходы идут только кнопками. */}
+      <ol className="stp" aria-label={t("eyebrow")}>
         {stepTitles.map((title, index) => (
           <li
             key={title}
-            className="bld__stepitem"
+            className="stp__it"
             data-state={
               index === step ? "on" : index < step ? "done" : "next"
             }
+            aria-current={index === step ? "step" : undefined}
           >
-            <span className="bld__stepnum">{index + 1}</span>
-            <span className="bld__steptitle">{title}</span>
+            <span className="stp__bar" aria-hidden="true" />
+            <span className="stp__label">{title}</span>
           </li>
         ))}
       </ol>
@@ -983,7 +984,57 @@ export function BuilderClient({
           показывалась дважды и обе выходили мелкими. Предпросмотр остался
           там, где он что-то решает: на «Подписи» (имена ложатся на карточку)
           и на «Оплате» (итог перед списанием). */}
-      <div className="bld__flow">
+      <div
+        className={`bld__flow${step > 0 ? " bld__flow--split" : ""}`}
+        data-step={step}
+      >
+        {/* Открытка — герой всего пути, как в подарочных картах Apple и у
+            Золотого Яблока: слева крупно, справа то, что её меняет. На шаге
+            дизайна героя нет — там карусель сама и есть открытка, и ей нужна
+            вся ширина. Суммы на открытке на шаге суммы нет намеренно: там
+            огромное число справа, и второе такое же было бы дублем. */}
+        {step > 0 && (
+          <aside className="hero" aria-label={t("previewNote")}>
+            <div className="hero__stage">
+              <span className="hero__glow" aria-hidden="true" />
+              <div className="hero__card">
+                {design.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
+                  <img src={design.imageUrl} alt={design.name} />
+                )}
+                <span className="hero__edge" aria-hidden="true" />
+                {step >= 2 && (
+                  <div className="hero__panel">
+                    <div className="hero__row">
+                      <span
+                        className={`hero__title${type === "nominal" ? " hero__title--sum" : ""}`}
+                      >
+                        {previewTitle}
+                      </span>
+                      <span className="hero__gift">{t("certGift")}</span>
+                    </div>
+                    {previewSubtitle && type === "program" && (
+                      <span className="hero__sub">{previewSubtitle}</span>
+                    )}
+                    <div className="hero__row hero__row--end">
+                      <span className="hero__for">
+                        {toName && (
+                          <span className="hero__to">
+                            {t("certFor", { name: toName })}
+                          </span>
+                        )}
+                        {message && <em className="hero__msg">«{message}»</em>}
+                      </span>
+                      <span className="hero__code">WM••••</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <p className="hero__note">{design.name}</p>
+          </aside>
+        )}
+
         {/* key={step}: перемонтаж контейнера при смене шага даёт короткий
             вход .step-enter вместо мгновенной подмены контента */}
         <div key={step} className="step-enter bld__pane">
@@ -1066,26 +1117,6 @@ export function BuilderClient({
               ) : (
                 <>
                   <div className="amt">
-                    {/* Открытка и плашка — без изменений. Сумма напечатана НА подарке: это
-                        и есть «крупное число» из референса, второй раз крупно её показывать
-                        негде и незачем. */}
-                    <div className="amt__stage">
-                      <span className="amt__glow" aria-hidden="true" />
-                      <span className="amt__card">
-                        {design.imageUrl && (
-                          // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
-                          <img src={design.imageUrl} alt={design.name} />
-                        )}
-                        <span className="amt__edge" aria-hidden="true" />
-                        {/* key={price}: плашка проявляется заново при смене суммы. Во время
-                            перетаскивания React не рендерится вовсе, поэтому мигать ей
-                            нечем — она обновляется один раз, когда жест кончился. */}
-                        <span className="amt__plate" key={price}>
-                          {price > 0 ? formatKzt(price) : t("s1OwnOpen")}
-                        </span>
-                      </span>
-                    </div>
-
                     {wheelAmounts.length < WHEEL_MIN ? (
                       /* Короткий набор — прежний ряд плиток целиком, вместе со «своей
                          суммой». Это не заглушка: филиалы без маппинга в CRM (WJ, WE)
@@ -1182,6 +1213,14 @@ export function BuilderClient({
                         </button>
                       </div>
                     )}
+
+                    {/* Выбранная сумма крупно — главный элемент экрана, как в
+                        референсе. На открытке слева на этом шаге суммы НЕТ:
+                        одно число, одно место. key={price} перемонтирует узел, и
+                        сумма проявляется заново на каждый выбор. */}
+                    <p className="amt__big" key={price} aria-live="polite">
+                      {price > 0 ? formatKzt(price) : "—"}
+                    </p>
                   </div>
 
                   {customOpen && (
@@ -1270,24 +1309,6 @@ export function BuilderClient({
               <div className="bld__head">
                 <h2 className="bld__title">{t("s3Title")}</h2>
                 <p className="bld__lede">{t("s3Hint")}</p>
-              </div>
-
-              {/* Предпросмотр стоит ровно здесь и больше нигде: это
-                  единственный шаг, где вводимое сразу ложится на карточку.
-                  В вечной колонке справа он показывал одно и то же на всех
-                  экранах и только отнимал ширину. */}
-              <div className="bld__card">
-                <CertPreview
-                  imageUrl={design.imageUrl}
-                  bgStyle={design.bgStyle}
-                  textColor={design.textColor}
-                  giftLabel={t("certGift")}
-                  title={previewTitle}
-                  subtitle={previewSubtitle}
-                  forLabel={toName ? t("certFor", { name: toName }) : undefined}
-                  message={message || undefined}
-                />
-                <p className="bld__prevnote">{t("previewNote")}</p>
               </div>
 
               <div className="fld">
