@@ -231,7 +231,7 @@ export default async function AdminOrderPage({
             </dl>
             <dl className="text-sm">
               <Row label="Кому" value={cert.toName} />
-              <Row label="От кого" value={cert.fromName} />
+              <Row label="От кого" value={cert.fromName || "—"} />
               <Row label="Поздравление" value={cert.message ?? "—"} />
               <Row
                 label="Тип"
