@@ -27,7 +27,9 @@ export const orderSchema = z
     item: orderItemSchema,
     designId: z.number().int().positive(),
     toName: name,
-    fromName: name,
+    /// «От кого» — необязательно (решение заказчика 2026-09-11): дарят и
+    /// без подписи. Пусто — письмо и PDF обходятся без строки «От кого».
+    fromName: z.string().trim().max(80).optional().default(""),
     /// Поздравление ≤ 120 символов (PRD §5.1)
     message: z.string().trim().max(120).optional().default(""),
     delivery: z.object({

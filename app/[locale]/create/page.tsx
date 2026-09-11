@@ -104,6 +104,20 @@ export default async function CreatePage({
   const { optionSalons } = sellable;
   const programDtos = sellable.programs.map((p) => toProgramDto(p, locale));
 
+  // Пример на плашке входного экрана — тайский массаж 90 минут: так сказано
+  // в подписи под карточкой («например, тайский массаж 90 минут»), и плашка
+  // должна показывать то же. Ищем по русскому названию — оно каноническое;
+  // без такой программы — первая настоящая (служебная за 100 ₸ стоит первой).
+  const thai = sellable.programs.filter((p) =>
+    /тайск/i.test((p.names as { ru?: string }).ru ?? ""),
+  );
+  const sampleOptionId =
+    thai.flatMap((p) => p.options).find((o) => o.durationMin === 90)?.id ??
+    thai[0]?.options[0]?.id ??
+    sellable.programs
+      .flatMap((p) => p.options)
+      .find((o) => o.priceKzt >= bounds.min)?.id;
+
   // Дожим: ?resume=token → предзаполнение из ранее брошенного заказа
   const resume = query.resume
     ? await buildResume(
@@ -137,6 +151,7 @@ export default async function CreatePage({
           amountsBySalon={amountsBySalon}
           allAmounts={allAmounts}
           optionSalons={optionSalons}
+          sampleOptionId={sampleOptionId}
           consentHtml={consentDoc?.contentHtmlSanitized ?? ""}
           initialOptionId={initialOptionId}
           initialNominalId={initialNominalId}

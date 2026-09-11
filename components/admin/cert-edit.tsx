@@ -61,7 +61,6 @@ export function CertEdit({
             id="ce-from"
             name="fromName"
             defaultValue={fromName}
-            required
             maxLength={80}
             className={inputCls}
           />

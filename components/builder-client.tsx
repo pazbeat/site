@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { BuilderIntro } from "./builder-intro";
@@ -40,6 +46,8 @@ type Props = Readonly<{
    * варианту: иначе оплата упиралась бы в отказ.
    */
   optionSalons: Record<number, number[]>;
+  /** Вариант программы для примера на входном экране. */
+  sampleOptionId?: number;
   consentHtml: string;
   /** Предвыбор из query: ?option= / ?nominal= / ?type=nominal */
   initialOptionId?: number;
@@ -122,6 +130,7 @@ export function BuilderClient({
   amountsBySalon,
   allAmounts,
   optionSalons,
+  sampleOptionId,
   consentHtml,
   initialOptionId,
   initialNominalId,
@@ -275,6 +284,9 @@ export function BuilderClient({
   const [pickDir, setPickDir] = useState<"up" | "down">("up");
   /** Счётчик неудачных «Далее»: чётность перезапускает покачивание кнопки. */
   const [shake, setShake] = useState(0);
+  /** Счётчик выборов на круге: чётность перезапускает отклик открытки и
+   *  солнца на каждый шаг — тот же приём, что у покачивания «Далее». */
+  const [tick, setTick] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
@@ -681,11 +693,15 @@ export function BuilderClient({
   const dialTab = dialSelected >= 0 ? dialSelected : Math.round(dialSel);
 
   const dialRef = useRef<HTMLDivElement>(null);
+  /** Сцена шага: на ней живут --sel и длительность поворота — их читают и
+   *  круг сумм, и корона солнца, и на неё же вешается колесо мыши. */
+  const orbRef = useRef<HTMLDivElement>(null);
 
   const pickDial = (i: number) => {
     // Откуда въедет крупная сумма справа: к большей — снизу, к меньшей — сверху.
     setPickDir(i >= dialSel ? "up" : "down");
-    const el = dialRef.current;
+    setTick((n) => n + 1);
+    const el = orbRef.current;
     if (el) {
       // Длительность — от ПУТИ: соседняя позиция доезжает за четверть
       // секунды, край списка — за семь десятых. Одна длительность на обе
@@ -744,6 +760,51 @@ export function BuilderClient({
   };
 
   /**
+   * Колесо мыши над кругом крутит его — и суммы, и программы (решение
+   * заказчика 2026-09-11). Один щелчок колеса — одна строка; тачпад шлёт
+   * мелкие шаги, они копятся до порога, иначе круг проскакивал бы список.
+   * На краях списка колесо отдаётся странице: человека нельзя запирать на
+   * круге, когда дальше крутить некуда.
+   */
+  const wheelAcc = useRef(0);
+  const onDialWheel = useEffectEvent((e: WheelEvent) => {
+    if (step !== 1 || !showDial) return;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    const dir = e.deltaY > 0 ? 1 : -1;
+    const last = dialItems.length - 1;
+    if (
+      dialSelected >= 0 &&
+      ((dir > 0 && dialSelected >= last) || (dir < 0 && dialSelected <= 0))
+    ) {
+      return;
+    }
+    e.preventDefault();
+    const px =
+      e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+    wheelAcc.current += px;
+    if (Math.abs(wheelAcc.current) < 40) return;
+    wheelAcc.current = 0;
+    const target =
+      dialSelected >= 0
+        ? dialSelected + dir
+        : dir > 0
+          ? Math.ceil(dialSel)
+          : Math.floor(dialSel);
+    pickDial(Math.min(last, Math.max(0, target)));
+  });
+  // Слушатель нативный и НЕ пассивный: React вешает wheel пассивным, и
+  // preventDefault в onWheel не сработал бы — страница уезжала бы вместе с
+  // кругом. Переподписка на смену шага: сцена появляется только после
+  // согласия, а шаг «Подарок» может открыться сразу из черновика.
+  useEffect(() => {
+    const el = orbRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => onDialWheel(e);
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, [step, acceptedNow, introDone]);
+
+  /**
    * Смена «сумма ↔ программа». Ничего не предвыбирается — программу, как и
    * сумму, покупатель выбирает сам (решение заказчика 2026-09-11).
    */
@@ -761,7 +822,8 @@ export function BuilderClient({
         // проверяется, продаётся ли выбранное в конкретном филиале.
         return type === "program" ? Boolean(option) : price > 0;
       case 2:
-        return toName.trim().length > 0 && fromName.trim().length > 0;
+        // «От кого» необязательно — дарят и без подписи.
+        return toName.trim().length > 0;
       case 3:
         // Филиал должен подходить к выбранному: покупатель мог вернуться и
         // сменить сумму или вариант, а черновик — пережить закрытие филиала.
@@ -944,14 +1006,16 @@ export function BuilderClient({
   const sampleAmount = formatKzt(
     nominals[Math.min(2, nominals.length - 1)]?.amountKzt ?? 15000,
   );
-  const firstProgram = programs[0];
-  const sampleProgram = firstProgram
-    ? `${firstProgram.name}${
-        firstProgram.options[0]?.durationMin
-          ? ` · ${firstProgram.options[0].durationMin} мин`
-          : ""
-      }`
-    : "";
+  const sampleProg = programs.find((p) =>
+    p.options.some((o) => o.id === sampleOptionId),
+  );
+  const sampleOpt = sampleProg?.options.find((o) => o.id === sampleOptionId);
+  const sampleProgram =
+    sampleProg && sampleOpt
+      ? [sampleProg.name, optionLabel(sampleOpt, guests, hourUnit)]
+          .filter(Boolean)
+          .join(" · ")
+      : "";
 
   // Входной экран: сумма или услуга. Он стоит ПЕРЕД согласием намеренно.
   // Модалка первым же экраном встречала человека, который ещё ничего не
@@ -1096,11 +1160,22 @@ export function BuilderClient({
 
           {/* ── Визуал: круг, открытка, циферблат ─────────────────────── */}
           <div className="stg__visual">
-            <div className="stg__orb">
+            <div
+              ref={orbRef}
+              className="stg__orb"
+              style={
+                step === 1 ? ({ "--sel": dialSel } as React.CSSProperties) : undefined
+              }
+              data-tick={step === 1 && tick > 0 ? (tick % 2 ? "a" : "b") : undefined}
+              data-pdir={pickDir}
+            >
               {/* Круг и открытка — одни и те же узлы на шагах 2–5: при
                   переходе они не появляются заново, а переезжают на новое
                   место, и путь читается одним движением. */}
               <span className="stg__circle" aria-hidden="true" />
+              {/* Солнце шага «Подарок»: суммы и программы — его лучи. На
+                  остальных шагах гаснет обратно в сиреневый круг. */}
+              <span className="stg__sun" aria-hidden="true" />
 
               {step === 0 ? (
                 <BuilderDesigns
@@ -1165,7 +1240,6 @@ export function BuilderClient({
                   className="dial"
                   data-kind={type}
                   data-none={dialSelected < 0 ? "1" : undefined}
-                  style={{ "--sel": dialSel } as React.CSSProperties}
                 >
                   <span className="dial__head" aria-hidden="true" />
                   {/* Круг от бусины на каждый выбор: key перемонтирует узел, и
@@ -1360,13 +1434,13 @@ export function BuilderClient({
                   </div>
                   <div className="fld__it">
                     <label className="fld__label" htmlFor="b-from">
-                      {t("s3From")} <span className="fld__req">*</span>
+                      {t("s3From")}{" "}
+                      <span className="fld__opt">{t("s4Optional")}</span>
                     </label>
                     <input
                       id="b-from"
                       className="fld__input"
                       maxLength={80}
-                      required
                       autoComplete="name"
                       value={fromName}
                       onChange={(e) => setFromName(e.target.value)}

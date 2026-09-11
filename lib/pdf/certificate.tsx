@@ -210,9 +210,11 @@ function CertificatePdfWithImage({
             <Text style={imgStyles.names}>
               {data.toLabel}: {data.toName}
             </Text>
-            <Text style={imgStyles.namesFrom}>
-              {data.fromLabel}: {data.fromName}
-            </Text>
+            {data.fromName ? (
+              <Text style={imgStyles.namesFrom}>
+                {data.fromLabel}: {data.fromName}
+              </Text>
+            ) : null}
             {data.message ? (
               <Text style={imgStyles.message}>«{data.message}»</Text>
             ) : null}
@@ -274,9 +276,11 @@ function CertificatePdf({ data }: Readonly<{ data: CertificatePdfData }>) {
               <Text style={[styles.names, { color: data.textColor }]}>
                 {data.toLabel}: {data.toName}
               </Text>
-              <Text style={[styles.names, { color: data.textColor, opacity: 0.8 }]}>
-                {data.fromLabel}: {data.fromName}
-              </Text>
+              {data.fromName ? (
+                <Text style={[styles.names, { color: data.textColor, opacity: 0.8 }]}>
+                  {data.fromLabel}: {data.fromName}
+                </Text>
+              ) : null}
               {data.message ? (
                 <Text style={[styles.message, { color: data.textColor }]}>
                   «{data.message}»

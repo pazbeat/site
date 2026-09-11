@@ -11,7 +11,7 @@ const STRINGS = {
     recipientSubject: "Вам подарок — сертификат Imbir Thai Spa 🌿",
     recipientTitle: "Вам подарили сертификат!",
     recipientBody: (from: string) =>
-      `${from} дарит вам сертификат Imbir Thai Spa. Сертификат с кодом — в приложенном PDF. Предъявите его администратору салона при записи.`,
+      `${from ? `${from} дарит вам` : "Вам подарили"} сертификат Imbir Thai Spa. Сертификат с кодом — в приложенном PDF. Предъявите его администратору салона при записи.`,
     buyerSubject: "Ваш сертификат Imbir Thai Spa оплачен",
     buyerTitle: "Спасибо за покупку!",
     buyerBody: (to: string) =>
@@ -37,7 +37,7 @@ const STRINGS = {
     recipientSubject: "Сізге сыйлық — Imbir Thai Spa сертификаты 🌿",
     recipientTitle: "Сізге сертификат сыйлады!",
     recipientBody: (from: string) =>
-      `${from} сізге Imbir Thai Spa сертификатын сыйлайды. Коды бар сертификат — тіркелген PDF-те. Жазылу кезінде оны салон әкімшісіне көрсетіңіз.`,
+      `${from ? `${from} сізге Imbir Thai Spa сертификатын сыйлайды.` : "Сізге Imbir Thai Spa сертификаты сыйланды."} Коды бар сертификат — тіркелген PDF-те. Жазылу кезінде оны салон әкімшісіне көрсетіңіз.`,
     buyerSubject: "Сіздің Imbir Thai Spa сертификатыңыз төленді",
     buyerTitle: "Сатып алғаныңызға рахмет!",
     buyerBody: (to: string) =>
@@ -63,7 +63,7 @@ const STRINGS = {
     recipientSubject: "A gift for you — Imbir Thai Spa certificate 🌿",
     recipientTitle: "You've received a certificate!",
     recipientBody: (from: string) =>
-      `${from} is gifting you an Imbir Thai Spa certificate. The certificate with its code is in the attached PDF. Show it to the salon administrator when booking.`,
+      `${from ? `${from} is gifting you` : "You've been gifted"} an Imbir Thai Spa certificate. The certificate with its code is in the attached PDF. Show it to the salon administrator when booking.`,
     buyerSubject: "Your Imbir Thai Spa certificate is paid",
     buyerTitle: "Thank you for your purchase!",
     buyerBody: (to: string) =>
@@ -86,6 +86,23 @@ const STRINGS = {
       "Imbir Thai Spa · Thai massage & SPA salons · +7 708 111 8098 · spa@imbir.kz",
   },
 } as const;
+
+/**
+ * Экранирование для HTML-писем. Имена, «от кого» и почта приходят из
+ * публичной формы заказа (до 80 символов, без ограничений по знакам) и
+ * вставляются в разметку письма, которое уходит с адреса бренда. Без
+ * экранирования имя вида `<a href="…">…</a>` становилось ссылкой в письме —
+ * готовый фишинг от нашего имени. Текст для мессенджера не экранируется:
+ * там разметки нет.
+ */
+function esc(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function layout(title: string, body: string, footer: string): string {
   // Инлайн-стили — почтовые клиенты не грузят внешний CSS
@@ -125,7 +142,7 @@ export function recipientEmail(data: CertificateMailData): {
     subject: s.recipientSubject,
     html: layout(
       s.recipientTitle,
-      `${s.recipientBody(data.fromName)}<br/><br/><b>${s.validUntil}: ${data.validUntil}</b>`,
+      `${s.recipientBody(esc(data.fromName))}<br/><br/><b>${s.validUntil}: ${esc(data.validUntil)}</b>`,
       s.footer,
     ),
   };
@@ -149,7 +166,7 @@ export function buyerEmail(
     subject: s.buyerSubject,
     html: layout(
       s.buyerTitle,
-      `${body(data.toName)}<br/><br/><b>${s.validUntil}: ${data.validUntil}</b>`,
+      `${body(esc(data.toName))}<br/><br/><b>${s.validUntil}: ${esc(data.validUntil)}</b>`,
       s.footer,
     ),
   };
@@ -165,7 +182,7 @@ export function reminderEmail(data: {
     subject: s.reminderSubject(data.daysLeft),
     html: layout(
       s.reminderTitle,
-      `${s.reminderBody(data.daysLeft)}<br/><br/><b>${s.validUntil}: ${data.validUntil}</b>`,
+      `${s.reminderBody(data.daysLeft)}<br/><br/><b>${s.validUntil}: ${esc(data.validUntil)}</b>`,
       s.footer,
     ),
   };
@@ -181,10 +198,10 @@ export function recoveryEmail(data: {
   resumeUrl: string;
 }): { subject: string; html: string } {
   const s = pick(data.locale);
-  const button = `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 4px"><tr><td style="border-radius:999px;background:#4D295D"><a href="${data.resumeUrl}" style="display:inline-block;padding:13px 30px;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:999px">${s.recoveryCta} →</a></td></tr></table>`;
+  const button = `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 4px"><tr><td style="border-radius:999px;background:#4D295D"><a href="${esc(data.resumeUrl)}" style="display:inline-block;padding:13px 30px;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:999px">${s.recoveryCta} →</a></td></tr></table>`;
   return {
     subject: s.recoverySubject,
-    html: layout(s.recoveryTitle, `${s.recoveryBody(data.toName)}${button}`, s.footer),
+    html: layout(s.recoveryTitle, `${s.recoveryBody(esc(data.toName))}${button}`, s.footer),
   };
 }
 
@@ -210,7 +227,7 @@ export function managerEmail(data: {
     subject: `Новая продажа сертификата ${data.certDisplay} — ${data.amountKzt.toLocaleString("ru-RU")} ₸`,
     html: layout(
       "Продан сертификат",
-      `Заказ: ${data.orderId}<br/>Сертификат: ${data.certDisplay}<br/>Сумма: ${data.amountKzt.toLocaleString("ru-RU")} ₸<br/>Филиал: ${data.salon}<br/>Покупатель: ${data.buyerEmail}`,
+      `Заказ: ${esc(data.orderId)}<br/>Сертификат: ${esc(data.certDisplay)}<br/>Сумма: ${data.amountKzt.toLocaleString("ru-RU")} ₸<br/>Филиал: ${esc(data.salon)}<br/>Покупатель: ${esc(data.buyerEmail)}`,
       STRINGS.ru.footer,
     ),
   };

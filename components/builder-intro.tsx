@@ -15,8 +15,10 @@ import { useTranslations } from "next-intl";
  * получатель будет выбирать; справа одна карта, повёрнутая к зрителю, — выбор
  * уже сделан за него. Рамок нет ни одной, объём даёт наклон, тень и сияние.
  *
- * Кнопка и пояснения видны ВСЕГДА, а не по наведению: на телефоне наведения
- * нет, а телефон — основной канал покупки.
+ * Нажимается сама открытка — вся карточка вместе с подписью это одна
+ * кнопка. Отдельная «Выбрать» под ней была лишней (решение заказчика
+ * 2026-09-11): человек и так тянется к сертификату, который хочет. Подписи
+ * видны всегда, а не по наведению: на телефоне наведения нет.
  */
 
 type Props = Readonly<{
@@ -84,7 +86,6 @@ export function BuilderIntro({
             <span className="pick__cap">
               <span className="pick__name">{t("nominalName")}</span>
               <span className="pick__note">{t("nominalText")}</span>
-              <span className="pick__go">{t("choose")}</span>
             </span>
           </button>
 
@@ -111,7 +112,6 @@ export function BuilderIntro({
             <span className="pick__cap">
               <span className="pick__name">{t("programName")}</span>
               <span className="pick__note">{t("programText")}</span>
-              <span className="pick__go">{t("choose")}</span>
             </span>
           </button>
         </div>

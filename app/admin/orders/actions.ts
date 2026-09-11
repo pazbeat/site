@@ -319,7 +319,8 @@ export async function manualFulfillAction(formData: FormData) {
 const editCertSchema = z.object({
   certificateId: z.string().min(1),
   toName: z.string().trim().min(1).max(80),
-  fromName: z.string().trim().min(1).max(80),
+  /// «От кого» в конструкторе необязательно — правка не должна требовать его.
+  fromName: z.string().trim().max(80),
   /// Лимит поздравления как в конструкторе (PRD §5.1)
   message: z.string().trim().max(120),
   deliveryContact: z.string().trim().min(1).max(120),

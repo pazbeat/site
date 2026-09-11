@@ -260,7 +260,10 @@ export async function syncCertificateToAltegio(
         amountKzt: payload.balanceKzt,
         companyId,
         programTitle,
-        buyerName: cert.fromName,
+        // «От кого» необязательно; пустое имя Altegio не примет, а `??` в
+        // операции пропустил бы "" — отдаём undefined, и там встанет
+        // «Клиент сайта».
+        buyerName: cert.fromName?.trim() || undefined,
         buyerEmail: cert.order.buyerEmail,
         buyerPhone:
           // Доставка теперь только на почту, телефон берём у покупателя

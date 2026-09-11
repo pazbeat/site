@@ -18,6 +18,16 @@ describe("orderSchema", () => {
     expect(orderSchema.safeParse(baseOrder).success).toBe(true);
   });
 
+  it("«От кого» необязательно — дарят и без подписи", () => {
+    for (const fromName of [undefined, "", "   "]) {
+      const parsed = orderSchema.safeParse({ ...baseOrder, fromName });
+      expect(parsed.success, JSON.stringify(fromName)).toBe(true);
+      if (parsed.success) expect(parsed.data.fromName).toBe("");
+    }
+    // «Кому» по-прежнему обязательно
+    expect(orderSchema.safeParse({ ...baseOrder, toName: "" }).success).toBe(false);
+  });
+
   it("принимает заказ без почты получателя — дарят сами", () => {
     // Покупатель часто не знает адрес того, кому дарит: сертификат уходит
     // ему самому, а он передаёт лично или пересылает.
