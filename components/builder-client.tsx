@@ -32,6 +32,8 @@ type Props = Readonly<{
    * не найдёт в CRM.
    */
   amountsBySalon: Record<number, number[]>;
+  /** Все продаваемые суммы сети — для шага «Подарок», до выбора филиала. */
+  allAmounts: number[];
   consentHtml: string;
   /** Предвыбор из query: ?option= / ?nominal= / ?type=nominal */
   initialOptionId?: number;
@@ -53,6 +55,15 @@ type Step = 0 | 1 | 2 | 3 | 4;
 /* v2: порядок шагов изменился (дизайн стал первым), и черновик хранит
    номер шага — старый ключ восстановил бы покупателя не на тот экран. */
 const DRAFT_KEY = "imbir-builder-draft-v2";
+
+/**
+ * Меньше восьми чисел в дугу не складываются: выходит не кривая, а
+ * перекошенный столбец. Филиал без маппинга в CRM отдаёт только карточные
+ * номиналы из админки — такому набору место в прежнем ряду плиток, и он там
+ * остался целиком, вместе с кнопкой «своя сумма».
+ */
+const WHEEL_MIN = 8;
+
 
 /** Снимок конструктора для сохранения черновика в localStorage. */
 type Draft = {
@@ -102,6 +113,7 @@ export function BuilderClient({
   designs,
   bounds,
   amountsBySalon,
+  allAmounts,
   consentHtml,
   initialOptionId,
   initialNominalId,
@@ -474,6 +486,244 @@ export function BuilderClient({
   const guests = (count: number) => tCommon("guests", { count });
   const hourUnit = tCommon("hour");
 
+  /**
+   * Колесо несёт ВЕСЬ продаваемый набор сети, а не четыре карточки из
+   * админки. Причина не декоративная: свободного ввода суммы в Altegio нет —
+   * под каждый номинал заведён свой товар, и заказ на сумму вне списка
+   * упирается в amount_not_available. Показать список целиком честнее, чем
+   * объяснять его строкой-подсказкой под полем ввода.
+   *
+   * Источник — allAmounts (объединение по сети), а НЕ availableAmounts:
+   * филиал спрашивается на шаге доставки, здесь salonId ещё null, набор
+   * филиала пуст — на нём колесо не появилось бы ни разу.
+   */
+  const wheelAmounts = ((): { amountKzt: number; label: string | null; text: string }[] => {
+    const byAmount = new Map(nominals.map((n) => [n.amountKzt, n] as const));
+    const source =
+      allAmounts.length > 0 ? allAmounts : nominals.map((n) => n.amountKzt);
+    return [...new Set(source)]
+      .filter((a) => a >= bounds.min && a <= bounds.max)
+      .sort((a, b) => a - b)
+      .map((amountKzt) => ({
+        amountKzt,
+        label: byAmount.get(amountKzt)?.label ?? null,
+        text: formatKzt(amountKzt),
+      }));
+  })();
+
+  /**
+   * −1 значит «выбранной суммы в списке нет»: покупатель набирает свою и она
+   * ещё не сошлась. Подменять −1 нулём нельзя — колесо подсветило бы 18 000 и
+   * объявило бы его выбранным скринридеру в тот момент, когда плашка на
+   * открытке показывает другое. Пусть лучше не выбрано ничего.
+   */
+  const selIdx = wheelAmounts.findIndex((w) => w.amountKzt === price);
+  /**
+   * Куда повёрнут диск. Когда выбранной суммы в списке нет (покупатель как
+   * раз набирает свою), диск показывает БЛИЖАЙШУЮ — иначе он прыгал бы на
+   * начало списка и спорил с плашкой на открытке. Это чистое вычисление, а
+   * не запомненное состояние: правка рефа во время рендера пережила бы не
+   * каждый повторный рендер, а эффект добавил бы лишний кадр.
+   *
+   * Выбранным при этом НЕ помечается ничего: aria-selected смотрит на selIdx,
+   * поэтому скринридер не объявит суммой подарка то, чего покупатель не
+   * выбирал.
+   */
+  const pos =
+    selIdx >= 0
+      ? selIdx
+      : wheelAmounts.reduce(
+          (best, w, i) =>
+            Math.abs(w.amountKzt - price) <
+            Math.abs(wheelAmounts[best]?.amountKzt ?? 0 - price)
+              ? i
+              : best,
+          0,
+        );
+  /** Одна остановка Tab на весь список; когда не выбрано ничего — первая. */
+  const tabIdx = selIdx >= 0 ? selIdx : 0;
+
+  const wheelRef = useRef<HTMLDivElement>(null);
+  const hubRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    y: number; from: number; pitch: number; at: number; moved: boolean;
+  } | null>(null);
+  /** Перетаскивание кончается кликом. Без этого флага он выбрал бы ту строку,
+   *  над которой случайно оказался курсор в конце жеста. */
+  const clickOffRef = useRef(false);
+
+  /** Числа геометрии читаются ИЗ CSS. Продублировать их в JS значит развести
+   *  вёрстку и жест при первой же правке радиуса или шага. */
+  const cssNum = (name: string, fallback: number) => {
+    const el = wheelRef.current;
+    if (!el) return fallback;
+    const v = parseFloat(getComputedStyle(el).getPropertyValue(name));
+    return Number.isFinite(v) ? v : fallback;
+  };
+
+  /** Где диск СЕЙЧАС, а не куда он ехал. Иначе разворот на полпути (End, через
+   *  сто миллисекунд Home) считает длительность по маршруту, которого уже нет,
+   *  и колесо почти полсекунды «едет никуда». */
+  const wheelPos = () => {
+    const hub = hubRef.current;
+    if (!hub) return pos;
+    const t = getComputedStyle(hub).transform;
+    if (!t || t === "none") return pos;
+    try {
+      const m = new DOMMatrixReadOnly(t);
+      return (-Math.atan2(m.b, m.a) * 180) / Math.PI / cssNum("--whl-step", 5);
+    } catch {
+      return pos;
+    }
+  };
+
+  const pickAmount = (amountKzt: number) => {
+    const n = nominals.find((x) => x.amountKzt === amountKzt) ?? null;
+    if (n) {
+      setNominalId(n.id);
+      setCustomAmount("");
+    } else {
+      // Сумма без карточки в админке: она продаётся, но отдельного номинала в
+      // админке под неё нет. Едет как «своя» — сервер всё равно перепроверит
+      // её через resolveOrderAmount.
+      setCustomAmount(String(amountKzt));
+    }
+    setCustomOpen(false);
+  };
+
+  const pickIndex = (i: number) => {
+    const w = wheelAmounts[i];
+    if (!w) return;
+    const el = wheelRef.current;
+    if (el) {
+      // Длительность считается от ПУТИ, а не от того, как часто нажимают:
+      // соседняя сумма доезжает за 0.2с, край списка за 0.45с. Одна
+      // длительность на обе роли не годится — 0.45с на соседнюю читается как
+      // залипшая кнопка, а 0.2с на двадцать пять позиций как рывок. Заодно
+      // это и есть ответ на удержание стрелки: шаг там всегда один, значит
+      // ход всегда короткий и жирное число не отстаёт от головки.
+      const d = Math.abs(i - wheelPos());
+      el.style.setProperty(
+        "--whl-dur",
+        `${Math.min(0.45, 0.14 + 0.08 * Math.sqrt(d)).toFixed(2)}s`,
+      );
+    }
+    pickAmount(w.amountKzt);
+  };
+
+  /** preventScroll обязателен: фокус ставится ДО того, как диск довернётся,
+   *  то есть на строку, которая физически лежит за пределами окна, и браузер
+   *  попытался бы подтянуть к ней страницу. */
+  const focusOpt = (i: number) =>
+    hubRef.current
+      ?.querySelector<HTMLElement>(`[data-i="${i}"]`)
+      ?.focus({ preventScroll: true });
+
+  const goTo = (i: number) => {
+    const j = Math.min(wheelAmounts.length - 1, Math.max(0, i));
+    pickIndex(j);
+    // Фокус переезжает вместе с выбором: иначе следующая стрелка придёт в
+    // узел с tabIndex=-1, который уже не выбран.
+    focusOpt(j);
+  };
+
+  const onWheelKey = (e: React.KeyboardEvent) => {
+    const jump: Record<string, number> = {
+      ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1,
+      PageUp: -5, PageDown: 5,
+    };
+    if (e.key in jump) {
+      e.preventDefault(); // иначе стрелки заодно прокрутят страницу
+      goTo(pos + jump[e.key]);
+      return;
+    }
+    if (e.key === "Home") { e.preventDefault(); goTo(0); return; }
+    if (e.key === "End") { e.preventDefault(); goTo(wheelAmounts.length - 1); return; }
+  };
+
+  /* Перетаскивание — ТОЛЬКО мышью. Пальцем страницу листают тем же движением,
+     и отобрать у него вертикаль (touch-action:none) значит менять СУММУ
+     ПОДАРКА случайным жестом при обычном пролистывании. Мышь страницу
+     перетаскиванием не листает, конфликта нет. */
+  const onWheelDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    clickOffRef.current = false;
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    dragRef.current = {
+      y: e.clientY,
+      from: wheelPos(),
+      pitch: cssNum("--whl-line", 40),
+      at: -1,
+      moved: false,
+    };
+    wheelRef.current?.style.setProperty("--whl-dur", "0s");
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onWheelMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dy = e.clientY - d.y;
+    // Порог: дрожание руки на обычном клике не должно крутить колесо.
+    if (!d.moved && Math.abs(dy) < 8) return;
+    d.moved = true;
+    const el = wheelRef.current;
+    el?.setAttribute("data-drag", "1");
+    const f = Math.min(
+      wheelAmounts.length - 1,
+      Math.max(0, d.from + dy / d.pitch),
+    );
+    // Значение ДРОБНОЕ — колесо идёт за курсором, а не защёлкивается шагами.
+    // Пишем прямо в DOM: React здесь не нужен, иначе это шестьдесят
+    // перерисовок в секунду и перезапуск анимации плашки на каждом кадре.
+    // --whl-drag перекрывает --whl-sel только на время жеста (см. --whl-at).
+    el?.style.setProperty("--whl-drag", String(f));
+    const near = Math.round(f);
+    if (near !== d.at) {
+      d.at = near;
+      hubRef.current
+        ?.querySelectorAll("[data-live]")
+        .forEach((n) => n.removeAttribute("data-live"));
+      hubRef.current
+        ?.querySelector(`[data-i="${near}"]`)
+        ?.setAttribute("data-live", "1");
+    }
+  };
+
+  const onWheelUp = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    const el = wheelRef.current;
+    el?.removeAttribute("data-drag");
+    if (!d || !d.moved) return;
+    // Доводка до целого: снимаем --whl-drag, и --whl-at падает обратно на
+    // --whl-sel, который React обновит в этом же кадре.
+    el?.style.setProperty("--whl-dur", ".24s");
+    el?.style.removeProperty("--whl-drag");
+    hubRef.current
+      ?.querySelectorAll("[data-live]")
+      .forEach((n) => n.removeAttribute("data-live"));
+    clickOffRef.current = true;
+    pickAmount(wheelAmounts[d.at >= 0 ? d.at : pos]?.amountKzt ?? 0);
+  };
+
+  /** Клик по пустому месту колеса выбирает БЛИЖАЙШУЮ сумму. Обратная задача
+   *  к посадке на дугу: y = R·sin(d·шаг). Без этого левая половина окна и
+   *  гаснущие крайние строки были бы мёртвой зоной, в которую всё равно
+   *  целятся. */
+  const onWheelClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest(".whl__opt")) return;
+    if (clickOffRef.current) { clickOffRef.current = false; return; }
+    const el = wheelRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const R = cssNum("--whl-r", 460);
+    const stepDeg = cssNum("--whl-step", 5);
+    const dy = e.clientY - (r.top + r.height / 2);
+    const d =
+      (Math.asin(Math.max(-1, Math.min(1, dy / R))) * 180) / Math.PI / stepDeg;
+    goTo(Math.round(pos + d));
+  };
+
   const stepValid = (s: Step): boolean => {
     switch (s) {
       case 0:
@@ -815,18 +1065,10 @@ export function BuilderClient({
                 </>
               ) : (
                 <>
-                  {/* Номиналы лентой, а не по одному под стрелками: суммы
-                      сравнивают между собой, и ради каждой следующей не должно
-                      быть отдельного нажатия. Карта несёт ВЫБРАННУЮ открытку —
-                      покупатель видит ровно то, что получит, а не безликий
-                      прямоугольник. */}
                   <div className="amt">
-                    {/* Сумма напечатана НА открытке, а не рядом с ней. Это и
-                        есть будущий сертификат: карта показывает ровно то,
-                        что получит адресат. Прежний веер был украшением,
-                        притворявшимся управлением — пять чисел не складываются
-                        в дугу, поворот мешал их читать, а огромное число сбоку
-                        повторяло уже выбранное. */}
+                    {/* Открытка и плашка — без изменений. Сумма напечатана НА подарке: это
+                        и есть «крупное число» из референса, второй раз крупно её показывать
+                        негде и незачем. */}
                     <div className="amt__stage">
                       <span className="amt__glow" aria-hidden="true" />
                       <span className="amt__card">
@@ -835,42 +1077,111 @@ export function BuilderClient({
                           <img src={design.imageUrl} alt={design.name} />
                         )}
                         <span className="amt__edge" aria-hidden="true" />
-                        {/* key={price}: React перемонтирует плашку при смене
-                            суммы, и она проявляется заново. */}
+                        {/* key={price}: плашка проявляется заново при смене суммы. Во время
+                            перетаскивания React не рендерится вовсе, поэтому мигать ей
+                            нечем — она обновляется один раз, когда жест кончился. */}
                         <span className="amt__plate" key={price}>
                           {price > 0 ? formatKzt(price) : t("s1OwnOpen")}
                         </span>
                       </span>
                     </div>
 
-                    <div className="amt__picker">
-                      {nominals.map((n) => (
+                    {wheelAmounts.length < WHEEL_MIN ? (
+                      /* Короткий набор — прежний ряд плиток целиком, вместе со «своей
+                         суммой». Это не заглушка: филиалы без маппинга в CRM (WJ, WE)
+                         реально сюда попадают, и терять на них свободный ввод нельзя. */
+                      <div className="amt__picker">
+                        {nominals.map((n) => (
+                          <button
+                            key={n.id}
+                            type="button"
+                            className="amt__chip"
+                            data-on={!customAmount && n.id === nominalId ? "1" : undefined}
+                            onClick={() => {
+                              setNominalId(n.id);
+                              setCustomAmount("");
+                              setCustomOpen(false);
+                            }}
+                          >
+                            {formatKzt(n.amountKzt)}
+                            {n.label && <small>{n.label}</small>}
+                          </button>
+                        ))}
                         <button
-                          key={n.id}
                           type="button"
-                          className="amt__chip"
-                          data-on={
-                            !customAmount && n.id === nominalId ? "1" : undefined
-                          }
-                          onClick={() => {
-                            setNominalId(n.id);
-                            setCustomAmount("");
-                            setCustomOpen(false);
-                          }}
+                          className="amt__chip amt__chip--own"
+                          data-on={customOpen ? "1" : undefined}
+                          onClick={() => setCustomOpen(true)}
                         >
-                          {formatKzt(n.amountKzt)}
-                          {n.label && <small>{n.label}</small>}
+                          {t("s1OwnOpen")}
                         </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="amt__chip amt__chip--own"
-                        data-on={customOpen ? "1" : undefined}
-                        onClick={() => setCustomOpen(true)}
-                      >
-                        {t("s1OwnOpen")}
-                      </button>
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="amt__side">
+                        <div
+                          ref={wheelRef}
+                          className="whl"
+                          style={{ "--whl-sel": pos } as React.CSSProperties}
+                          onPointerDown={onWheelDown}
+                          onPointerMove={onWheelMove}
+                          onPointerUp={onWheelUp}
+                          onPointerCancel={onWheelUp}
+                          onClick={onWheelClick}
+                        >
+                          {/* Читающая головка: бусина стоит НЕПОДВИЖНО у правого края, суммы
+                              едут под ней. Она и говорит, что выбор определяется положением
+                              диска, а не тем, куда последний раз попал палец. */}
+                          <span className="whl__head" aria-hidden="true" />
+
+                          <div
+                            ref={hubRef}
+                            className="whl__hub"
+                            role="listbox"
+                            aria-label={t("s1SelectAmount")}
+                            onKeyDown={onWheelKey}
+                          >
+                            {wheelAmounts.map((w, i) => (
+                              <button
+                                key={w.amountKzt}
+                                type="button"
+                                role="option"
+                                data-i={i}
+                                className="whl__opt"
+                                aria-selected={i === selIdx}
+                                /* Метка из админки читается вместе с суммой, а не отдельным
+                                   узлом после неё: «50 000 ₸, Хит». */
+                                aria-label={w.label ? `${w.text}, ${w.label}` : undefined}
+                                tabIndex={i === tabIdx ? 0 : -1}
+                                style={{ "--whl-i": i } as React.CSSProperties}
+                                onClick={() => {
+                                  if (clickOffRef.current) { clickOffRef.current = false; return; }
+                                  pickIndex(i);
+                                  focusOpt(i);
+                                }}
+                              >
+                                <span className="whl__num">
+                                  {w.label && <small className="whl__tag">{w.label}</small>}
+                                  {w.text}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Свободный ввод остаётся. Формально сумма и так ограничена списком
+                            колеса, но это единственный путь для Voice Control и Switch
+                            Control и единственный способ доехать до 200 000 одним действием,
+                            а не семью нажатиями. */}
+                        <button
+                          type="button"
+                          className="amt__own"
+                          data-on={customOpen ? "1" : undefined}
+                          onClick={() => setCustomOpen(true)}
+                        >
+                          {t("s1OwnOpen")}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {customOpen && (
@@ -889,9 +1200,11 @@ export function BuilderClient({
                         value={customAmount}
                         onChange={(e) => setCustomAmount(e.target.value)}
                       />
+                      {/* Подсказка и датлист берут тот же список, что и колесо: раньше они
+                          читали availableAmounts, который на этом шаге пуст, и молчали. */}
                       <datalist id="b-amounts">
-                        {availableAmounts.map((a) => (
-                          <option key={a} value={a} />
+                        {wheelAmounts.map((w) => (
+                          <option key={w.amountKzt} value={w.amountKzt} />
                         ))}
                       </datalist>
                       <p className="bld__hint">
@@ -902,9 +1215,7 @@ export function BuilderClient({
                       </p>
                       {customAmount && !customValid && (
                         <p className="mt-1.5 text-xs font-semibold text-brand-red">
-                          {custom !== null &&
-                          custom >= bounds.min &&
-                          custom <= bounds.max
+                          {custom !== null && custom >= bounds.min && custom <= bounds.max
                             ? t("errAmountUnavailable")
                             : t("errAmount", {
                                 min: formatKzt(bounds.min),
@@ -912,10 +1223,10 @@ export function BuilderClient({
                               })}
                         </p>
                       )}
-                      {availableAmounts.length > 0 && (
+                      {wheelAmounts.length > 0 && (
                         <p className="bld__hint">
                           {t("amountsHint", {
-                            list: availableAmounts.map(formatKzt).join(", "),
+                            list: wheelAmounts.map((w) => w.text).join(", "),
                           })}
                         </p>
                       )}

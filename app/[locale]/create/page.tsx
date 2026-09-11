@@ -102,6 +102,15 @@ export default async function CreatePage({
     ),
   );
 
+  // Полный список сумм — для шага «Подарок», где филиал ещё не выбран. Наборы
+  // у продаваемых филиалов одинаковы (сверено выгрузкой каталога), но берём
+  // объединение, а не первый попавшийся: если у какого-то филиала набор
+  // разойдётся, шаг покажет сумму, а не промолчит, а продаваемость этой суммы
+  // всё равно перепроверяется на шаге доставки, где филиал уже известен.
+  const allAmounts = [
+    ...new Set(Object.values(amountsBySalon).flat()),
+  ].sort((a, b) => a - b);
+
   return (
     <main className="flex-1">
       <div className="bld">
@@ -113,6 +122,7 @@ export default async function CreatePage({
           designs={designDtos}
           bounds={bounds}
           amountsBySalon={amountsBySalon}
+          allAmounts={allAmounts}
           consentHtml={consentDoc?.contentHtmlSanitized ?? ""}
           initialOptionId={initialOptionId}
           initialNominalId={initialNominalId}

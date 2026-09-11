@@ -2388,20 +2388,39 @@ h3,
   .prg__it[data-on="1"]{background:#fff;
         box-shadow:inset 0 0 0 1.5px var(--gold),0 14px 30px -18px rgba(37,8,47,.45)}
 
-  /* ── Выбор номинала ──────────────────────────────────────────────────
-     Сумма напечатана НА открытке, а под ней ряд номиналов. Это и есть
-     будущий сертификат: карта показывает ровно то, что получит адресат.
+  /* ── Выбор номинала: колесо ──────────────────────────────────────────
+     Двадцать шесть сумм ровным рядом плиток — прайс-лист: своё число ищут
+     перебором. Колесо даёт то, чего ряд не даёт, — ПОРЯДОК: 18 000 наверху,
+     200 000 внизу, рука знает, куда вести. Все суммы висят на ОДНОЙ
+     окружности, центр которой лежит за левым краем блока; каждой задан
+     единственный поворот вокруг этого центра, и положение по X, положение по
+     Y и сжатие шага к краям получаются сами — три следствия одной формулы, а
+     не три набора правил. Сумм может стать девятнадцать после правки в
+     админке, и ни строчки здесь менять не надо.
 
-     Прежние три попытки провалились по одной причине: они делали из выбора
-     суммы аттракцион. Карусель требовала нажатия на каждую следующую сумму,
-     лента заставляла листать, веер поворачивал числа так, что их приходилось
-     читать боком, и дублировал выбранное огромной цифрой сбоку. Числа
-     сравнивают глазами — значит они должны лежать ровным рядом.
+     ЧТО ИМЕННО НЕСЁТ ДУГА. Только положение. Глифы стоят горизонтально:
+     прошлая попытка поворачивала числа по касательной, и их приходилось
+     читать боком — за это её и сняли. Строка повёрнута вокруг общего центра,
+     а число внутри неё повёрнуто ровно на столько же обратно, вокруг своего
+     правого края (он и лежит на окружности). Оба поворота интерполируются
+     одинаково и гасят друг друга в каждый кадр, поэтому число не
+     заваливается даже на промежуточных.
 
      Суммы набраны Montserrat целиком: у Cormorant нет знака ₸.          */
+
   .amt{margin-top:clamp(1.25rem,3.5svh,2.25rem);
        display:flex;flex-direction:column;align-items:center;
        gap:clamp(1.5rem,4svh,2.5rem)}
+  @media (min-width:900px){
+    .amt{display:grid;grid-template-columns:minmax(0,1fr) auto;
+         align-items:center;justify-items:center;
+         gap:clamp(1.75rem,4vw,3.25rem);max-width:1020px;margin-inline:auto}
+  }
+  /* Колесо и ссылка «своя сумма» — одна колонка, иначе в гриде они станут
+     двумя ячейками и разъедутся. z-index поднимает их над дымкой .amt__glow:
+     полупрозрачные числа на золотом ореоле теряют контраст. */
+  .amt__side{position:relative;z-index:1;display:flex;flex-direction:column;
+       align-items:center;gap:12px}
 
   .amt__stage{position:relative;display:grid;place-items:center;width:100%;
        perspective:1500px}
@@ -2412,7 +2431,7 @@ h3,
   @keyframes amt-breathe{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.06);opacity:1}}
 
   .amt__card{position:relative;display:block;width:min(100%,600px);aspect-ratio:5/3;
-       border-radius:20px;overflow:hidden;
+       border-radius:20px;overflow:hidden;container-type:inline-size;
        transform:rotateX(4deg) rotateY(-5deg);
        transition:transform .6s cubic-bezier(.22,.61,.36,1);
        box-shadow:0 2px 4px rgba(37,8,47,.14),
@@ -2436,14 +2455,161 @@ h3,
        box-shadow:0 1px 0 rgba(255,255,255,.55) inset,
                   0 12px 26px -12px rgba(37,8,47,.6);
        animation:amt-plate .45s cubic-bezier(.22,.61,.36,1) both}
-  .amt__card{container-type:inline-size}
   @keyframes amt-plate{
     from{opacity:0;transform:translateY(10px) scale(.92)}
     to{opacity:1;transform:none}
   }
 
-  /* Ряд номиналов. Ровная строка, ничего не повёрнуто: числа сравнивают
-     глазами, а не разгадывают. */
+  /* ── Колесо ─────────────────────────────────────────────────────────── */
+  .whl{
+       /* Радиус до ПРАВОГО края строк. Он не зависит от ширины колонки:
+          центр задан через transform-origin, одинаковый у диска и у каждой
+          строки, поэтому сузили колонку — центр просто ушёл дальше влево, а
+          дуга та же. */
+       --whl-r:460px;
+       --whl-step:5deg;      /* угол между соседними суммами */
+       --whl-gone:5.2;       /* здесь строка исчезла совсем — и здесь же край окна */
+       --whl-hit:36px;       /* высота цели нажатия */
+       --whl-sel:0;          /* единственное, что меняет React */
+       --whl-dur:.3s;
+       --whl-ease:cubic-bezier(.22,.61,.36,1);
+       /* До сюда — полный контраст. Выведено из --whl-gone, а не вписано
+          отдельно: два независимых порога («уже не видно» и «ещё кликается»)
+          расходятся при первой же правке. */
+       --whl-solid:calc(var(--whl-gone) - .9);
+       /* Шаг по дуге в пикселях. Тоже выведен: перетаскивание читает его
+          отсюда, и правка радиуса или шага не разводит жест с вёрсткой.
+          Не поддержан tan() — значение станет мусором, JS возьмёт свои 40. */
+       --whl-line:calc(var(--whl-r) * tan(var(--whl-step)));
+       /* Во время перетаскивания позицию перекрывает --whl-drag, дробная.
+          Так React и жест не спорят за одну переменную: жест ставит свою,
+          на отпускании снимает — и значение падает обратно на React. */
+       --whl-at:var(--whl-drag,var(--whl-sel));
+       position:relative;flex:0 0 auto;
+       /* Ширина в пикселях, а не в процентах: родители — колонки, сжатые по
+          содержимому, и «100%» замыкалось само на себя, схлопывая окно вдвое.
+          Числа тогда обрезало слева. Величина посчитана: самое длинное число
+          78px + вылет по дуге 47px + гутер под бусину 20px + метка 40px. */
+       width:208px;
+       height:403px;
+       /* Высота окна ВЫВЕДЕНА из порога гашения: строка становится
+          прозрачной ровно там, где кончается окно. Поэтому маски нет вовсе —
+          ни одного композитного эффекта на каждый кадр поворота. Первая
+          строка — запасная на случай, если sin() не поддержан. */
+       height:calc(2 * var(--whl-r) * sin(var(--whl-gone) * var(--whl-step)));
+       /* Клип, а не маска: он снимает и попадания мышью с того, что уехало
+          из окна. Это и есть единственный ограничитель кликабельности —
+          отдельного порога pointer-events нет. */
+       overflow:clip;
+       /* Прокрутку страницы колесо НЕ отбирает. touch-action:none означал бы,
+          что палец, которым листают страницу, молча меняет сумму подарка;
+          цена случайного жеста здесь — цена сертификата. Пальцем выбирают
+          нажатием, мышью можно ещё и крутить. */
+       touch-action:pan-y}
+
+  /* Диск. ЕДИНСТВЕННЫЙ узел, который едет: все суммы идут как жёсткое тело,
+     рассинхронизироваться нечему, композитор получает один слой. Поворот до
+     −125° кладёт его коробку на открытку слева — поэтому кликов он не
+     принимает, они включены обратно только у самих строк. will-change стоит
+     постоянно осознанно: это один узел, который анимируется почти на каждое
+     действие, и без него первый кадр каждого поворота уходит на подъём слоя. */
+  .whl__hub{position:absolute;inset:0;pointer-events:none;
+       transform-origin:calc(100% - var(--whl-r)) 50%;
+       transform:rotate(calc(var(--whl-at) * var(--whl-step) * -1));
+       transition:transform var(--whl-dur) var(--whl-ease);
+       will-change:transform}
+
+  /* Строка. Поворот СТАТИЧЕСКИЙ — зависит только от номера суммы, не от
+     выбора, поэтому при смене выбора здесь ничего не пересчитывается.
+     padding-right — гутер под неподвижную бусину-головку. */
+  .whl__opt{all:unset;box-sizing:border-box;cursor:pointer;pointer-events:auto;
+       position:absolute;right:0;left:0;top:calc(50% - var(--whl-hit) / 2);
+       height:var(--whl-hit);display:flex;align-items:center;
+       /* Число прижато ВПРАВО. Вся геометрия исходит из того, что его правый
+          край лежит на окружности; при выключке влево (умолчание flex) оно
+          уезжало на ширину колонки, поворачивалось вокруг своего правого края
+          уже не в той точке и вылезало за левый край окна — цифры обрезало. */
+       justify-content:flex-end;
+       padding-right:20px;
+       transform-origin:calc(100% - var(--whl-r)) 50%;
+       transform:rotate(calc(var(--whl-i) * var(--whl-step)));
+       --whl-d:calc(var(--whl-i) - var(--whl-at));
+       /* abs() ещё свежий, max/min есть везде — это то же самое. */
+       --whl-ad:max(var(--whl-d),calc(var(--whl-d) * -1));
+       /* Гаснет только последняя строка с каждой стороны, уже наполовину
+          ушедшая за край. Всё, во что можно ткнуть, стоит на полной
+          непрозрачности: --ink-soft даёт 5.5:1 на фоне .bld, и это цены, а
+          не декор. */
+       opacity:clamp(0,calc((var(--whl-gone) - var(--whl-ad)) / (var(--whl-gone) - var(--whl-solid))),1);
+       transition:opacity var(--whl-dur) var(--whl-ease)}
+
+  /* Число. Выпрямляется обратным поворотом вокруг своего правого края — той
+     самой точки, что лежит на окружности. Заодно это делает цель нажатия
+     прямоугольником по осям экрана шириной ровно с число: у повёрнутой
+     строки во всю ширину колонки соседние мишени наезжали бы друг на друга
+     у левого края, и клик рядом с «18 000» выбирал бы «35 000». */
+  .whl__num{position:relative;display:block;white-space:nowrap;
+       font-family:var(--font-sans);
+       font-size:15px;font-weight:500;letter-spacing:-.01em;
+       font-variant-numeric:tabular-nums;
+       color:var(--ink-soft);
+       transform-origin:100% 50%;
+       transform:rotate(calc((var(--whl-at) - var(--whl-i)) * var(--whl-step)))
+                 scale(var(--whl-mag,1));
+       transition:transform var(--whl-dur) var(--whl-ease),
+                  color var(--whl-dur) var(--whl-ease)}
+
+  /* Выбранная — темнее и крупнее. Крупнее ИМЕННО масштабом: font-size гонит
+     перекладку текста каждый кадр и щёлкает в нулевой кадр, пока диск ещё
+     едет, а scale живёт в том же transform, что и выпрямление, и доезжает
+     вместе с ним. Вес не меняем: статические начертания Montserrat не
+     интерполируются, 700 щёлкнул бы посреди хода и дёрнул хвост числа.
+     data-live — то же состояние во время перетаскивания, когда React ещё
+     ничего не зафиксировал. */
+  .whl__opt[aria-selected="true"] .whl__num,
+  .whl__opt[data-live="1"] .whl__num{--whl-mag:1.3;color:var(--plum-950)}
+
+  /* Метка из админки («Хит») — абсолютной подписью слева, чтобы не двигать
+     само число и не менять цель нажатия. Живёт внутри выпрямленного числа,
+     поэтому стоит горизонтально вместе с ним. */
+  .whl__tag{position:absolute;right:100%;top:50%;margin:-.5em 8px 0 0;
+       font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+       color:var(--gold-dim)}
+
+  /* Головка. Стоит там, где окружность проходит через правый край строк, —
+     все суммы выключены вправо и целятся ровно в неё. */
+  .whl__head{position:absolute;right:6px;top:50%;width:6px;height:6px;
+       margin-top:-3px;border-radius:50%;pointer-events:none;
+       background:radial-gradient(circle at 35% 28%,var(--gold-hi),var(--gold) 72%);
+       box-shadow:0 0 12px rgba(182,146,68,.75)}
+
+  /* Кольцо фокуса — на выпрямленном числе, а не на строке: outline строится
+     по осям экрана и на повёрнутой строке превратился бы в огромный ромб
+     поверх соседей. */
+  .whl__opt:focus-visible{outline:none}
+  .whl__opt:focus-visible .whl__num{outline:2px solid var(--color-brand-purple);
+       outline-offset:5px;border-radius:6px}
+
+  /* Наведение меняет только цвет. Строка, растущая под курсором, уезжает
+     из-под него и начинает мигать между двумя состояниями. */
+  @media (hover:hover) and (pointer:fine){
+    .whl{cursor:grab}
+    .whl[data-drag="1"]{cursor:grabbing}
+    .whl__opt:hover .whl__num{color:var(--color-brand-purple)}
+  }
+
+  /* Своя сумма. Ссылка, но с полноценной целью нажатия: демотировав поле
+     ввода, мы сделали эту кнопку обязательным органом управления. */
+  .amt__own{all:unset;box-sizing:border-box;cursor:pointer;
+       display:inline-flex;align-items:center;min-height:44px;padding:0 14px;
+       border-radius:999px;font-size:13px;font-weight:700;color:var(--gold-dim);
+       text-decoration:underline;text-decoration-color:rgba(182,146,68,.35);
+       text-underline-offset:4px;
+       transition:color .25s var(--whl-ease,cubic-bezier(.22,.61,.36,1))}
+  .amt__own:hover,.amt__own[data-on="1"]{color:var(--color-brand-purple)}
+  .amt__own:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
+
+  /* ── Запасной ряд плиток: короткий набор и филиалы без маппинга в CRM ── */
   .amt__picker{display:flex;flex-wrap:wrap;justify-content:center;
        gap:clamp(8px,1.2vw,14px);max-width:760px}
   .amt__chip{all:unset;box-sizing:border-box;cursor:pointer;
@@ -2477,19 +2643,41 @@ h3,
 
   .amt__ownbox{max-width:420px;margin:0 auto;text-align:left}
 
-  @media (prefers-reduced-motion:reduce){
-    .amt__glow,.amt__plate{animation:none}
-    .amt__card{transition:none}
+  @media (max-width:559px){
+    /* Шаг по дуге 42.6px — это же и высота строки под палец. Уменьшать его
+       нельзя: цель нажатия считается от него и молча уйдёт под минимум. */
+    .whl{--whl-r:380px;--whl-step:6.4deg;--whl-gone:4.3;--whl-hit:36px;
+         width:188px;
+         height:351px;
+         height:calc(2 * var(--whl-r) * sin(var(--whl-gone) * var(--whl-step)))}
   }
 
-  /* Телефон лёжа — по ВЫСОТЕ, не по ширине. */
+  @media (prefers-reduced-motion:reduce){
+    /* Существующие правила блока сохранены намеренно: без них у
+       reduce-пользователя вернулись бы восьмисекундная пульсация ореола и
+       наклон открытки. */
+    .amt__glow,.amt__plate{animation:none}
+    .amt__card{transition:none}
+    /* Дуга — это раскладка, а не движение: гасим переход, геометрию не
+       трогаем, иначе человеку показали бы другой макет. Задержек здесь нет
+       ни одной (глобальное правило вверху файла обнуляет длительности, но не
+       задержки), и входной анимации тоже: панель шага перемонтируется на
+       каждом «Назад», и любая хореография входа переигрывалась бы заново. */
+    .whl__hub,.whl__opt,.whl__num,.amt__own{transition:none}
+  }
+
+  /* Телефон лёжа — по ВЫСОТЕ, не по ширине: по ширине альбомный телефон
+     попадает в планшетную ветку и получает окно на 351px при экране в 400. */
   @media (max-height:520px) and (orientation:landscape){
     .amt{gap:1rem}
     .amt__card{width:min(100%,330px);transform:none}
     .amt__chip{min-height:44px;padding:8px 16px;font-size:14px}
-  }
-
-  .bld__pricelink{display:block;text-align:center;margin-top:clamp(2rem,5svh,3rem);
+    .whl{--whl-r:300px;--whl-step:6.4deg;--whl-gone:3.4;--whl-hit:30px;
+         width:176px;
+         height:222px;
+         height:calc(2 * var(--whl-r) * sin(var(--whl-gone) * var(--whl-step)))}
+    .whl__num{font-size:13.5px}
+  }  .bld__pricelink{display:block;text-align:center;margin-top:clamp(2rem,5svh,3rem);
         font-size:13.5px;font-weight:600;color:var(--gold-dim);
         text-decoration:underline;text-decoration-color:rgba(182,146,68,.35);
         text-underline-offset:4px;transition:color .25s cubic-bezier(.22,.61,.36,1)}
