@@ -1339,13 +1339,15 @@ export function BuilderClient({
                       aria-live="polite"
                     >
                       <p className="stg__progname">{program.name}</p>
+                      {/* Описание — строкой сразу под названием, до цены: как
+                          у Apple «название, одна строка о главном, цена». */}
+                      {program.description && (
+                        <p className="stg__progdesc">{program.description}</p>
+                      )}
                       {option && (
                         <p className="stg__progprice">
                           {formatKzt(option.priceKzt)}
                         </p>
-                      )}
-                      {program.description && (
-                        <p className="stg__progdesc">{program.description}</p>
                       )}
                       {program.options.length > 1 && (
                         <div

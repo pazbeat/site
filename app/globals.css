@@ -2328,20 +2328,69 @@ h3,
 .stg[data-step="0"] .stg__orb{height:auto}
 
 /* ── Солнце шага «Подарок» ──────────────────────────────────────────────
-   Круг на этом шаге — солнце, суммы и программы — его лучи: от кромки к
-   каждой строке идёт тонкая линия, у выбранной — тёмная. Солнце — чистый
-   тёплый диск без короны и бликов: колючие лучи и глянец выглядели дёшево
-   (замечание заказчика 2026-09-11). Встаёт на шаге «Подарок» и гаснет
-   обратно в сиреневый круг на остальных. */
+   Круг на этом шаге — солнце, суммы и программы — его лучи. Солнце —
+   тот же пастельный сиреневый круг, что и на остальных шагах, только
+   светится: чёткий, но тихий край и лёгкое сиреневое дыхание вокруг —
+   круг почти растворён в белом фоне, как у референса. Цвет остаётся за
+   открыткой. Тепло появляется только вместе с выбором: к «трём часам», где
+   стоит выбранная строка, круг теплеет до шампани (фиолетовый→золото,
+   осветлённые), и по кромке проходит волосяная золотая дуга — там, откуда
+   уходят лучи. Пока ничего не выбрано — ровный сиреневый круг и пустая
+   бусина. Без бликов, без короны, без свечения золотом: колючие лучи,
+   глянец и плотный абрикосовый диск выглядели дёшево (замечания заказчика
+   2026-09-11).
+
+   Солнце непрозрачно и совпадает с сиреневым кругом по геометрии, поэтому
+   круг под ним трогать не нужно: на этом шаге его просто не видно, а при
+   уходе с шага солнце гаснет обратно в него. */
 .stg__sun{position:absolute;z-index:0;pointer-events:none;border-radius:50%;
      left:calc(var(--cx) - var(--D) / 2);top:calc(50% - var(--D) / 2);
      width:var(--D);height:var(--D);
-     background:radial-gradient(circle at 42% 38%,#fff3de 0%,#ffe6c2 55%,#fdd9a8 100%);
+     /* Низ чуть высветлен: туда падает тень открытки. */
+     background:linear-gradient(180deg,rgba(250,245,253,0) 50%,rgba(250,245,253,.7) 100%),
+                radial-gradient(circle at 42% 38%,#f7f0fd 0%,#f1e6fb 55%,#ecddf9 100%);
+     /* Дыхание вокруг: сходит на нет к ~1.16R — до подписей сумм не доходит. */
+     box-shadow:0 0 calc(var(--D) * .08) rgba(236,222,249,.6);
      opacity:0;transform:scale(.9);
      transition:opacity .5s var(--ui-ease),transform .8s var(--ui-spring),
                 left .8s var(--ui-spring),top .8s var(--ui-spring),width .8s var(--ui-spring),height .8s var(--ui-spring)}
 .stg[data-step="1"] .stg__sun{opacity:1;transform:scale(1)}
 .stg[data-step="0"] .stg__sun{display:none}
+
+/* Тепло (::before) и золотая дуга (::after) — слои во весь круг. Обрезаны
+   по кромке самим border-radius, маска для этого не нужна. */
+.stg__sun::before,.stg__sun::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+     transition:opacity .5s var(--ui-ease)}
+/* Тепло — только в правой части, у лучей: под открыткой круг остаётся
+   сиреневым, а шампань видна в серпе у кромки и в сегменте над открыткой.
+   Книзу тепло сходит на нет (маска ниже): туда падает тень открытки, и
+   шампань под сливовой тенью серела бы до бежевого. */
+.stg__sun::before{
+     background:linear-gradient(90deg,rgba(251,240,221,0) 45%,rgba(251,240,221,.55) 70%,
+                rgba(251,240,221,.9) 88%,#fbf0dd 100%)}
+/* Дуга: рамка в 1px из брендбука, лежит ровно на кромке (R). Конический
+   фильтр держит её в полную силу на «трёх часах» и сводит на нет к ±80° —
+   там же, где гаснут лучи; за открыткой и слева её нет вовсе. Без масок
+   дуги нет (иначе вышло бы полное золотое кольцо), а тепло остаётся
+   без спада книзу. */
+@supports (mask-image:conic-gradient(#000,#000)) or (-webkit-mask-image:conic-gradient(#000,#000)){
+  .stg__sun::before{-webkit-mask-image:linear-gradient(180deg,#000 58%,rgba(0,0,0,.5) 72%,transparent 88%);
+               mask-image:linear-gradient(180deg,#000 58%,rgba(0,0,0,.5) 72%,transparent 88%)}
+  .stg__sun::after{box-shadow:inset 0 0 0 1px rgba(182,146,68,.62);opacity:.78;
+       -webkit-mask-image:conic-gradient(transparent 0deg 10deg,rgba(0,0,0,.35) 30deg,rgba(0,0,0,.78) 52deg,#000 90deg,
+                          rgba(0,0,0,.78) 128deg,rgba(0,0,0,.35) 150deg,transparent 170deg 360deg);
+               mask-image:conic-gradient(transparent 0deg 10deg,rgba(0,0,0,.35) 30deg,rgba(0,0,0,.78) 52deg,#000 90deg,
+                          rgba(0,0,0,.78) 128deg,rgba(0,0,0,.35) 150deg,transparent 170deg 360deg)}
+}
+/* Ничего не выбрано — ни тепла, ни дуги: круг как на остальных шагах.
+   Первый выбор проявляет их за полсекунды — одна смена прозрачности, без
+   движения. (Без :has() они просто горят.) */
+.stg__orb:has(.dial[data-none]) .stg__sun::before,
+.stg__orb:has(.dial[data-none]) .stg__sun::after{opacity:0}
+/* Меньше движения: солнце и его слои меняются сразу, без переходов. */
+@media (prefers-reduced-motion:reduce){
+  .stg__sun,.stg__sun::before,.stg__sun::after{transition:none}
+}
 
 .stg__card{position:absolute;z-index:1;top:50%;left:calc(var(--ccx) - var(--cw) / 2);
      width:var(--cw);aspect-ratio:5/3;border-radius:clamp(10px,2.2cqi,20px);overflow:hidden;
@@ -2349,9 +2398,13 @@ h3,
      box-shadow:0 2px 4px rgba(37,8,47,.12),0 18px 30px -12px rgba(37,8,47,.2),
                 0 48px 66px -28px rgba(37,8,47,.26),0 100px 120px -60px rgba(37,8,47,.34);
      transition:left .8s var(--ui-spring),width .8s var(--ui-spring),
-                transform .8s var(--ui-spring),border-radius .8s var(--ui-spring);
+                transform .8s var(--ui-spring),border-radius .8s var(--ui-spring),box-shadow .8s var(--ui-spring);
      animation:stg-card .8s .1s var(--ui-spring) both}
 @keyframes stg-card{from{opacity:0;translate:-3cqi 0}}
+/* На солнце открытка лежит плашмя — тень короче и мягче: длинная тень
+   ложилась на нижнюю половину круга серой полосой. */
+.stg[data-step="1"] .stg__card{box-shadow:0 1px 2px rgba(37,8,47,.1),0 10px 20px -8px rgba(37,8,47,.16),
+     0 26px 44px -22px rgba(37,8,47,.2)}
 /* Каждый шаг круга открытка отзывается коротким кивком в сторону поворота —
    как щелчок колеса выбора под пальцем. Одно тихое движение, не больше:
    выбор здесь частый, и частое действие не должно заставлять ждать. Два
@@ -2446,11 +2499,12 @@ h3,
      animation-delay:calc(min(var(--ad),16) * 14ms)}
 /* Веер раскрывается из выбранной строки. */
 @keyframes dial-in{from{opacity:0;transform:rotate(calc(var(--sel) * var(--step) * 1deg))}}
-/* Луч от кромки солнца к строке: тонкая тёплая линия, у выбранной — тёмная
-   и во всю длину; под курсором луч дотягивается до строки. */
+/* Луч от кромки солнца к строке: волосяная линия фирменного золота, как
+   дуга на кромке; у выбранной — тёмная и во всю длину; под курсором луч
+   дотягивается до строки. */
 .dial__opt::before{content:"";position:absolute;top:50%;right:100%;margin:-.5px 6px 0 0;height:1px;
      width:calc(var(--gap) - 8px);pointer-events:none;transform-origin:right center;
-     background:rgba(214,150,70,.6);transform:scaleX(.5);opacity:.7;
+     background:rgba(182,146,68,.55);transform:scaleX(.5);opacity:.7;
      transition:transform .5s var(--ui-spring),opacity .3s var(--ui-ease)}
 .dial__opt[aria-selected="true"]::before{transform:scaleX(1);opacity:1;height:1.5px;margin-top:-.75px;
      background:var(--ui-ink)}
@@ -2516,10 +2570,12 @@ h3,
      font-size:clamp(2.1rem,11cqi,4.2rem);line-height:1;letter-spacing:-.01em;
      color:var(--ui-ink);text-wrap:balance}
 .stg__progname--empty{font-size:clamp(1.6rem,7cqi,2.6rem);font-style:italic;color:var(--ui-ink-3)}
-.stg__progprice{margin:.8rem 0 0;font-family:var(--font-sans),system-ui,sans-serif;font-weight:700;
+/* Описание программы — одна-две строки прямо под названием: что это за
+   программа, до того как смотреть на цену. */
+.stg__progdesc{margin:.7rem 0 0;font-size:16px;line-height:1.5;color:var(--ui-ink-2);max-width:40ch;
+     text-wrap:pretty;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.stg__progprice{margin:1rem 0 0;font-family:var(--font-sans),system-ui,sans-serif;font-weight:700;
      font-size:clamp(1.5rem,6.5cqi,2.3rem);letter-spacing:-.03em;color:var(--ui-ink)}
-.stg__progdesc{margin:.8rem 0 0;font-size:15px;line-height:1.55;color:var(--ui-ink-2);max-width:44ch;
-     display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .stg__prog .seg{margin-top:1.25rem}
 .seg--gap{margin-top:1.5rem}
 
