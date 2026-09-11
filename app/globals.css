@@ -1925,19 +1925,18 @@ h3,
   /* Шапка намеренно тихая: это шаг в покупке, а не главная страница.
      Предмет должен быть крупнее заголовка — иначе выбирают текст, а не карту. */
   .pick__head{text-align:center;margin-bottom:clamp(2rem,4svh,3rem)}
-  .pick__step{font-size:10px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;
-        color:var(--gold-dim);margin:0 0 10px}
-  .pick__title{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.75rem,3.4vw,2.5rem);
-         line-height:1.1;color:var(--plum-950);margin:0}
-  .pick__lede{font-size:14px;line-height:1.6;color:var(--ink-soft);max-width:44ch;
-        margin:10px auto 0}
+  .pick__step{font-size:15px;font-weight:500;letter-spacing:-.005em;color:var(--ui-ink-2);margin:0 0 8px}
+  .pick__title{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.9rem,3.6vw,2.7rem);
+         line-height:1.08;color:var(--ui-ink);margin:0}
+  .pick__lede{font-size:15px;line-height:1.55;color:var(--ui-ink-2);max-width:44ch;
+        margin:12px auto 0}
 
   .pick__scene{display:grid;grid-template-columns:1fr;gap:clamp(3rem,7svh,4rem);
          justify-items:center}
 
   .pick__opt{all:unset;display:block;cursor:pointer;width:100%;max-width:400px;
        border-radius:20px;-webkit-tap-highlight-color:transparent}
-  .pick__opt:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:10px}
+  .pick__opt:focus-visible{outline:2px solid var(--ui-ink);outline-offset:10px}
 
   /* display:block обязателен: это <span>, а у строчного элемента нет ни
      ширины, ни высоты — сцена схлопывалась в ноль, и карты не рисовались. */
@@ -1975,15 +1974,15 @@ h3,
 
   /* Сумма набрана Montserrat целиком: у Cormorant нет знака ₸. */
   .pick__plate{position:absolute;left:18px;bottom:16px;padding:7px 13px;border-radius:999px;
-         font-weight:600;font-size:13px;color:var(--plum-950);
+         font-weight:600;font-size:13px;color:var(--ui-ink);
          background:rgba(255,255,255,.92);backdrop-filter:blur(4px);
          box-shadow:0 8px 18px -8px rgba(37,8,47,.4)}
-  .pick__plate--small{font-size:10px;letter-spacing:.09em;text-transform:uppercase}
+  .pick__plate--small{font-size:12px}
 
   .pick__cap{display:block;margin-top:34px;text-align:center}
   .pick__name{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.6rem,3vw,2.1rem);
-        line-height:1.05;color:var(--color-brand-purple);display:block}
-  .pick__note{display:block;font-size:13.5px;line-height:1.6;color:var(--ink-soft);max-width:34ch;
+        line-height:1.05;color:var(--ui-ink);display:block}
+  .pick__note{display:block;font-size:14px;line-height:1.55;color:var(--ui-ink-2);max-width:34ch;
         margin:9px auto 0;min-height:3.2em}
 
   @media (hover:hover) and (pointer:fine){
@@ -2125,105 +2124,128 @@ h3,
   }
 
 /* ─── Конструктор: сцена ──────────────────────────────────────────────────
-   Устроено как подарочные карты Золотого Яблока — по трём снимкам
-   заказчика. Композиция держится на одном большом круге: открытка лежит на
-   нём, суммы и программы идут по его краю циферблатом, поля стоят справа.
-   Слева крупный номер шага и путь столбиком, справа внизу круглая «Далее».
-   Прежний каркас (полоса сегментов сверху, открытка в колонке, дуга сумм
-   сама по себе) ни к чему не привязывал части друг к другу и читался
-   набором блоков, а не одной вещью.
+   Композиция — по подарочным картам Золотого Яблока (снимки заказчика): один
+   большой круг, открытка на нём, суммы и программы лучами по его краю,
+   решение шага справа, путь колонкой слева.
 
-   Цвета и шрифты — брендбук, а не референс: круг сиреневый вместо
-   персикового, золото — тонкая кромка круга и бусина выбора, заголовки
-   Cormorant. Суммы — Montserrat: у Cormorant нет знака ₸.              */
+   Отделка — по Apple (просьба заказчика 2026-09-11: «в стиле Apple, красиво,
+   стильно, минималистично»; сверено с Human Interface Guidelines). Белый фон,
+   тёмная типографика обычным регистром, поля и плитки выбора в тонкой
+   рамке со скруглением 12px, одна тёмная кнопка на экран, второстепенное —
+   ссылкой со «›» или серой плашкой, движение — пружиной. Глянец, градиентный
+   текст, круглые кнопки и фиолетовые заливки заказчик отверг («колхозно»,
+   «ни о чём») — их здесь нет намеренно.
 
-/* Подложка: мягкие пятна фирменных цветов вместо ровной заливки. На
-   псевдоэлементе с pointer-events:none — перекраска большого слоя на каждый
-   кадр прокрутки съедает кадры на телефоне.
+   Шрифты — брендбук: заголовки Cormorant, остальное Montserrat. Суммы и
+   названия филиалов — Montserrat: у Cormorant нет знака ₸ и казахских букв. */
+
+/* ── Токены ──────────────────────────────────────────────────────────────
+   Контраст на белом посчитан, а не на глаз: ink 17:1; ink-2 5.6:1 (текст до
+   17px требует 4.5); ink-3 3.8:1 — только подсказка в пустом поле и
+   неактивное; рамка поля и плитки 3.2:1 (граница элемента управления
+   требует 3:1 — светлее её уже не видно). Золото текстом — затемнённое
+   фирменное, 6.2:1. */
+:root{
+  --ui-ink:#2b0b3d;--ui-ink-2:#6f6477;--ui-ink-3:#8a8091;
+  --ui-line:rgba(43,11,61,.12);--ui-ctl:#978d9e;
+  --ui-fill:rgba(43,11,61,.05);--ui-fill-2:rgba(43,11,61,.09);
+  --ui-act:#2b0b3d;--ui-act-hover:#43215a;--ui-gold:var(--gold-dim);
+  --ui-focus:0 0 0 4px rgba(77,41,93,.2);
+  /* Движение. Всё, что едет по экрану, — пружиной без отскока: быстрый
+     старт и долгое мягкое торможение, как в iOS. С лёгким отскоком — только
+     круг сумм: он «защёлкивается» на выборе, как колесо выбора. Кривые —
+     отклик пружины, снятый в linear(); где его нет, остаются кубические
+     того же характера. */
+  --ui-spring:cubic-bezier(.2,.85,.25,1);
+  --ui-spring-b:cubic-bezier(.3,1.3,.5,1);
+  --ui-ease:cubic-bezier(.25,.1,.25,1);
+}
+@supports (transition-timing-function:linear(0,1)){
+  :root{
+    --ui-spring:linear(0, 0.006 1.3%, 0.022 2.5%, 0.046 3.8%, 0.082 5.3%, 0.163 8%, 0.367 14.2%, 0.46 17.3%, 0.557 20.8%, 0.636 24%, 0.703 27.3%, 0.763 30.8%, 0.813 34.3%, 0.855 38%, 0.895 42.5%, 0.927 47.5%, 0.951 53%, 0.969 59.3%, 0.99 74.3%, 1);
+    --ui-spring-b:linear(0, 0.007 1.3%, 0.03 2.8%, 0.067 4.3%, 0.115 5.8%, 0.22 8.5%, 0.478 14.5%, 0.59 17.3%, 0.691 20%, 0.778 22.8%, 0.852 25.5%, 0.911 28.2%, 0.961 31.3%, 0.997 34.3%, 1.02 37%, 1.034 39.8%, 1.043 42.8%, 1.046 46.3%, 1.042 51.5%, 1.015 65.8%, 1.004 74.8%, 0.998 87%, 1);
+  }
+}
+
+/* Подложка: белая, с одним пастельным пятном — сочность даёт открытка, а не
+   фон. На псевдоэлементе с pointer-events:none: перекраска большого слоя на
+   каждый кадр прокрутки съедает кадры на телефоне.
    overflow-x:clip, а не hidden: hidden сделал бы раздел прокручиваемым
    контейнером и сломал бы липкую открытку. Нужен из-за круга и открытки —
    они выходят за колонку и давали бы горизонтальную прокрутку. */
-.bld{position:relative;isolation:isolate;overflow-x:clip;
-     background:radial-gradient(120% 80% at 50% 0%,#fff 0%,var(--plum-50) 55%,#f6eefb 100%)}
+.bld{position:relative;isolation:isolate;overflow-x:clip;background:#fff}
 @supports not (overflow:clip){.bld{overflow-x:hidden}}
-.bld::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
-     background:
-       radial-gradient(38% 42% at 14% 22%,rgba(110,47,146,.10),transparent 70%),
-       radial-gradient(34% 38% at 86% 30%,rgba(236,201,120,.16),transparent 72%),
-       radial-gradient(60% 50% at 50% 100%,rgba(77,41,93,.06),transparent 70%)}
+.bld::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:
+       radial-gradient(46% 60% at 70% 48%,rgba(242,232,252,.8),rgba(242,232,252,0) 72%),
+       radial-gradient(30% 40% at 8% 20%,rgba(242,232,252,.5),rgba(242,232,252,0) 70%)}
 
 /* ── Каркас ──────────────────────────────────────────────────────────────
    С 1100px путь стоит колонкой слева, как у референса; уже — строкой над
    сценой, иначе колонка съедала бы место у круга. */
 .stg{position:relative;display:grid;gap:clamp(1rem,2.5svh,1.75rem) clamp(2rem,3.4vw,4rem);
-     max-width:1600px;margin-inline:auto}
+     max-width:1600px;margin-inline:auto;color:var(--ui-ink)}
 @media (min-width:1100px){.stg{grid-template-columns:200px minmax(0,1fr);align-items:start}}
 
 /* ── Номер шага и путь ───────────────────────────────────────────────── */
 .stg__rail{display:flex;align-items:flex-end;gap:1rem 1.25rem;min-width:0}
-.stg__num{margin:0;flex:none;font-family:var(--font-sans),system-ui,sans-serif;font-weight:800;
-     font-size:clamp(2.75rem,6vw,6.25rem);line-height:.84;letter-spacing:-.055em;
-     color:var(--plum-950);font-variant-numeric:tabular-nums;
-     animation:stg-num-fwd .6s var(--ease-out) both}
+.stg__num{margin:0;flex:none;font-family:var(--font-sans),system-ui,sans-serif;font-weight:500;
+     font-size:clamp(2.6rem,3.8vw,3.9rem);line-height:.84;letter-spacing:-.03em;
+     color:var(--ui-ink);
+     animation:stg-num-fwd .7s var(--ui-spring) both}
 /* Номер шага прокручивается, как барабан счётчика: вперёд — снизу вверх,
    назад — сверху вниз. */
-@keyframes stg-num-fwd{from{opacity:0;transform:translateY(.32em)}}
-@keyframes stg-num-back{from{opacity:0;transform:translateY(-.32em)}}
+@keyframes stg-num-fwd{from{opacity:0;transform:translateY(.3em)}}
+@keyframes stg-num-back{from{opacity:0;transform:translateY(-.3em)}}
 .stg[data-dir="back"] .stg__num{animation-name:stg-num-back}
 .stg__path{min-width:0;flex:1}
-.stg__cur{margin:0 0 9px;font-size:11px;font-weight:700;letter-spacing:.16em;
-     text-transform:uppercase;color:var(--plum-950)}
-.stg__steps{--row:30px;position:relative;list-style:none;margin:0;padding:0}
+.stg__cur{margin:0 0 9px;font-size:15px;font-weight:600;letter-spacing:-.01em;color:var(--ui-ink)}
+.stg__steps{--row:32px;position:relative;list-style:none;margin:0;padding:0}
 .stg__step button{all:unset;box-sizing:border-box;display:block;max-width:100%;cursor:pointer;
-     font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
-     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(43,23,52,.38);
-     transition:color .3s var(--ease-out)}
-.stg__step[data-state="done"] button{color:rgba(43,23,52,.66)}
-.stg__step[data-state="on"] button{color:var(--plum-950)}
+     font-size:14px;font-weight:500;letter-spacing:-.005em;
+     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ui-ink-3);
+     transition:color .2s var(--ui-ease)}
+.stg__step[data-state="done"] button{color:var(--ui-ink-2)}
+.stg__step[data-state="on"] button{color:var(--ui-ink)}
 .stg__step button:disabled{cursor:default}
-.stg__step button:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:4px;border-radius:4px}
-@media (hover:hover){.stg__step[data-state="done"] button:hover{color:var(--color-brand-purple)}}
+.stg__step button:focus-visible{outline:2px solid var(--ui-ink);outline-offset:4px;border-radius:4px}
+@media (hover:hover){.stg__step[data-state="done"] button:hover{color:var(--ui-ink)}}
 
 /* Узко: пять черт под номером, подпись только у текущего шага. */
 @media (max-width:1099px){
   .stg__steps{display:flex;gap:6px}
   .stg__step{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
   .stg__step::before{content:"";display:block;height:3px;border-radius:999px;
-       background:rgba(77,41,93,.12);transition:background .5s var(--ease-out)}
-  .stg__step[data-state="done"]::before{background:var(--gold)}
-  .stg__step[data-state="on"]::before{background:linear-gradient(90deg,var(--gold),var(--gold-hi) 55%,rgba(77,41,93,.12) 55%)}
+       background:var(--ui-fill-2);transition:background .4s var(--ui-ease)}
+  .stg__step[data-state="done"]::before{background:var(--ui-ink)}
+  .stg__step[data-state="on"]::before{background:linear-gradient(90deg,var(--ui-ink) 50%,var(--ui-fill-2) 50%)}
   /* Подписи всех шагов — только там, где им хватает места. */
-  .stg__step button{font-size:10px;letter-spacing:.1em}
+  .stg__step button{font-size:12.5px}
 }
 @media (min-width:700px) and (max-width:1099px){.stg__cur{display:none}}
 @media (max-width:699px){
   .stg__step button{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 }
 
-/* Широко: колонка слева, нить пути — серая на всю длину, золотая до
-   текущего шага; бусина на текущем. */
+/* Широко: колонка слева; нить пути серая на всю длину и тёмная до текущего
+   шага, точка на текущем. */
 @media (min-width:1100px){
   .stg__rail{position:sticky;top:clamp(1.5rem,5svh,3rem);flex-direction:column;
        align-items:flex-start;gap:clamp(1.5rem,4svh,2.5rem)}
   .stg__cur{display:none}
   .stg__path{width:100%}
   .stg__steps{padding-left:22px}
-  .stg__step button{letter-spacing:.12em}
   .stg__steps::before,.stg__steps::after{content:"";position:absolute;left:3px;
        top:calc(var(--row) / 2);width:1px;pointer-events:none}
-  .stg__steps::before{height:calc(4 * var(--row));background:rgba(77,41,93,.14)}
-  .stg__steps::after{height:calc(var(--at) * var(--row));
-       background:linear-gradient(var(--gold-hi),var(--gold));
-       transition:height .6s var(--ease-out)}
+  .stg__steps::before{height:calc(4 * var(--row));background:var(--ui-line)}
+  .stg__steps::after{height:calc(var(--at) * var(--row));background:var(--ui-ink);
+       transition:height .7s var(--ui-spring)}
   .stg__step{position:relative;height:var(--row);display:flex;align-items:center}
   .stg__step::before{content:"";position:absolute;z-index:1;left:-22px;top:50%;
        width:7px;height:7px;margin-top:-3.5px;border-radius:50%;
-       background:var(--plum-50);box-shadow:inset 0 0 0 1px rgba(77,41,93,.3);
-       transition:background .4s var(--ease-out),box-shadow .4s var(--ease-out),transform .4s var(--ease-out)}
-  .stg__step[data-state="done"]::before{background:var(--gold);box-shadow:none}
-  .stg__step[data-state="on"]::before{transform:scale(1.2);
-       background:linear-gradient(180deg,var(--gold-hi),var(--gold));
-       box-shadow:0 0 0 4px rgba(236,201,120,.25),0 0 12px rgba(182,146,68,.7)}
+       background:#fff;box-shadow:inset 0 0 0 1px var(--ui-ctl);
+       transition:background .3s var(--ui-ease),box-shadow .3s var(--ui-ease),transform .5s var(--ui-spring)}
+  .stg__step[data-state="done"]::before{background:var(--ui-ink);box-shadow:none}
+  .stg__step[data-state="on"]::before{background:var(--ui-ink);box-shadow:0 0 0 4px rgba(43,11,61,.1);transform:scale(1.15)}
 }
 
 /* ── Сцена шага ──────────────────────────────────────────────────────────
@@ -2233,25 +2255,26 @@ h3,
      grid-template-columns:minmax(0,1fr);grid-template-areas:"title" "visual" "content" "nav"}
 .stg__title{grid-area:title;margin:0;font-family:var(--font-display),Georgia,serif;font-weight:500;
      font-size:clamp(2rem,3.5vw,3.35rem);line-height:1.04;letter-spacing:-.012em;
-     color:var(--plum-950);text-wrap:balance;animation:stg-in-fwd .5s var(--ease-out) both}
+     color:var(--ui-ink);text-wrap:balance;animation:stg-in-fwd .7s var(--ui-spring) both}
 /* Направление перехода: «Далее» вводит шаг справа, «Назад» — слева. Без
    него путь назад выглядел бы как ещё один шаг вперёд. */
-@keyframes stg-in-fwd{from{opacity:0;transform:translateX(32px)}}
-@keyframes stg-in-back{from{opacity:0;transform:translateX(-32px)}}
+@keyframes stg-in-fwd{from{opacity:0;transform:translateX(24px)}}
+@keyframes stg-in-back{from{opacity:0;transform:translateX(-24px)}}
 .stg[data-dir="back"] .stg__title{animation-name:stg-in-back}
 .stg__visual{grid-area:visual;min-width:0;container-type:inline-size}
 .stg__content{grid-area:content;min-width:0;container-type:inline-size}
-/* Решение шага входит каскадом — строка за строкой, а не стеной. */
-.stg__content > *,.stg__content > .fld > *{animation:stg-in-fwd .5s var(--ease-out) both}
+/* Решение шага входит строка за строкой, а не стеной. Шаг задержки мелкий:
+   каскад должен читаться, но не заставлять ждать. */
+.stg__content > *,.stg__content > .fld > *{animation:stg-in-fwd .7s var(--ui-spring) both}
 .stg[data-dir="back"] .stg__content > *,
 .stg[data-dir="back"] .stg__content > .fld > *{animation-name:stg-in-back}
 .stg__content > .fld{animation:none}
-.stg__content > :nth-child(2),.stg__content > .fld > :nth-child(2){animation-delay:.05s}
-.stg__content > :nth-child(3),.stg__content > .fld > :nth-child(3){animation-delay:.1s}
-.stg__content > :nth-child(4),.stg__content > .fld > :nth-child(4){animation-delay:.15s}
-.stg__content > .fld > :nth-child(5){animation-delay:.2s}
-.stg__content > .fld > :nth-child(6){animation-delay:.25s}
-.stg__content > .fld > :nth-child(n+7){animation-delay:.3s}
+.stg__content > :nth-child(2),.stg__content > .fld > :nth-child(2){animation-delay:.04s}
+.stg__content > :nth-child(3),.stg__content > .fld > :nth-child(3){animation-delay:.08s}
+.stg__content > :nth-child(4),.stg__content > .fld > :nth-child(4){animation-delay:.12s}
+.stg__content > .fld > :nth-child(5){animation-delay:.16s}
+.stg__content > .fld > :nth-child(6){animation-delay:.2s}
+.stg__content > .fld > :nth-child(n+7){animation-delay:.24s}
 .stg__nav{grid-area:nav;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;
      gap:.75rem clamp(1rem,2.5vw,2rem)}
 
@@ -2275,14 +2298,14 @@ h3,
 /* ── Круг и открытка ─────────────────────────────────────────────────────
    Геометрия задана от ширины визуала (cqi), а не окна: колонка меняет
    ширину от шага к шагу, и круг с открыткой переезжают вместе с ней —
-   плавно, потому что узлы одни и те же. */
-/* Диаметр ограничен и шириной колонки, и высотой экрана: на ноутбуке с
+   плавно, потому что узлы одни и те же.
+   Диаметр ограничен и шириной колонки, и высотой экрана: на ноутбуке с
    невысоким экраном круг от одной ширины выходил бы за нижний край. Всё
    остальное — открытка, высота сцены — считается от диаметра. */
 .stg__orb{position:relative;--step:8;
      --D:min(74cqi,60svh);--cx:56cqi;--cw:calc(var(--D) * 1.19);--ccx:calc(var(--cx) - var(--D) * .135);
      --tilt:-5deg;--gap:clamp(12px,3cqi,26px);
-     height:calc(var(--D) * 1.14);transition:height .8s var(--ease-out)}
+     height:calc(var(--D) * 1.14);transition:height .8s var(--ui-spring)}
 .stg[data-step="1"] .stg__orb{--D:min(56cqi,62svh);--cx:35cqi;--cw:calc(var(--D) * .96);
      --ccx:calc(var(--cx) - var(--D) * .07);--tilt:0deg;--gap:clamp(20px,4.6cqi,40px);
      height:calc(var(--D) * 1.64)}
@@ -2292,89 +2315,61 @@ h3,
   .stg[data-step="1"] .stg__orb{--D:min(58cqi,56svh);--cx:33cqi;height:calc(var(--D) * 1.2 + 90px)}
 }
 
+/* Круг — пастельный, почти растворён в фоне, как у референса. */
 .stg__circle{position:absolute;z-index:0;pointer-events:none;border-radius:50%;
      left:calc(var(--cx) - var(--D) / 2);top:calc(50% - var(--D) / 2);
      width:var(--D);height:var(--D);
-     background:radial-gradient(circle at 32% 26%,#fffaff 0%,#f5e9fa 38%,#ecdaf3 72%,#e3ccee 100%);
-     box-shadow:inset 0 0 0 1px rgba(182,146,68,.3),
-                inset 0 -40px 70px -40px rgba(110,47,146,.2),
-                0 50px 90px -50px rgba(77,41,93,.42);
-     transition:left .8s var(--ease-out),top .8s var(--ease-out),
-                width .8s var(--ease-out),height .8s var(--ease-out);
-     animation:stg-orb .9s var(--ease-out) both}
-@keyframes stg-orb{from{opacity:0;transform:scale(.88)}}
-/* Орбита циферблата: тонкая золотая окружность, по которой ходит бусина. */
-.stg__circle::after{content:"";position:absolute;inset:calc(var(--gap) * -.45);border-radius:50%;
-     box-shadow:inset 0 0 0 1px rgba(182,146,68,.34);opacity:0;transition:opacity .6s var(--ease-out)}
-.stg[data-step="1"] .stg__circle::after{opacity:1}
+     background:radial-gradient(circle at 42% 38%,#f7f0fd 0%,#f1e6fb 55%,#ecddf9 100%);
+     transition:left .8s var(--ui-spring),top .8s var(--ui-spring),
+                width .8s var(--ui-spring),height .8s var(--ui-spring);
+     animation:stg-orb .9s var(--ui-spring) both}
+@keyframes stg-orb{from{opacity:0;transform:scale(.94)}}
 .stg[data-step="0"] .stg__circle{display:none}
 .stg[data-step="0"] .stg__orb{height:auto}
 
 /* ── Солнце шага «Подарок» ──────────────────────────────────────────────
-   По просьбе заказчика круг на этом шаге — солнце, а суммы и программы —
-   его лучи: от кромки к каждой строке идёт золотой луч, выбранный горит.
-   Солнце встаёт на шаге «Подарок» и гаснет обратно в сиреневый круг на
-   остальных. Корона вокруг — мягкие лучи: она медленно плывёт сама и
-   поворачивается вслед за кругом сумм (вполовину медленнее — так видна
-   глубина), так что каждый поворот колеса виден по всему солнцу. */
+   Круг на этом шаге — солнце, суммы и программы — его лучи: от кромки к
+   каждой строке идёт тонкая линия, у выбранной — тёмная. Солнце — чистый
+   тёплый диск без короны и бликов: колючие лучи и глянец выглядели дёшево
+   (замечание заказчика 2026-09-11). Встаёт на шаге «Подарок» и гаснет
+   обратно в сиреневый круг на остальных. */
 .stg__sun{position:absolute;z-index:0;pointer-events:none;border-radius:50%;
      left:calc(var(--cx) - var(--D) / 2);top:calc(50% - var(--D) / 2);
      width:var(--D);height:var(--D);
-     background:radial-gradient(circle at 40% 35%,#fffdf6 0%,#fff1cc 18%,#fbdd96 42%,#f2c36a 68%,#e2a64b 100%);
-     box-shadow:inset 0 0 0 1px rgba(255,255,255,.6),inset 0 -30px 60px -30px rgba(176,112,32,.35),
-                0 0 44px 8px rgba(247,205,110,.55),0 0 120px 36px rgba(240,200,110,.32);
-     opacity:0;transform:scale(.7);
-     transition:opacity .6s var(--ease-out),transform .9s cubic-bezier(.3,1.32,.5,1),
-                left .8s var(--ease-out),top .8s var(--ease-out),width .8s var(--ease-out),height .8s var(--ease-out)}
+     background:radial-gradient(circle at 42% 38%,#fff3de 0%,#ffe6c2 55%,#fdd9a8 100%);
+     opacity:0;transform:scale(.9);
+     transition:opacity .5s var(--ui-ease),transform .8s var(--ui-spring),
+                left .8s var(--ui-spring),top .8s var(--ui-spring),width .8s var(--ui-spring),height .8s var(--ui-spring)}
 .stg[data-step="1"] .stg__sun{opacity:1;transform:scale(1)}
 .stg[data-step="0"] .stg__sun{display:none}
-.stg__sun::before{content:"";position:absolute;inset:-26%;border-radius:50%;
-     background:repeating-conic-gradient(from 0deg,rgba(248,214,132,.7) 0deg 1.1deg,rgba(248,214,132,0) 2.4deg 6deg);
-     /* closest-side: 100% — половина стороны короны; кромка солнца при
-        inset -26% приходится на 0.5/0.76 ≈ 66%. Внутри кромки — пусто,
-        иначе лучи легли бы поверх самого солнца. */
-     -webkit-mask:radial-gradient(circle closest-side,transparent 65%,#000 67%,#000 78%,transparent 100%);
-             mask:radial-gradient(circle closest-side,transparent 65%,#000 67%,#000 78%,transparent 100%);
-     transform:rotate(calc(var(--sel,0) * var(--step) * -.5deg));
-     transition:transform var(--dial-dur,.6s) cubic-bezier(.3,1.32,.5,1);
-     animation:sun-drift 120s linear infinite}
-@keyframes sun-drift{to{rotate:360deg}}
-/* Тёплое сияние дышит — солнце живое, даже когда круг стоит. */
-.stg__sun::after{content:"";position:absolute;inset:-14%;border-radius:50%;
-     background:radial-gradient(circle closest-side,rgba(255,232,170,0) 76%,rgba(255,226,150,.75) 81%,rgba(255,232,170,0) 100%);
-     animation:sun-breathe 5s ease-in-out infinite}
-@keyframes sun-breathe{0%,100%{opacity:.55;scale:1}50%{opacity:1;scale:1.06}}
-/* Каждый шаг круга солнце отзывается коротким толчком, открытка на нём —
-   кивком в сторону поворота. Два одинаковых кадра под разными именами:
-   смена имени перезапускает анимацию на каждый шаг. */
-@keyframes sun-pulse-a{40%{scale:1.035}}
-@keyframes sun-pulse-b{40%{scale:1.035}}
-.stg__orb[data-tick="a"] .stg__sun{animation:sun-pulse-a .5s var(--ease-out)}
-.stg__orb[data-tick="b"] .stg__sun{animation:sun-pulse-b .5s var(--ease-out)}
-@keyframes card-nod-up-a{40%{translate:0 -8px;rotate:-.8deg}}
-@keyframes card-nod-up-b{40%{translate:0 -8px;rotate:-.8deg}}
-@keyframes card-nod-down-a{40%{translate:0 8px;rotate:.8deg}}
-@keyframes card-nod-down-b{40%{translate:0 8px;rotate:.8deg}}
-.stg__orb[data-tick="a"][data-pdir="up"] .stg__card{animation:card-nod-up-a .55s var(--ease-out)}
-.stg__orb[data-tick="b"][data-pdir="up"] .stg__card{animation:card-nod-up-b .55s var(--ease-out)}
-.stg__orb[data-tick="a"][data-pdir="down"] .stg__card{animation:card-nod-down-a .55s var(--ease-out)}
-.stg__orb[data-tick="b"][data-pdir="down"] .stg__card{animation:card-nod-down-b .55s var(--ease-out)}
-/* На солнце орбита бусины — светлая, а не золотая: золото на золоте тонет. */
-.stg[data-step="1"] .stg__circle::after{box-shadow:inset 0 0 0 1px rgba(226,166,75,.45)}
 
 .stg__card{position:absolute;z-index:1;top:50%;left:calc(var(--ccx) - var(--cw) / 2);
      width:var(--cw);aspect-ratio:5/3;border-radius:clamp(10px,2.2cqi,20px);overflow:hidden;
      container-type:inline-size;transform:translateY(-50%) rotate(var(--tilt));
-     box-shadow:0 2px 4px rgba(37,8,47,.14),0 18px 30px -12px rgba(37,8,47,.22),
-                0 48px 66px -28px rgba(37,8,47,.28),0 100px 120px -60px rgba(37,8,47,.38);
-     transition:left .8s var(--ease-out),width .8s var(--ease-out),
-                transform .8s var(--ease-out),border-radius .8s var(--ease-out);
-     animation:stg-card .8s .1s var(--ease-out) both}
-@keyframes stg-card{from{opacity:0;translate:-4cqi 0}}
+     box-shadow:0 2px 4px rgba(37,8,47,.12),0 18px 30px -12px rgba(37,8,47,.2),
+                0 48px 66px -28px rgba(37,8,47,.26),0 100px 120px -60px rgba(37,8,47,.34);
+     transition:left .8s var(--ui-spring),width .8s var(--ui-spring),
+                transform .8s var(--ui-spring),border-radius .8s var(--ui-spring);
+     animation:stg-card .8s .1s var(--ui-spring) both}
+@keyframes stg-card{from{opacity:0;translate:-3cqi 0}}
+/* Каждый шаг круга открытка отзывается коротким кивком в сторону поворота —
+   как щелчок колеса выбора под пальцем. Одно тихое движение, не больше:
+   выбор здесь частый, и частое действие не должно заставлять ждать. Два
+   одинаковых кадра под разными именами: смена имени перезапускает
+   анимацию. Первым в списке стоит stg-card — иначе въезд открытки
+   проигрывался бы заново при уходе с шага. */
+@keyframes card-nod-up-a{40%{translate:0 -3px}}
+@keyframes card-nod-up-b{40%{translate:0 -3px}}
+@keyframes card-nod-down-a{40%{translate:0 3px}}
+@keyframes card-nod-down-b{40%{translate:0 3px}}
+.stg__orb[data-tick="a"][data-pdir="up"] .stg__card{animation:stg-card .8s .1s var(--ui-spring) both,card-nod-up-a .45s var(--ui-spring)}
+.stg__orb[data-tick="b"][data-pdir="up"] .stg__card{animation:stg-card .8s .1s var(--ui-spring) both,card-nod-up-b .45s var(--ui-spring)}
+.stg__orb[data-tick="a"][data-pdir="down"] .stg__card{animation:stg-card .8s .1s var(--ui-spring) both,card-nod-down-a .45s var(--ui-spring)}
+.stg__orb[data-tick="b"][data-pdir="down"] .stg__card{animation:stg-card .8s .1s var(--ui-spring) both,card-nod-down-b .45s var(--ui-spring)}
 .stg__card img{display:block;width:100%;height:100%;object-fit:cover}
 /* Кромка вместо рамки: свет сверху-слева, тень снизу-справа. */
 .stg__edge{position:absolute;inset:0;border-radius:inherit;pointer-events:none;
-     box-shadow:inset 1px 1px 0 rgba(255,255,255,.5),inset -1px -1.5px 0 rgba(37,8,47,.32)}
+     box-shadow:inset 1px 1px 0 rgba(255,255,255,.5),inset -1px -1.5px 0 rgba(37,8,47,.3)}
 
 /* Подпись на открытке. Плотная и высокая: у открыток бренда снизу часто
    своя крупная надпись, и лёгкий градиент оставлял имя лежать прямо на ней.
@@ -2383,7 +2378,7 @@ h3,
      padding:18cqi 6cqi 5cqi;color:#fff;font-size:clamp(10px,2.4cqi,15px);
      background:linear-gradient(to top,var(--color-brand-purple) 0%,var(--color-brand-purple) 42%,
                 rgba(77,41,93,.9) 70%,transparent 100%);
-     animation:stg-panel .5s var(--ease-out) both}
+     animation:stg-panel .6s var(--ui-spring) both}
 @keyframes stg-panel{from{opacity:0;transform:translateY(12px)}}
 .stg__prow{display:flex;align-items:baseline;justify-content:space-between;gap:1em;min-width:0}
 .stg__prow--end{align-items:flex-end}
@@ -2407,11 +2402,11 @@ h3,
    Строки дальше ~54° от выбранной гаснут, к ~78° исчезают совсем, а дальше
    80° схлопываются в точку (scale) — иначе невидимые строки над кругом
    ловили бы клики. Всё считается в CSS от --i и --sel: JS знает только
-   номер выбранного. */
-/* Шаг между строками и толщина строки связаны: высота кнопки равна
+   номер выбранного.
+
+   Шаг между строками и толщина строки связаны: высота кнопки равна
    расстоянию до соседа у внутреннего края, поэтому кнопки не перекрываются,
-   и промах пальцем не выбирает соседнюю сумму (раньше строка была выше шага,
-   и нижний край каждой суммы принадлежал следующей). Под палец — телефон,
+   и промах пальцем не выбирает соседнюю сумму. Под палец — телефон,
    планшет, iPad — шаг крупнее: строк видно меньше, зато до соседа ≥ 40px. */
 .dial{--R:calc(var(--D) / 2);--line:calc((var(--R) + var(--gap)) * var(--step) * .017453);
      position:absolute;z-index:2;left:var(--cx);top:50%;width:0;height:0;
@@ -2429,12 +2424,12 @@ h3,
        --cw:calc(var(--D) * .9);--ccx:calc(var(--cx) - var(--D) * .05);
        height:calc(var(--D) * 1.64)}
 }
-/* Круг поворачивается с «щелчком»: чуть проходит мимо и возвращается, как
-   настоящий переключатель. Переход прерываемый — новый выбор посреди хода
-   подхватывает круг с того места, где он есть. */
+/* Круг поворачивается пружиной с лёгким отскоком: чуть проходит мимо и
+   встаёт на место, как колесо выбора. Переход прерываемый — новый выбор
+   посреди хода подхватывает круг с того места, где он есть. */
 .dial__hub{position:absolute;inset:0;
      transform:rotate(calc(var(--sel) * var(--step) * -1deg));
-     transition:transform var(--dial-dur,.6s) cubic-bezier(.3,1.32,.5,1)}
+     transition:transform var(--dial-dur,.6s) var(--ui-spring-b)}
 .dial__opt{all:unset;box-sizing:border-box;cursor:pointer;position:absolute;
      left:calc(var(--R) + var(--gap));top:calc(var(--line) / -2);height:var(--line);
      display:flex;align-items:center;white-space:nowrap;
@@ -2444,313 +2439,309 @@ h3,
      --ad:max(var(--d),calc(var(--d) * -1));
      opacity:clamp(0,calc((78 - var(--ad) * var(--step)) / 24),1);
      scale:clamp(0,calc((78 - var(--ad) * var(--step)) / 2),1);
-     color:rgb(43 23 52 / calc(.84 - min(var(--ad),6) * .05));
-     transition:opacity var(--dial-dur,.6s) var(--ease-out),scale var(--dial-dur,.6s) var(--ease-out),
-                color .2s;
-     animation:dial-in .7s var(--ease-out) backwards;
-     animation-delay:calc(min(var(--ad),16) * 16ms)}
-/* Луч от кромки солнца к строке. Выбранный — длиннее, толще и светится;
-   под курсором луч дотягивается до строки. */
-.dial__opt::before{content:"";position:absolute;top:50%;right:100%;margin:-1px 6px 0 0;height:2px;
-     width:calc(var(--gap) - 8px);border-radius:2px;pointer-events:none;transform-origin:right center;
-     background:linear-gradient(90deg,rgba(236,180,88,.95),rgba(248,214,132,.3));
-     transform:scaleX(.55);opacity:.7;
-     transition:transform .45s var(--ease-out),opacity .45s var(--ease-out),box-shadow .45s var(--ease-out)}
-.dial__opt[aria-selected="true"]::before{transform:scaleX(1);opacity:1;height:3px;margin-top:-1.5px;
-     box-shadow:0 0 10px rgba(245,190,90,.95)}
-@media (hover:hover) and (pointer:fine){.dial__opt:hover::before{transform:scaleX(.9);opacity:1}}
+     color:rgb(43 11 61 / calc(.84 - min(var(--ad),6) * .05));
+     transition:opacity var(--dial-dur,.6s) var(--ui-spring),scale var(--dial-dur,.6s) var(--ui-spring),
+                color .2s var(--ui-ease);
+     animation:dial-in .8s var(--ui-spring) backwards;
+     animation-delay:calc(min(var(--ad),16) * 14ms)}
 /* Веер раскрывается из выбранной строки. */
 @keyframes dial-in{from{opacity:0;transform:rotate(calc(var(--sel) * var(--step) * 1deg))}}
+/* Луч от кромки солнца к строке: тонкая тёплая линия, у выбранной — тёмная
+   и во всю длину; под курсором луч дотягивается до строки. */
+.dial__opt::before{content:"";position:absolute;top:50%;right:100%;margin:-.5px 6px 0 0;height:1px;
+     width:calc(var(--gap) - 8px);pointer-events:none;transform-origin:right center;
+     background:rgba(214,150,70,.6);transform:scaleX(.5);opacity:.7;
+     transition:transform .5s var(--ui-spring),opacity .3s var(--ui-ease)}
+.dial__opt[aria-selected="true"]::before{transform:scaleX(1);opacity:1;height:1.5px;margin-top:-.75px;
+     background:var(--ui-ink)}
+@media (hover:hover) and (pointer:fine){.dial__opt:hover::before{transform:scaleX(.9);opacity:1}}
 .dial__txt{display:inline-block;transform-origin:0 50%;
      transform:scale(var(--mag,calc(1 + max(0,1.6 - var(--ad)) * .07)));
-     font-weight:500;font-variant-numeric:tabular-nums;
-     transition:transform var(--dial-dur,.6s) var(--ease-out),translate .25s var(--ease-out)}
-.dial__opt[aria-selected="true"]{color:var(--plum-950)}
-/* Выбранная строка прибавляет с лёгкой пружиной. */
+     font-weight:500;
+     transition:transform var(--dial-dur,.6s) var(--ui-spring),translate .3s var(--ui-spring)}
+.dial__opt[aria-selected="true"]{color:var(--ui-ink)}
+/* Выбранная строка прибавляет в размере той же пружиной, что и круг. */
 .dial__opt[aria-selected="true"] .dial__txt{--mag:1.28;font-weight:700;
-     transition:transform .45s cubic-bezier(.34,1.56,.64,1),translate .25s var(--ease-out)}
+     transition:transform .5s var(--ui-spring-b),translate .3s var(--ui-spring)}
 /* Строка под курсором чуть выдвигается наружу по своему лучу. Двигается
    текст внутри, а не сама кнопка: сдвиг кнопки уводил бы её из-под курсора у
    внутреннего края, наведение слетало бы, и строка дёргалась бы туда-сюда.
    translate текста живёт в повёрнутой системе строки — значит, вдоль луча. */
-@media (hover:hover) and (pointer:fine){.dial__opt:hover .dial__txt{translate:6px 0}}
-.dial__opt:active .dial__txt{translate:3px 0}
+@media (hover:hover) and (pointer:fine){.dial__opt:hover .dial__txt{translate:5px 0}}
+.dial__opt:active .dial__txt{translate:2px 0}
 /* Длинное название программы переносится на вторую строку, а не режется
    многоточием: «Чудесное о…» на телефоне не прочесть. Толщины строки на
-   две строки хватает — она равна шагу между соседями. */
-/* width:max-content обязателен: у строки круга нулевой контейнер, и без него
+   две строки хватает — она равна шагу между соседями.
+   width:max-content обязателен: у строки круга нулевой контейнер, и без него
    текст переносился бы на каждом пробеле, даже когда помещается. */
 .dial[data-kind="program"] .dial__txt{width:max-content;
      max-width:calc((100cqi - var(--cx) - var(--R) - var(--gap) - 8px) / 1.16);
      white-space:normal;line-height:1.12;text-wrap:balance;overflow:hidden;
      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .dial[data-kind="program"] .dial__opt[aria-selected="true"] .dial__txt{--mag:1.16}
-.dial__tag{margin-left:.55em;font-size:.6em;font-weight:700;letter-spacing:.16em;
-     text-transform:uppercase;color:var(--gold-dim)}
+/* Метка «хит» — как «Новинка» у Apple: мелко, обычным регистром, цветом. */
+.dial__tag{margin-left:.5em;font-size:.72em;font-weight:600;letter-spacing:0;
+     text-transform:capitalize;color:var(--ui-gold)}
 .dial__opt:focus-visible{outline:none}
-.dial__opt:focus-visible .dial__txt{outline:2px solid var(--color-brand-purple);outline-offset:4px;border-radius:4px}
-@media (hover:hover){.dial__opt:hover{color:var(--color-brand-purple)}}
-/* Бусина на «трёх часах» — неподвижная читающая головка. */
+.dial__opt:focus-visible .dial__txt{outline:2px solid var(--ui-ink);outline-offset:4px;border-radius:4px}
+@media (hover:hover){.dial__opt:hover{color:var(--ui-ink)}}
+/* Бусина на «трёх часах» — неподвижная читающая головка: тёмная точка, как
+   «•» перед суммой у референса. Пока ничего не выбрано — пустое кольцо и
+   ни одна строка не выглядит выбранной: сумму покупатель выбирает сам. */
 .dial__head{position:absolute;left:calc(var(--R) + var(--gap) * .45);top:0;
-     width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;
-     background:linear-gradient(180deg,var(--gold-hi),var(--gold));
-     box-shadow:0 0 0 4px rgba(236,201,120,.22),0 0 14px rgba(182,146,68,.75)}
-.dial[data-none] .dial__head{background:var(--plum-50);box-shadow:inset 0 0 0 1.5px var(--gold);
-     animation:dial-breathe 2.4s ease-in-out infinite}
-/* Пока ничего не выбрано, бусина дышит — зовёт нажать. Бусина стоит между
-   двумя строками: ни одна не выглядит выбранной. */
-@keyframes dial-breathe{0%,100%{transform:scale(1);box-shadow:inset 0 0 0 1.5px var(--gold),0 0 0 0 rgba(236,201,120,0)}
-     50%{transform:scale(1.35);box-shadow:inset 0 0 0 1.5px var(--gold),0 0 0 6px rgba(236,201,120,.22)}}
-/* Выбор отзывается кругом от бусины — как капля по воде. */
-.dial__ping{position:absolute;left:calc(var(--R) + var(--gap) * .45);top:0;width:8px;height:8px;
-     margin:-4px 0 0 -4px;border-radius:50%;pointer-events:none;opacity:0;
-     box-shadow:0 0 0 1.5px var(--gold);animation:dial-ping .7s var(--ease-out)}
-@keyframes dial-ping{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(5.5)}}
+     width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--ui-ink);
+     transition:background .25s var(--ui-ease),box-shadow .25s var(--ui-ease)}
+.dial[data-none] .dial__head{background:#fff;box-shadow:inset 0 0 0 1.5px var(--ui-ink)}
 
 /* ── Правая колонка шага «Подарок» ─────────────────────────────────────
-   Кегль суммы — от ширины колонки: «200 000 ₸» должна влезать целиком. */
-.stg__big{margin:0;font-family:var(--font-sans),system-ui,sans-serif;font-weight:800;
+   Кегль суммы — от ширины колонки: «200 000 ₸» должна влезать целиком.
+   Цифры пропорциональные: у Montserrat табличная «1» с засечкой-подставкой
+   и в крупном кегле читается как пишущая машинка. Табличные — только там,
+   где цифры стоят столбцом. */
+.stg__big{margin:0;font-family:var(--font-sans),system-ui,sans-serif;font-weight:700;
      font-size:clamp(2.4rem,20cqi,6.4rem);line-height:.92;letter-spacing:-.045em;
-     color:var(--plum-950);white-space:nowrap;font-variant-numeric:tabular-nums}
-/* Сумма въезжает с той стороны, куда повернули круг: к большей — снизу,
-   к меньшей — сверху. Правило стоит ПОСЛЕ каскада шага и перебивает его. */
-@keyframes amt-up{from{opacity:0;transform:translateY(.34em);filter:blur(6px)}}
-@keyframes amt-down{from{opacity:0;transform:translateY(-.34em);filter:blur(6px)}}
-.stg .stg__content > .stg__big,.stg .stg__content > .stg__prog{animation:amt-up .45s var(--ease-out) both}
+     color:var(--ui-ink);white-space:nowrap}
+/* Сумма сменяется, как цифры в iOS: новая въезжает из размытия с той
+   стороны, куда повернули круг, — к большей снизу, к меньшей сверху.
+   Правило стоит ПОСЛЕ каскада шага и перебивает его. */
+@keyframes amt-up{from{opacity:0;transform:translateY(.3em);filter:blur(5px)}}
+@keyframes amt-down{from{opacity:0;transform:translateY(-.3em);filter:blur(5px)}}
+.stg .stg__content > .stg__big,.stg .stg__content > .stg__prog{animation:amt-up .55s var(--ui-spring) both}
 .stg .stg__content > .stg__big[data-dir="down"],.stg .stg__content > .stg__prog[data-dir="down"]{animation-name:amt-down}
 /* Ничего не выбрано: бледный прочерк держит место суммы, чтобы выбор не
    сдвигал раскладку. */
-.stg__big--empty{color:rgba(43,23,52,.16)}
-.stg__lede{margin:1.1rem 0 0;font-size:14px;line-height:1.6;color:var(--ink-soft);max-width:36ch}
+.stg__big--empty{color:rgba(43,11,61,.14)}
+.stg__lede{margin:1rem 0 0;font-size:15px;line-height:1.55;color:var(--ui-ink-2);max-width:36ch}
 .stg__progname{margin:0;font-family:var(--font-display),Georgia,serif;font-weight:500;
      font-size:clamp(2.1rem,11cqi,4.2rem);line-height:1;letter-spacing:-.01em;
-     color:var(--plum-950);text-wrap:balance}
-.stg__progname--empty{font-size:clamp(1.6rem,7cqi,2.6rem);font-style:italic;color:rgba(43,23,52,.4)}
-.stg__progprice{margin:.8rem 0 0;font-family:var(--font-sans),system-ui,sans-serif;font-weight:800;
-     font-size:clamp(1.5rem,6.5cqi,2.3rem);letter-spacing:-.03em;color:var(--plum-950);
-     font-variant-numeric:tabular-nums}
-.stg__progdesc{margin:.8rem 0 0;font-size:14px;line-height:1.6;color:var(--ink-soft);max-width:44ch;
+     color:var(--ui-ink);text-wrap:balance}
+.stg__progname--empty{font-size:clamp(1.6rem,7cqi,2.6rem);font-style:italic;color:var(--ui-ink-3)}
+.stg__progprice{margin:.8rem 0 0;font-family:var(--font-sans),system-ui,sans-serif;font-weight:700;
+     font-size:clamp(1.5rem,6.5cqi,2.3rem);letter-spacing:-.03em;color:var(--ui-ink)}
+.stg__progdesc{margin:.8rem 0 0;font-size:15px;line-height:1.55;color:var(--ui-ink-2);max-width:44ch;
      display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .stg__prog .seg{margin-top:1.25rem}
 .seg--gap{margin-top:1.5rem}
 
-.stg__links{display:flex;flex-wrap:wrap;gap:.7rem 1.5rem;margin-top:1.75rem}
-.stg__link{all:unset;cursor:pointer;padding-bottom:3px;font-size:11px;font-weight:700;
-     letter-spacing:.14em;text-transform:uppercase;color:var(--gold-dim);
-     border-bottom:1px solid rgba(182,146,68,.5);transition:color .25s,border-color .25s}
-.stg__link:hover{color:var(--color-brand-purple);border-color:var(--color-brand-purple)}
-.stg__link:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:4px;border-radius:2px}
+/* Второстепенные действия — ссылки со «›», как «Подробнее ›» у Apple.
+   Отступ по вертикали с отрицательным полем: зона нажатия ≥ 44px, а
+   раскладка не раздувается. */
+.stg__links{display:flex;flex-wrap:wrap;gap:.25rem 1.75rem;margin-top:1.5rem}
+.stg__link{all:unset;cursor:pointer;padding:12px 0;margin:-12px 0;font-size:15px;font-weight:500;
+     letter-spacing:-.005em;color:var(--color-brand-purple);transition:color .2s var(--ui-ease)}
+.stg__link::after{content:"\00a0›"}
+.stg__link:hover{color:var(--ui-ink);text-decoration:underline;text-underline-offset:3px}
+.stg__link:focus-visible{outline:2px solid var(--ui-ink);outline-offset:2px;border-radius:4px}
 
 /* ── Поля ────────────────────────────────────────────────────────────────
-   Как у референса: без коробки, одна линия снизу. На фокусе по линии
-   прочерчивается золото. Кегль 18px: меньше 16 iOS Safari увеличивает
-   страницу на фокусе поля и обратно не отъезжает. */
-.fld{display:flex;flex-direction:column;gap:clamp(1.5rem,3.4svh,2.1rem)}
+   Как в формах Apple: подпись над полем обычным регистром, поле — белая
+   плашка в тонкой рамке, на фокусе рамка темнеет и появляется мягкое
+   кольцо. Кегль 17px: меньше 16 iOS Safari увеличивает страницу на фокусе
+   поля и обратно не отъезжает. */
+.fld{display:flex;flex-direction:column;gap:clamp(1.25rem,3svh,1.75rem)}
 .fld__it{min-width:0}
-.fld__label{display:block;margin-bottom:6px;font-size:11px;font-weight:700;letter-spacing:.14em;
-     text-transform:uppercase;color:rgba(43,23,52,.55);transition:color .25s var(--ease-out)}
-/* Подпись поля золотится, пока в нём курсор, — видно, что сейчас заполняют. */
-.fld__it:focus-within > .fld__label{color:var(--gold-dim)}
+.fld__label{display:block;margin-bottom:8px;font-size:15px;font-weight:500;letter-spacing:-.005em;
+     color:var(--ui-ink)}
+.fld__req{margin-left:2px;color:var(--color-brand-red)}
+.fld__opt{font-weight:400;color:var(--ui-ink-2)}
 /* Раскрытое поздравление выезжает сверху вниз. */
 @keyframes fld-reveal{from{opacity:0;transform:translateY(-8px)}}
-.stg .stg__content > .fld > .fld__reveal{animation:fld-reveal .4s var(--ease-out) both}
-.fld__req{color:var(--color-brand-red)}
-.fld__opt{font-weight:500;letter-spacing:.02em;text-transform:none;color:rgba(43,23,52,.42)}
-.fld__input{display:block;width:100%;box-sizing:border-box;margin:0;padding:10px 0 12px;
-     border:0;border-radius:0;outline:none;background-color:transparent;
-     font:inherit;font-size:18px;font-weight:500;line-height:1.35;color:var(--ink);
-     background-image:linear-gradient(var(--gold),var(--gold)),linear-gradient(rgba(77,41,93,.24),rgba(77,41,93,.24));
-     background-size:0% 2px,100% 1px;background-position:0 100%,0 100%;background-repeat:no-repeat;
-     transition:background-size .45s var(--ease-out)}
-.fld__input:focus{background-size:100% 2px,100% 1px}
-.fld__input::placeholder{color:rgba(43,23,52,.3);font-weight:400}
-.fld__input--area{min-height:92px;resize:vertical;line-height:1.5}
-.fld__hint{margin:8px 0 0;font-size:12.5px;line-height:1.55;color:var(--ink-soft)}
+.stg .stg__content > .fld > .fld__reveal{animation:fld-reveal .5s var(--ui-spring) both}
+.fld__input{display:block;width:100%;box-sizing:border-box;margin:0;min-height:52px;padding:13px 16px;
+     border:1px solid var(--ui-ctl);border-radius:12px;outline:none;background:#fff;
+     font:inherit;font-size:17px;font-weight:500;line-height:1.4;color:var(--ui-ink);
+     transition:border-color .2s var(--ui-ease),box-shadow .2s var(--ui-ease)}
+@media (hover:hover){.fld__input:hover{border-color:var(--ui-ink-2)}}
+.fld__input:focus{border-color:var(--ui-ink);box-shadow:var(--ui-focus)}
+.fld__input::placeholder{color:var(--ui-ink-3);font-weight:400}
+.fld__input[aria-invalid="true"]{border-color:var(--color-brand-red)}
+.fld__input--area{min-height:112px;resize:vertical;line-height:1.5}
+.fld__hint{margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--ui-ink-2)}
 .fld__hint--end{text-align:right}
-.fld__err{margin:8px 0 0;font-size:12.5px;font-weight:600;color:var(--color-brand-red)}
-/* «Добавить поздравление +» — строка с линией снизу, как у референса. */
+.fld__err{margin:8px 0 0;font-size:13px;font-weight:500;color:var(--color-brand-red)}
+/* «Добавить поздравление +» — серая плашка во всю ширину, как строка
+   «Добавить…» в настройках iOS: второстепенное действие, но на виду. */
 .fld__add{all:unset;box-sizing:border-box;cursor:pointer;display:flex;justify-content:space-between;
-     align-items:center;width:100%;padding:14px 0;border-bottom:1px solid rgba(77,41,93,.24);
-     font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--plum-950)}
-.fld__add span{font-size:24px;font-weight:300;line-height:1;transition:transform .35s var(--ease-out)}
-.fld__add:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:4px}
-@media (hover:hover){.fld__add:hover span{transform:rotate(90deg)}}
+     align-items:center;width:100%;min-height:52px;padding:0 16px;border-radius:12px;
+     font-size:15px;font-weight:500;letter-spacing:-.005em;color:var(--ui-ink);background:var(--ui-fill);
+     transition:background-color .2s var(--ui-ease),transform .2s var(--ui-spring)}
+.fld__add span{font-size:22px;font-weight:400;line-height:1;transition:transform .45s var(--ui-spring)}
+.fld__add:focus-visible{outline:2px solid var(--ui-ink);outline-offset:3px}
+.fld__add:active{transform:scale(.99)}
+@media (hover:hover){.fld__add:hover{background:var(--ui-fill-2)}.fld__add:hover span{transform:rotate(90deg)}}
 
-/* ── Выбор из нескольких: сегменты ───────────────────────────────────────
-   Как «другу | себе» у референса: тонкая обводка у всех, толстая тёмная —
-   у выбранного. */
-.seg{display:flex;flex-wrap:wrap;gap:8px}
+/* ── Выбор из нескольких: плитки ─────────────────────────────────────────
+   Как в конфигураторе Apple: у всех тонкая рамка и тёмный текст, у
+   выбранной — рамка вдвое толще. Заливки нет ни у одной: выбор читается по
+   форме, а не только по цвету. */
+.seg{display:flex;flex-wrap:wrap;gap:10px}
 .seg__it{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;flex-direction:column;
-     align-items:center;justify-content:center;gap:3px;min-height:50px;padding:10px 20px;
-     border-radius:14px;text-align:center;font-size:12px;font-weight:700;letter-spacing:.12em;
-     text-transform:uppercase;color:rgba(43,23,52,.62);background:rgba(255,255,255,.55);
-     box-shadow:inset 0 0 0 1px rgba(77,41,93,.18);
-     transition:box-shadow .25s var(--ease-out),color .25s,background-color .25s,transform .25s var(--ease-out)}
-.seg__it small{font-size:11px;font-weight:500;letter-spacing:.02em;text-transform:none;color:var(--ink-soft)}
-.seg__it[aria-checked="true"],.seg__it[aria-pressed="true"]{color:var(--plum-950);background:#fff;
-     box-shadow:inset 0 0 0 2px var(--plum-950),0 12px 24px -16px rgba(37,8,47,.45)}
-.seg__it:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
-.seg__it:active{transform:scale(.98)}
-/* Выбранный сегмент отзывается коротким пружинным нажатием. */
-@keyframes seg-pick{0%{transform:scale(.95)}60%{transform:scale(1.03)}100%{transform:scale(1)}}
-.seg__it[aria-checked="true"],.seg__it[aria-pressed="true"]{animation:seg-pick .4s var(--ease-out)}
-@media (hover:hover){.seg__it:not([aria-checked="true"]):not([aria-pressed="true"]):hover{color:var(--plum-950);
-     box-shadow:inset 0 0 0 1px rgba(77,41,93,.45)}}
-.seg__it--tall{flex:1 1 160px;min-height:76px;align-items:flex-start;text-align:left;padding:14px 18px}
-.seg__mark{font-size:14px;font-weight:800;letter-spacing:.02em;text-transform:none;color:var(--color-brand-purple)}
+     align-items:center;justify-content:center;gap:3px;min-height:48px;padding:10px 18px;
+     border-radius:12px;text-align:center;font-size:15px;font-weight:500;letter-spacing:-.005em;
+     color:var(--ui-ink);background:#fff;box-shadow:inset 0 0 0 1px var(--ui-ctl);
+     transition:box-shadow .2s var(--ui-ease),transform .2s var(--ui-spring)}
+.seg__it small{font-size:13px;font-weight:400;color:var(--ui-ink-2)}
+.seg__it[aria-checked="true"],.seg__it[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--ui-ink)}
+.seg__it:focus-visible{outline:2px solid var(--ui-ink);outline-offset:3px}
+.seg__it:active{transform:scale(.97);transition-duration:.2s,.08s}
+@media (hover:hover){.seg__it:not([aria-checked="true"]):not([aria-pressed="true"]):hover{
+     box-shadow:inset 0 0 0 1px var(--ui-ink)}}
+.seg__it--tall{flex:1 1 160px;min-height:72px;align-items:flex-start;text-align:left;padding:14px 18px}
+.seg__mark{font-size:15px;font-weight:600;color:var(--ui-ink)}
 /* Красный тут — фирменный цвет Kaspi на их плашке, а не наш акцент. */
 .seg__mark--kaspi{padding:3px 10px;border-radius:8px;background:var(--color-brand-red);color:#fff}
-.seg__mark--demo{padding:3px 10px;border-radius:8px;background:var(--color-brand-purple);color:#fff}
+.seg__mark--demo{padding:3px 10px;border-radius:8px;background:var(--ui-ink);color:#fff}
 
-/* ── Филиал: список строк, а не карточки ─────────────────────────────── */
-.opt{display:flex;flex-direction:column;border-top:1px solid rgba(77,41,93,.12)}
+/* ── Филиал: плитки с радиокнопкой ───────────────────────────────────── */
+.opt{display:flex;flex-direction:column;gap:10px}
 .opt__it{all:unset;box-sizing:border-box;cursor:pointer;position:relative;display:flex;flex-direction:column;
-     gap:3px;padding:13px 0 13px 28px;border-bottom:1px solid rgba(77,41,93,.12)}
-.opt__it::before{content:"";position:absolute;left:2px;top:17px;width:14px;height:14px;border-radius:50%;
-     box-shadow:inset 0 0 0 1.5px rgba(77,41,93,.35);transition:box-shadow .3s var(--ease-out)}
-.opt__it[aria-checked="true"]::before{box-shadow:inset 0 0 0 4.5px var(--plum-950)}
+     gap:3px;padding:14px 16px 14px 48px;border-radius:12px;background:#fff;
+     box-shadow:inset 0 0 0 1px var(--ui-ctl);
+     transition:box-shadow .2s var(--ui-ease),transform .2s var(--ui-spring)}
+.opt__it::before{content:"";position:absolute;left:16px;top:50%;width:18px;height:18px;margin-top:-9px;
+     border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ui-ctl);transition:box-shadow .35s var(--ui-spring)}
+.opt__it[aria-checked="true"]{box-shadow:inset 0 0 0 2px var(--ui-ink)}
+.opt__it[aria-checked="true"]::before{box-shadow:inset 0 0 0 5.5px var(--ui-ink)}
 /* Montserrat, а не Cormorant: в названиях филиалов казахские буквы
    (Мәңгілік), а у Cormorant их нет — выпадали бы из строки. */
-.opt__name{font-size:15px;font-weight:600;color:var(--ink);line-height:1.3}
-.opt__it[aria-checked="true"] .opt__name{color:var(--plum-950)}
-.opt__sub{font-size:12.5px;line-height:1.4;color:var(--ink-soft)}
-.opt__it:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:2px}
+.opt__name{font-size:15px;font-weight:600;color:var(--ui-ink);line-height:1.3}
+.opt__sub{font-size:13px;line-height:1.4;color:var(--ui-ink-2)}
+.opt__it:focus-visible{outline:2px solid var(--ui-ink);outline-offset:3px}
+.opt__it:active{transform:scale(.99);transition-duration:.2s,.08s}
+@media (hover:hover){.opt__it:not([aria-checked="true"]):hover{box-shadow:inset 0 0 0 1px var(--ui-ink)}}
 /* Филиалы выбранного города входят по одному; при смене города — заново. */
-.opt__it{animation:stg-in-fwd .45s var(--ease-out) both}
-.opt__it:nth-child(2){animation-delay:.05s}
-.opt__it:nth-child(3){animation-delay:.1s}
-.opt__it:nth-child(n+4){animation-delay:.15s}
-@media (hover:hover){.opt__it:hover .opt__name{color:var(--color-brand-purple)}}
+.opt__it{animation:stg-in-fwd .6s var(--ui-spring) both}
+.opt__it:nth-child(2){animation-delay:.04s}
+.opt__it:nth-child(3){animation-delay:.08s}
+.opt__it:nth-child(n+4){animation-delay:.12s}
 
 /* ── Оплата ──────────────────────────────────────────────────────────── */
-.sum{margin:0;font-size:14px;border-top:1px solid rgba(77,41,93,.12)}
-.sum__row{display:flex;justify-content:space-between;gap:16px;padding:11px 0;
-     border-bottom:1px solid rgba(77,41,93,.1)}
-.sum__row dt{color:var(--ink-soft)}
-.sum__row dd{margin:0;font-weight:600;text-align:right;max-width:62%;color:var(--ink)}
-.sum__row--promo dt,.sum__row--promo dd{color:var(--gold-dim)}
-.sum__row--total{border-bottom:0;padding-top:14px;font-size:18px}
-.sum__row--total dt{color:var(--plum-950);font-weight:700}
-.sum__row--total dd{font-weight:800;color:var(--plum-950);font-variant-numeric:tabular-nums}
+.sum{margin:0;font-size:15px;border-top:1px solid var(--ui-line)}
+.sum__row{display:flex;justify-content:space-between;gap:16px;padding:12px 0;
+     border-bottom:1px solid var(--ui-line)}
+.sum__row dt{color:var(--ui-ink-2)}
+.sum__row dd{margin:0;font-weight:500;text-align:right;max-width:62%;color:var(--ui-ink)}
+.sum__row--promo dt,.sum__row--promo dd{color:var(--ui-gold)}
+.sum__row--total{border-bottom:0;padding-top:16px;font-size:19px}
+.sum__row--total dt{color:var(--ui-ink);font-weight:600}
+.sum__row--total dd{font-weight:700;color:var(--ui-ink);font-variant-numeric:tabular-nums}
 
-.promo{display:flex;align-items:flex-end;gap:16px}
+.promo{display:flex;align-items:center;gap:10px}
 .promo .fld__input{flex:1;min-width:0}
-.promo__apply{all:unset;cursor:pointer;padding:10px 0 13px;font-size:11px;font-weight:700;
-     letter-spacing:.14em;text-transform:uppercase;color:var(--gold-dim)}
-.promo__apply:hover{color:var(--color-brand-purple)}
+.promo__apply{all:unset;box-sizing:border-box;cursor:pointer;flex:none;display:inline-flex;align-items:center;
+     min-height:52px;padding:0 18px;border-radius:12px;font-size:15px;font-weight:600;
+     color:var(--ui-ink);background:var(--ui-fill);
+     transition:background-color .2s var(--ui-ease),transform .2s var(--ui-spring)}
+@media (hover:hover){.promo__apply:not(:disabled):hover{background:var(--ui-fill-2)}}
+.promo__apply:not(:disabled):active{transform:scale(.97)}
 .promo__apply:disabled{opacity:.4;cursor:not-allowed}
-.promo__apply:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:4px}
-.promo--ok{align-items:center;flex-wrap:wrap;gap:8px 12px;padding:12px 0;
-     border-bottom:1px solid rgba(182,146,68,.45)}
-.promo__code{font-weight:800;letter-spacing:.06em;color:var(--plum-950)}
-.promo__txt{font-size:13.5px;color:var(--ink-soft)}
-.promo__rm{all:unset;cursor:pointer;margin-left:auto;font-size:12px;font-weight:600;color:var(--color-brand-red)}
-.promo__rm:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:3px}
+.promo__apply:focus-visible{outline:2px solid var(--ui-ink);outline-offset:3px}
+.promo--ok{flex-wrap:wrap;gap:8px 12px;padding:14px 16px;border-radius:12px;background:var(--ui-fill)}
+.promo__code{font-weight:700;letter-spacing:.04em;color:var(--ui-ink)}
+.promo__txt{font-size:14px;color:var(--ui-ink-2)}
+.promo__rm{all:unset;cursor:pointer;margin-left:auto;padding:6px 0;font-size:14px;font-weight:500;
+     color:var(--color-brand-red)}
+.promo__rm:focus-visible{outline:2px solid var(--ui-ink);outline-offset:3px}
 
-.agree{display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:13px;line-height:1.55;color:var(--ink)}
-.agree input{flex:none;width:18px;height:18px;margin:1px 0 0;accent-color:var(--color-brand-purple)}
-.agree a{font-weight:600;color:var(--color-brand-purple);text-decoration:underline;text-underline-offset:2px}
-.agree a:hover{color:var(--gold-dim)}
+.agree{display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:14px;line-height:1.55;color:var(--ui-ink-2)}
+.agree input{flex:none;width:20px;height:20px;margin:0;accent-color:var(--ui-ink)}
+.agree a{font-weight:500;color:var(--ui-ink);text-decoration:underline;
+     text-decoration-color:rgba(43,11,61,.35);text-underline-offset:3px}
+.agree a:hover{text-decoration-color:currentColor}
 
 /* ── Кнопки ──────────────────────────────────────────────────────────────
-   «Далее» — большой круг, как у референса, только фирменный фиолетовый с
-   золотым кольцом-орбитой. Оплата — золотая плашка: на ней сумма, в круг
-   она не влезает. */
-.stg__err{flex-basis:100%;margin:0;text-align:right;font-size:13px;font-weight:600;color:var(--color-brand-red);
-     animation:err-in .3s var(--ease-out) both}
+   Одна главная кнопка на экране — ровная тёмная плашка со скруглением 12px,
+   текст обычным регистром, без теней, стрелок и капслока. На нажатие
+   плашка чуть проседает и пружиной возвращается. «Назад» — ссылкой. */
+.stg__err{flex-basis:100%;margin:0;text-align:right;font-size:14px;font-weight:500;color:var(--color-brand-red);
+     animation:err-in .4s var(--ui-spring) both}
 @keyframes err-in{from{opacity:0;transform:translateY(4px)}}
-.stg__back{all:unset;cursor:pointer;padding:8px 0;font-size:11px;font-weight:700;letter-spacing:.14em;
-     text-transform:uppercase;color:var(--ink-soft);transition:color .25s}
-.stg__back:hover{color:var(--color-brand-purple)}
-.stg__back:focus-visible{outline:2px solid var(--color-brand-purple);outline-offset:4px;border-radius:4px}
+.stg__back{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;
+     min-height:44px;padding:0 6px;border-radius:8px;font-size:15px;font-weight:500;letter-spacing:-.005em;
+     color:var(--color-brand-purple);transition:color .2s var(--ui-ease)}
+.stg__back:hover{color:var(--ui-ink)}
+.stg__back:focus-visible{outline:2px solid var(--ui-ink);outline-offset:2px}
 .stg__go{all:unset;box-sizing:border-box;cursor:pointer;position:relative;flex:none;margin-left:auto;
-     width:clamp(96px,8.4vw,124px);height:clamp(96px,8.4vw,124px);border-radius:50%;
-     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
-     font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#fff;
-     background:radial-gradient(circle at 30% 24%,#8a4bb0 0%,var(--color-brand-purple) 48%,var(--plum-950) 100%);
-     box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 22px 44px -18px rgba(77,41,93,.85);
-     transition:transform .4s var(--ease-out),box-shadow .4s var(--ease-out)}
-.stg__go::before{content:"";position:absolute;inset:-8px;border-radius:inherit;pointer-events:none;
-     box-shadow:inset 0 0 0 1px rgba(182,146,68,.5);transition:inset .4s var(--ease-out),opacity .4s}
-.stg__arrow{font-size:18px;line-height:1;letter-spacing:0;transition:transform .4s var(--ease-out)}
-.stg__go:focus-visible{outline:2px solid var(--gold);outline-offset:14px}
-/* Шаг заполнен — золотое кольцо один раз расходится от «Далее»: пора дальше.
-   Срабатывает в момент, когда кнопка становится готовой. */
-.stg__go[data-ready="1"]::after{content:"";position:absolute;inset:-8px;border-radius:inherit;
-     pointer-events:none;opacity:0;box-shadow:inset 0 0 0 1.5px var(--gold);
-     animation:go-ready 1s var(--ease-out) .1s}
-@keyframes go-ready{0%{inset:-8px;opacity:1}100%{inset:-28px;opacity:0}}
-/* На ошибку кнопка коротко качается «нет». Два одинаковых ключевых кадра под
-   разными именами — смена имени перезапускает анимацию на каждый промах. */
-@keyframes go-shake-a{0%,100%{translate:0}20%{translate:-7px}40%{translate:6px}60%{translate:-4px}80%{translate:2px}}
-@keyframes go-shake-b{0%,100%{translate:0}20%{translate:-7px}40%{translate:6px}60%{translate:-4px}80%{translate:2px}}
-.stg__go[data-shake="a"]{animation:go-shake-a .45s var(--ease-out)}
-.stg__go[data-shake="b"]{animation:go-shake-b .45s var(--ease-out)}
-.stg__go:active{transform:scale(.97)}
-.stg__go:disabled{opacity:.42;cursor:not-allowed;transform:none}
-@media (hover:hover) and (pointer:fine){
-  .stg__go:not(:disabled):hover{transform:scale(1.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 26px 50px -18px rgba(77,41,93,.95)}
-  .stg__go:not(:disabled):hover::before{inset:-12px;opacity:.75}
-  .stg__go:hover .stg__arrow{transform:translateX(5px)}
-}
-.stg__go--pay{width:auto;height:auto;min-height:64px;padding:0 clamp(26px,3vw,40px);border-radius:999px;
-     flex-direction:row;letter-spacing:.1em;color:var(--plum-950);overflow:hidden;
-     background:linear-gradient(135deg,var(--gold) 0%,var(--gold-hi) 46%,var(--gold) 100%);
-     box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 18px 38px -16px rgba(182,146,68,.95)}
-.stg__go--pay::before{inset:0;box-shadow:none;transform:skewX(-18deg) translateX(-160%);width:45%;
-     background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent)}
-@media (hover:hover) and (pointer:fine){
-  .stg__go--pay:not(:disabled):hover{transform:translateY(-2px);
-       box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 22px 42px -16px rgba(182,146,68,1)}
-  .stg__go--pay:not(:disabled):hover::before{inset:0;opacity:1;animation:stg-sheen .8s var(--ease-out)}
-}
-@keyframes stg-sheen{to{transform:skewX(-18deg) translateX(330%)}}
+     display:inline-flex;align-items:center;justify-content:center;
+     min-height:52px;min-width:clamp(160px,13vw,200px);padding:0 28px;border-radius:12px;
+     font-size:16px;font-weight:600;letter-spacing:-.01em;color:#fff;background:var(--ui-act);
+     transition:background-color .2s var(--ui-ease),transform .3s var(--ui-spring)}
+.stg__go:focus-visible{outline:2px solid var(--ui-ink);outline-offset:3px}
+.stg__go:not(:disabled):active{transform:scale(.97);transition-duration:.2s,.08s}
+.stg__go:disabled,.ui-btn:disabled{opacity:1;cursor:not-allowed;color:var(--ui-ink-3);background:var(--ui-fill-2)}
+@media (hover:hover) and (pointer:fine){.stg__go:not(:disabled):hover{background:var(--ui-act-hover)}}
+.stg__go--pay{min-height:56px;padding:0 32px}
+/* На ошибку кнопка коротко качается «нет» — как поле пароля в macOS. Два
+   одинаковых ключевых кадра под разными именами — смена имени
+   перезапускает анимацию на каждый промах. */
+@keyframes go-shake-a{0%,100%{translate:0}20%{translate:-6px}40%{translate:5px}60%{translate:-3px}80%{translate:1.5px}}
+@keyframes go-shake-b{0%,100%{translate:0}20%{translate:-6px}40%{translate:5px}60%{translate:-3px}80%{translate:1.5px}}
+.stg__go[data-shake="a"]{animation:go-shake-a .42s var(--ui-ease)}
+.stg__go[data-shake="b"]{animation:go-shake-b .42s var(--ui-ease)}
 
 /* ── Шаг «Дизайн» внутри сцены ─────────────────────────────────────────
    Та же карусель, но на круге, как у референса: ореол становится кругом,
-   соседние открытки — круглыми превью, поводы уходят под круг дугой. */
+   соседние открытки — круглыми превью. Поводы — сегментами, как
+   переключатель в iOS: серая дорожка, у выбранного — белая плашка. */
 .stg .dsn{display:flex;flex-direction:column}
 .stg .dsn__stage{order:1;min-height:min(62cqi,540px);margin-bottom:1rem}
-.stg .dsn__meta{order:2;margin-bottom:1rem}
-.stg .dsn__dots{order:3;margin-bottom:.5rem}
-.stg .dsn__arc{order:4;margin:0;padding-top:4px}
+.stg .dsn__meta{order:2;margin-bottom:.9rem}
+.stg .dsn__dots{order:3;margin-bottom:1.5rem}
 .stg .dsn__glow{width:min(62cqi,540px);filter:none;
-     background:radial-gradient(circle at 32% 26%,#fffaff 0%,#f5e9fa 38%,#ecdaf3 72%,#e3ccee 100%);
-     box-shadow:inset 0 0 0 1px rgba(182,146,68,.3),inset 0 -40px 70px -40px rgba(110,47,146,.2),
-                0 50px 90px -50px rgba(77,41,93,.42);
-     animation:stg-orb .9s var(--ease-out) both}
-.stg .dsn__slot--main{width:min(560px,60%);
-     background:linear-gradient(135deg,#f6ecfa,#ead8f2)}
-/* Стрелки — у самой открытки, как у референса, а не у краёв экрана. */
+     background:radial-gradient(circle at 42% 38%,#f7f0fd 0%,#f1e6fb 55%,#ecddf9 100%);
+     animation:stg-orb .9s var(--ui-spring) both}
+.stg .dsn__slot--main{width:min(560px,60%);background:linear-gradient(135deg,#f6ecfa,#ead8f2)}
 .stg .dsn__rail{max-width:1000px;margin-inline:auto}
+/* Стрелки — у самой открытки, как у референса: белые кружки над
+   картинкой, как листалка галереи у Apple. */
+.stg .dsn__nav{width:44px;height:44px;margin-top:-22px;color:var(--ui-ink);
+     background:rgba(255,255,255,.86);-webkit-backdrop-filter:saturate(180%) blur(12px);
+     backdrop-filter:saturate(180%) blur(12px);
+     box-shadow:0 0 0 .5px rgba(43,11,61,.12),0 6px 16px -6px rgba(43,11,61,.3);
+     transition:background-color .2s var(--ui-ease),transform .3s var(--ui-spring)}
+.stg .dsn__nav--prev{left:calc(50% - min(280px,30%) - 22px)}
+.stg .dsn__nav--next{right:calc(50% - min(280px,30%) - 22px)}
+@media (hover:hover){.stg .dsn__nav:hover{transform:none;background:#fff}}
+.stg .dsn__nav:active{transform:scale(.94)}
 /* Следующая открытка въезжает справа, предыдущая — слева, смена повода —
    проявлением на месте. */
-@keyframes dsn-next{from{opacity:0;transform:translateX(9%) scale(.97)}}
-@keyframes dsn-prev{from{opacity:0;transform:translateX(-9%) scale(.97)}}
-@keyframes dsn-fade{from{opacity:0;transform:scale(.94)}}
-.stg .dsn__slot--main[data-dir="next"]{animation:dsn-next .45s var(--ease-out) both}
-.stg .dsn__slot--main[data-dir="prev"]{animation:dsn-prev .45s var(--ease-out) both}
-.stg .dsn__slot--main[data-dir="occ"]{animation:dsn-fade .45s var(--ease-out) both}
-.stg .dsn__slot--side{animation:dsn-fade .45s var(--ease-out) both}
-.stg .dsn__slot--side{width:min(104px,12%);aspect-ratio:1;border-radius:50%;opacity:.7;filter:none}
+@keyframes dsn-next{from{opacity:0;transform:translateX(8%) scale(.97)}}
+@keyframes dsn-prev{from{opacity:0;transform:translateX(-8%) scale(.97)}}
+@keyframes dsn-fade{from{opacity:0;transform:scale(.95)}}
+.stg .dsn__slot--main[data-dir="next"]{animation:dsn-next .6s var(--ui-spring) both}
+.stg .dsn__slot--main[data-dir="prev"]{animation:dsn-prev .6s var(--ui-spring) both}
+.stg .dsn__slot--main[data-dir="occ"]{animation:dsn-fade .6s var(--ui-spring) both}
+.stg .dsn__slot--side{width:min(104px,12%);aspect-ratio:1;border-radius:50%;opacity:.7;filter:none;
+     animation:dsn-fade .6s var(--ui-spring) both}
+.stg .dsn__cardname{font-family:var(--font-sans),system-ui,sans-serif;font-size:17px;font-weight:600;
+     letter-spacing:-.01em;color:var(--ui-ink)}
+.stg .dsn__count{margin-top:4px;font-size:13px;letter-spacing:0;text-transform:none;color:var(--ui-ink-2)}
+.stg .dsn__dot{background:var(--ui-fill-2)}
+.stg .dsn__dot[data-on="1"]{background:var(--ui-ink);transform:none}
+/* Поводы. Дорожка не шире экрана: на узком она прокручивается с начала, а
+   когда помещается — стоит по центру. */
+.stg .dsn__arc{order:4;display:flex;justify-content:flex-start;gap:2px;width:max-content;max-width:100%;
+     margin:0 auto;padding:3px;box-sizing:border-box;border-radius:12px;background:var(--ui-fill);
+     overflow-x:auto;scrollbar-width:none}
+.stg .dsn__occ,.stg .dsn__occ:nth-child(n){transform:none;flex:none;padding:8px 14px;border-radius:9px;
+     font-size:14px;font-weight:500;letter-spacing:-.005em;color:var(--ui-ink-2);
+     transition:background-color .25s var(--ui-ease),color .2s var(--ui-ease),box-shadow .25s var(--ui-ease)}
+.stg .dsn__occ[aria-selected="true"]{color:var(--ui-ink);font-weight:500;background:#fff;
+     box-shadow:0 1px 3px rgba(43,11,61,.14),0 0 0 .5px rgba(43,11,61,.08)}
+.stg .dsn__occ[aria-selected="true"]::after{display:none}
+@media (hover:hover){.stg .dsn__occ:not([aria-selected="true"]):hover{color:var(--ui-ink)}}
+.stg .dsn__occ:focus-visible{outline:2px solid var(--ui-ink);outline-offset:1px}
 @media (max-width:560px){
   .stg .dsn__stage{min-height:80cqi}
   .stg .dsn__glow{width:78cqi}
   .stg .dsn__slot--main{width:100%;max-width:340px}
 }
-/* Лента поводов шире узкого экрана. justify-content:center прятал её
-   начало за левым краем — туда не прокрутить. Поля auto у крайних слов
-   центрируют ленту, когда она помещается, и отдают прокрутку с начала,
-   когда нет. */
-.stg .dsn__arc{justify-content:flex-start}
-.stg .dsn__occ:first-child{margin-left:auto}
-.stg .dsn__occ:last-child{margin-right:auto}
 
 /* ── Узкий экран ─────────────────────────────────────────────────────── */
 @media (max-width:899px){
   .stg__nav{justify-content:space-between}
-  .stg__go{width:88px;height:88px;font-size:11px}
-  .stg__go--pay{width:auto;height:auto;flex:1;justify-content:center}
+  .stg__go{min-height:50px;min-width:0;padding:0 24px;font-size:16px}
+  .stg__go--pay{flex:1}
 }
 
 /* Телефон лёжа — по ВЫСОТЕ, не по ширине: по ширине альбомный телефон
@@ -2763,17 +2754,59 @@ h3,
   .stg[data-step="0"] .stg__main{grid-template-columns:minmax(0,1fr);grid-template-areas:"title" "visual" "nav"}
   .stg__orb{--step:20}
   .stg[data-step="1"] .stg__orb{--D:min(58cqi,56svh);--gap:20px;height:calc(var(--D) * 1.75)}
-  .stg__go{width:72px;height:72px}
+  .stg__go{min-height:44px}
 }
 
+/* ── Остальные экраны пути — оплата, сертификат, согласие ───────────────
+   В том же ключе: белый фон с пастельным пятном, белая карточка, та же
+   тёмная кнопка; второстепенные — серой плашкой. */
+.ui-bg{position:relative;isolation:isolate;overflow-x:clip;background:#fff}
+@supports not (overflow:clip){.ui-bg{overflow-x:hidden}}
+.ui-bg::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:
+       radial-gradient(46% 60% at 60% 40%,rgba(242,232,252,.8),rgba(242,232,252,0) 72%)}
+.ui-card{border-radius:20px;border:1px solid var(--ui-line);background:#fff;
+     box-shadow:0 24px 48px -32px rgba(43,11,61,.3)}
+.ui-ink{color:var(--ui-ink)}
+.ui-eyebrow{font-size:15px;font-weight:500;letter-spacing:-.005em;color:var(--ui-ink-2)}
+.ui-sum{font-family:var(--font-sans),system-ui,sans-serif;font-weight:600;letter-spacing:-.03em;
+     color:var(--ui-ink)}
+.ui-btn{color:#fff;background:var(--ui-act);border-radius:12px;font-weight:600;letter-spacing:-.01em;
+     transition:background-color .2s var(--ui-ease),transform .3s var(--ui-spring)}
+@media (hover:hover){.ui-btn:not(:disabled):hover{background:var(--ui-act-hover)}}
+.ui-btn:not(:disabled):active{transform:scale(.97);transition-duration:.2s,.08s}
+.ui-btn:focus-visible{outline:2px solid var(--ui-ink);outline-offset:3px}
+.ui-btn--quiet{color:var(--ui-ink);background:var(--ui-fill)}
+@media (hover:hover){.ui-btn--quiet:not(:disabled):hover{background:var(--ui-fill-2)}}
+/* Отметка «оплачено» на странице сертификата — тёмный круг с галочкой, без
+   градиента и свечения. */
+.ui-check{display:flex;align-items:center;justify-content:center;width:64px;height:64px;margin:0 auto 1.5rem;
+     border-radius:50%;font-size:28px;line-height:1;color:#fff;background:var(--ui-ink)}
+.ui-note{font-size:13px;line-height:1.5;color:var(--ui-ink-2)}
+/* Коробка подарка остаётся главным моментом страницы — единственное место,
+   где бренду позволено блеснуть. Всё вокруг неё — тихое: надпись обычным
+   регистром, кнопка — та же тёмная плашка, без золотого свечения и
+   бесконечной пульсации. */
+.gift-eyebrow{font-size:15px;font-weight:500;letter-spacing:-.005em;text-transform:none;color:var(--ui-ink-2)}
+.gift-cta-pill,.gift-open-btn:not(.is-opening) .gift-cta-pill{padding:14px 28px;border-radius:12px;
+     font-size:15px;font-weight:600;letter-spacing:-.01em;color:#fff;background:var(--ui-act);
+     box-shadow:none;animation:none;transition:background-color .2s var(--ui-ease),transform .3s var(--ui-spring)}
+.gift-open-btn:hover .gift-cta-pill{transform:none;background:var(--ui-act-hover)}
+.gift-open-btn:active .gift-cta-pill{transform:scale(.97)}
+
+/* ── Уменьшение движения ─────────────────────────────────────────────────
+   Сцена перестаёт ездить: шаги, круг, открытка и суммы меняются сразу.
+   Остаются только смены цвета и рамки — они не движение. */
 @media (prefers-reduced-motion:reduce){
   .stg__num,.stg__title,.stg__content,.stg__content > *,.stg__content > .fld > *,
   .stg__circle,.stg__card,.stg__panel,.stg .stg__content > .stg__big,.stg .stg__content > .stg__prog,
   .stg .stg__content > .fld > .fld__reveal,
-  .dial__opt,.dial__ping,.dial[data-none] .dial__head,.seg__it,.opt__it,.stg__err,
-  .stg__go,.stg__go::after,.stg .dsn__glow,.stg .dsn__slot--main,.stg .dsn__slot--side,
-  .stg__sun,.stg__sun::before,.stg__sun::after{animation:none !important}
+  .dial__opt,.seg__it,.opt__it,.stg__err,.stg__go,.stg .dsn__glow,.stg .dsn__slot--main,
+  .stg .dsn__slot--side,.stg__sun{animation:none !important}
   .stg__orb,.stg__circle,.stg__card,.dial__hub,.dial__opt,.dial__opt::before,.dial__txt,.stg__steps::after,
-  .fld__input,.fld__label,.stg__go,.stg__arrow,.stg__sun,.stg__sun::before{transition:none}
+  .stg__step::before,.stg__sun,.fld__add span,.opt__it::before{transition:none}
+  .stg__go,.ui-btn,.seg__it,.opt__it,.fld__add,.promo__apply,.stg .dsn__nav{transition-property:background-color,box-shadow,color}
   .dial__opt:hover .dial__txt,.dial__opt:active .dial__txt{translate:none}
+  .stg__go:active,.ui-btn:active,.seg__it:active,.opt__it:active,.fld__add:active,.promo__apply:active,
+  .stg .dsn__nav:active{transform:none}
+  .fld__add:hover span{transform:none}
 }

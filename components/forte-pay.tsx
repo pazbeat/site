@@ -80,7 +80,7 @@ export function FortePay({
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="mt-4 rounded-full border-[1.5px] border-brand-purple px-6 py-2.5 text-sm font-bold text-brand-purple hover:bg-brand-purple-50"
+          className="ui-btn ui-btn--quiet mt-4 px-6 py-2.5 text-[15px]"
         >
           Повторить
         </button>

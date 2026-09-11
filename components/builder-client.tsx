@@ -769,7 +769,23 @@ export function BuilderClient({
   const wheelAcc = useRef(0);
   const onDialWheel = useEffectEvent((e: WheelEvent) => {
     if (step !== 1 || !showDial) return;
+    // Ctrl/⌘ + колесо и щипок тачпада — это масштаб страницы, не круг.
+    // Неотменяемое событие (инерция прокрутки) отменить нельзя — крутить
+    // круг, пока страница всё равно едет, тоже нельзя.
+    if (e.ctrlKey || e.metaKey || !e.cancelable) return;
     if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    // Круг забирает колесо, только когда курсор над ним самим или над его
+    // строками. Сцена широкая, и ловить колесо по всей её площади значило бы
+    // молча выбирать сумму у того, кто просто листает страницу.
+    const hit = e.target as Element | null;
+    const sun = orbRef.current?.querySelector(".stg__sun")?.getBoundingClientRect();
+    const inDisc =
+      sun !== undefined &&
+      Math.hypot(
+        e.clientX - (sun.left + sun.width / 2),
+        e.clientY - (sun.top + sun.height / 2),
+      ) <= sun.width / 2;
+    if (!inDisc && !hit?.closest(".dial__opt")) return;
     const dir = e.deltaY > 0 ? 1 : -1;
     const last = dialItems.length - 1;
     if (
@@ -968,7 +984,7 @@ export function BuilderClient({
             setDir("back");
             setStep(0);
           }}
-          className="rounded-full bg-brand-purple px-7 py-3 text-sm font-bold text-white hover:bg-brand-purple-600"
+          className="ui-btn px-7 py-3 text-[15px]"
         >
           {t("createdAgain")}
         </button>
@@ -1074,14 +1090,14 @@ export function BuilderClient({
               <button
                 type="button"
                 onClick={resumeNew}
-                className="rounded-full border-[1.5px] border-brand-purple-100 px-6 py-3 text-sm font-bold text-brand-purple-800 transition-colors hover:border-brand-red hover:text-brand-red"
+                className="ui-btn ui-btn--quiet px-6 py-3 text-[15px]"
               >
                 {t("resumeNew")}
               </button>
               <button
                 type="button"
                 onClick={resumeContinue}
-                className="rounded-full bg-brand-purple px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-purple-600"
+                className="ui-btn px-7 py-3 text-[15px]"
               >
                 {t("resumeContinue")}
               </button>
@@ -1166,7 +1182,9 @@ export function BuilderClient({
               style={
                 step === 1 ? ({ "--sel": dialSel } as React.CSSProperties) : undefined
               }
-              data-tick={step === 1 && tick > 0 ? (tick % 2 ? "a" : "b") : undefined}
+              // Не зависит от шага: снятие атрибута при уходе с «Подарка»
+              // сменило бы анимацию открытки и проиграло бы её вход заново.
+              data-tick={tick > 0 ? (tick % 2 ? "a" : "b") : undefined}
               data-pdir={pickDir}
             >
               {/* Круг и открытка — одни и те же узлы на шагах 2–5: при
@@ -1230,7 +1248,7 @@ export function BuilderClient({
                   наружу, как деление циферблата: вверху наклонена вверх, на
                   «трёх часах» горизонтальна, внизу почти вертикальна. Выбор
                   поворачивает весь круг, и выбранное встаёт на «три часа»
-                  под золотую бусину. Так устроен экран номинала референса.
+                  под бусину. Так устроен экран номинала референса.
                   key={type}: при смене «сумма ↔ программа» круг
                   перемонтируется и раскрывается веером заново. */}
               {step === 1 && showDial && (
@@ -1242,15 +1260,6 @@ export function BuilderClient({
                   data-none={dialSelected < 0 ? "1" : undefined}
                 >
                   <span className="dial__head" aria-hidden="true" />
-                  {/* Круг от бусины на каждый выбор: key перемонтирует узел, и
-                      анимация запускается заново. */}
-                  {dialSelected >= 0 && (
-                    <span
-                      key={`p${dialSelected}`}
-                      className="dial__ping"
-                      aria-hidden="true"
-                    />
-                  )}
                   <div
                     className="dial__hub"
                     role="listbox"
@@ -1845,7 +1854,7 @@ export function BuilderClient({
                 className="stg__back"
                 onClick={() => goBack(Math.max(0, step - 1) as Step)}
               >
-                ← {tCommon("back")}
+                ‹ {tCommon("back")}
               </button>
             )}
             {step < 4 ? (
@@ -1853,17 +1862,12 @@ export function BuilderClient({
                 type="button"
                 onClick={next}
                 className="stg__go"
-                // Шаг заполнен — кольцо один раз расходится: пора дальше.
-                data-ready={stepValid(step) ? "1" : undefined}
                 // На ошибку кнопка качается; чётность перезапускает анимацию.
                 // Только вместе с видимой ошибкой: возврат с оплаты заново
                 // добавил бы атрибут, и кнопка качнулась бы без причины.
                 data-shake={error && shake ? (shake % 2 ? "a" : "b") : undefined}
               >
-                <span>{tCommon("next")}</span>
-                <span className="stg__arrow" aria-hidden="true">
-                  →
-                </span>
+                {tCommon("next")}
               </button>
             ) : (
               <button

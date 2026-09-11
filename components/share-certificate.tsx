@@ -116,7 +116,7 @@ export function ShareCertificate({
       <button
         type="button"
         onClick={share}
-        className="bg-gold-gradient rounded-full px-7 py-3 text-center text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
+        className="ui-btn px-7 py-3 text-center text-[15px]"
       >
         {label}
       </button>

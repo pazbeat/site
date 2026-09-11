@@ -95,14 +95,14 @@ export default async function SuccessPage({
       : tBuilder("sumTypeNominal");
 
   return (
-    <main className="flex-1 py-14 sm:py-18">
+    <main className="ui-bg flex-1 py-14 sm:py-18">
       <div className="mx-auto max-w-xl px-5 text-center">
         <GiftReveal
           toName={certificate.toName}
           fromName={certificate.fromName}
           revealKey={token}
         >
-          <div className="bg-brand-gradient mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full text-3xl text-white shadow-xl">
+          <div className="ui-check" aria-hidden="true">
             ✓
           </div>
           <h1 className="mb-3 font-display text-3xl font-semibold text-brand-purple sm:text-4xl">
@@ -131,7 +131,7 @@ export default async function SuccessPage({
           <div className="mx-auto mt-9 flex max-w-sm flex-col gap-3">
             <a
               href={`/api/certificates/pdf?token=${encodeURIComponent(token)}`}
-              className="rounded-full bg-brand-purple px-7 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-brand-purple-600"
+              className="ui-btn px-7 py-3 text-center text-[15px]"
             >
               {t("downloadPdf")}
             </a>
@@ -142,14 +142,14 @@ export default async function SuccessPage({
             {(isWalletConfigured() || isGoogleWalletConfigured()) && (
               <a
                 href={`/api/certificates/wallet?token=${encodeURIComponent(token)}`}
-                className="rounded-full border-[1.5px] border-brand-purple px-7 py-3 text-center text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple hover:text-white"
+                className="ui-btn ui-btn--quiet px-7 py-3 text-center text-[15px]"
               >
                 {t("addToWallet")}
               </a>
             )}
             <a
               href={`/api/certificates/receipt?token=${encodeURIComponent(token)}`}
-              className="rounded-full border-[1.5px] border-brand-purple-100 px-7 py-3 text-center text-sm font-bold text-brand-purple transition-colors hover:border-brand-purple"
+              className="ui-btn ui-btn--quiet px-7 py-3 text-center text-[15px]"
             >
               {t("downloadReceipt")}
             </a>
@@ -168,7 +168,7 @@ export default async function SuccessPage({
             />
             <Link
               href="/create"
-              className="rounded-full px-7 py-3 text-center text-sm font-bold text-brand-purple transition-colors hover:bg-brand-purple-50"
+              className="px-7 py-3 text-center text-[15px] font-medium text-brand-purple hover:underline"
             >
               {t("createMore")}
             </Link>

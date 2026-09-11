@@ -44,7 +44,7 @@ export function MockPayButton({
         type="button"
         disabled={state === "paying"}
         onClick={pay}
-        className="bg-gold-gradient w-full rounded-full px-7 py-4 text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+        className="ui-btn w-full px-7 py-4 text-[15px] disabled:opacity-50"
       >
         {t("pay")}
       </button>

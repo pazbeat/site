@@ -84,7 +84,7 @@ export function ConsentModal({
       <div
         autoFocus
         tabIndex={-1}
-        className="modal-panel my-auto flex max-h-[90dvh] w-full max-w-lg flex-col rounded-2xl border border-brand-gold/40 bg-white p-6 shadow-2xl outline-none sm:p-8 [@media(max-height:520px)]:max-h-none [@media(max-height:520px)]:p-4"
+        className="modal-panel my-auto flex max-h-[90dvh] w-full max-w-lg flex-col ui-card p-6 outline-none sm:p-8 [@media(max-height:520px)]:max-h-none [@media(max-height:520px)]:p-4"
       >
         <h2
           id="consent-title"
@@ -126,7 +126,7 @@ export function ConsentModal({
         </div>
 
         {!scrolledToEnd && (
-          <p className="mt-3 text-center text-xs font-semibold text-brand-gold">
+          <p className="ui-note mt-3 text-center">
             {t("scrollHint")}
           </p>
         )}
@@ -152,7 +152,7 @@ export function ConsentModal({
           <button
             type="button"
             onClick={decline}
-            className="rounded-full border-[1.5px] border-brand-purple-100 px-6 py-3 text-sm font-bold text-brand-purple-800 transition-colors hover:border-brand-red hover:text-brand-red"
+            className="ui-btn ui-btn--quiet px-6 py-3 text-[15px]"
           >
             {t("decline")}
           </button>
@@ -160,7 +160,7 @@ export function ConsentModal({
             type="button"
             disabled={!checked}
             onClick={onAccept}
-            className="rounded-full bg-brand-purple px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-purple-600 disabled:cursor-not-allowed disabled:opacity-40"
+            className="ui-btn px-7 py-3 text-[15px] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {t("accept")}
           </button>

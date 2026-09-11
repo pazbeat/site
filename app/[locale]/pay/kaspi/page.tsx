@@ -31,16 +31,16 @@ export default async function KaspiPayPage({
   const t = await getTranslations("KaspiPay");
 
   return (
-    <main className="flex-1 py-16">
+    <main className="ui-bg flex-1 py-16">
       <div className="mx-auto max-w-md px-5">
-        <div className="rounded-2xl border border-brand-purple-100 bg-white p-8 text-center shadow-lg">
-          <p className="mb-2 text-xs font-bold tracking-[0.25em] text-brand-gold uppercase">
+        <div className="ui-card p-8 text-center">
+          <p className="ui-eyebrow mb-2">
             Kaspi.kz
           </p>
           <h1 className="mb-1 font-display text-2xl font-semibold text-brand-purple">
             {t("title")}
           </h1>
-          <p className="mb-6 font-display text-4xl text-brand-purple">
+          <p className="ui-sum mb-6 text-4xl">
             {formatKzt(order.amountKzt)}
           </p>
           <KaspiPay orderId={order.id} />
