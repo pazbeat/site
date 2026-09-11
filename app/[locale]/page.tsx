@@ -11,7 +11,7 @@ import { AtmosphereStrip, type AtmoClip } from "@/components/home/atmosphere-str
 import { ProgramsStrip, type StripProgram } from "@/components/home/programs-strip";
 import { GuestInfoAccordion } from "@/components/home/guest-info-accordion";
 import { RevealInit } from "@/components/home/reveal-init";
-import { getActivePrograms, getActiveSalons } from "@/lib/data";
+import { getActiveSalons, getSellablePrograms } from "@/lib/data";
 import { toProgramDto, toSalonDto } from "@/lib/dto";
 import { getGuestInfo } from "@/lib/guest-info";
 import { getTips } from "@/lib/tips";
@@ -48,7 +48,10 @@ export default async function HomePage({
   const tNav = await getTranslations("Nav");
   const tCommon = await getTranslations("Common");
   const tOcc = await getTranslations("Occasion");
-  const [programsRaw, salonsRaw] = await Promise.all([getActivePrograms(), getActiveSalons()]);
+  const [{ programs: programsRaw }, salonsRaw] = await Promise.all([
+    getSellablePrograms(),
+    getActiveSalons(),
+  ]);
   const guest = getGuestInfo(locale);
   const tips = getTips(locale);
   const occasion = activeOccasion();

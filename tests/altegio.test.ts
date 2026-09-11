@@ -7,6 +7,7 @@ import {
 import { SALON_PREFIX_TO_ALTEGIO } from "../lib/altegio/mapping";
 import {
   availableNominalAmounts,
+  SITE_NOMINALS,
   resolveGoodId,
   resolveProgramTitle,
   branchParams,
@@ -239,7 +240,7 @@ describe("altegio resolveProgramTitle", () => {
           `company ${companyId} / ${title}`,
         ).not.toBeNull();
       }
-      // Суммы «своей суммы» — под каждую должен быть товар.
+      // Суммы, по которым выпускаются программы и ручной выпуск, — товар есть.
       for (const amount of [15000, 18000, 39000, 55000, 200000]) {
         expect(
           resolveGoodId(companyId, { nominalKzt: amount }),
@@ -251,27 +252,45 @@ describe("altegio resolveProgramTitle", () => {
 });
 
 describe("altegio availableNominalAmounts", () => {
-  it("суммы «своей суммы» одинаковы на всех продаваемых филиалах", () => {
-    const sellable = [225022, 1257161, 271994, 271997, 375262, 375266, 1355056];
-    const real = (companyId: number) =>
-      availableNominalAmounts(companyId).filter((a) => a >= 15000);
-    const ref = JSON.stringify(real(225022));
+  const sellable = [225022, 1257161, 271994, 271997, 375262, 375266, 1355056];
+
+  it("витрина предлагает ровно номинальный ряд сайта на всех продаваемых филиалах", () => {
+    // Решение заказчика 2026-09-11: «цены — только те, что у нас установлены
+    // и были»; сверено с живым Altegio в тот же день.
     for (const companyId of sellable) {
-      expect(JSON.stringify(real(companyId)), `company ${companyId}`).toBe(ref);
+      expect(availableNominalAmounts(companyId), `company ${companyId}`).toEqual([
+        ...SITE_NOMINALS,
+      ]);
     }
   });
 
-  it("промежуточных сумм в списке нет — под них нет товара", () => {
-    // Поле «своя сумма» шагает по 500 ₸, а товары заведены под два десятка
-    // значений: сумма вне списка = сертификат, которого не будет в CRM.
+  it("под каждую сумму витрины в каждом филиале есть товар", () => {
+    for (const companyId of sellable) {
+      for (const amount of SITE_NOMINALS) {
+        expect(
+          resolveGoodId(companyId, { nominalKzt: amount }),
+          `company ${companyId} / ${amount}`,
+        ).not.toBeNull();
+      }
+    }
+  });
+
+  it("суммы, добавленные под «свою сумму», витрина больше не предлагает", () => {
+    // В каталоге они остаются: 39 000 выпускает «Энергию Таиланда 120 мин»,
+    // ручной выпуск из админки бывает на любую сумму с товаром.
     const amounts = availableNominalAmounts(225022);
+    for (const extra of [15000, 29000, 37000, 39000, 43000, 48000, 54000, 55000, 100]) {
+      expect(amounts, `сумма ${extra}`).not.toContain(extra);
+    }
+    expect(resolveGoodId(225022, { nominalKzt: 39000 })).not.toBeNull();
     for (const gap of [19000, 22500, 47300, 65000, 250000]) {
       expect(amounts, `сумма ${gap}`).not.toContain(gap);
       expect(resolveGoodId(225022, { nominalKzt: gap })).toBeNull();
     }
-    for (const ok of [18000, 30000, 39000, 50000, 100000]) {
-      expect(amounts, `сумма ${ok}`).toContain(ok);
-    }
+  });
+
+  it("филиал без каталога — пустой список", () => {
+    expect(availableNominalAmounts(999999)).toEqual([]);
   });
 
   it("список отсортирован по возрастанию", () => {

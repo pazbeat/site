@@ -1,7 +1,11 @@
 import "server-only";
 import { prisma } from "./db";
 import { getCustomAmountBounds } from "./data";
-import { resolveGoodId, resolveProgramTitle } from "./altegio/catalog";
+import {
+  availableNominalAmounts,
+  resolveGoodId,
+  resolveProgramTitle,
+} from "./altegio/catalog";
 
 /**
  * Серверное ценообразование заказа (PRD §5.3): цена — ТОЛЬКО из БД.
@@ -68,6 +72,13 @@ export async function resolveOrderAmount(
     requireIssuable?: boolean;
     /** Разрешить нерасторгуемые филиалы (не продаются на витрине). */
     allowNonOrderable?: boolean;
+    /**
+     * Принять сумму вне списка витрины (любую в границах). Только для ручного
+     * выпуска из админки: там заводят сертификаты, купленные мимо сайта, на
+     * ту сумму, что уже на руках у клиента. Покупатель своей суммы не вводит
+     * (решение заказчика 2026-09-11) — ему доступен только список.
+     */
+    allowAnyAmount?: boolean;
   } = {},
 ): Promise<PricingResult> {
   const requireIssuable = options.requireIssuable ?? true;
@@ -141,6 +152,18 @@ export async function resolveOrderAmount(
   const bounds = await getCustomAmountBounds();
   if (custom < bounds.min || custom > bounds.max) {
     return { ok: false, error: "amount_out_of_bounds" };
+  }
+  // Покупатель: только сумма из списка витрины этого филиала. Филиал без
+  // привязки к Altegio не принимает сумму по списку вовсе — проверить её
+  // нечем, а issuable() такой филиал пропускает, и заказ на любую сумму
+  // оплачивался бы мимо CRM. Номинал из админки (nominalId) идёт своим путём.
+  if (!options.allowAnyAmount) {
+    if (
+      !salon.altegioLocationId ||
+      !availableNominalAmounts(salon.altegioLocationId).includes(custom)
+    ) {
+      return { ok: false, error: "amount_not_available" };
+    }
   }
   if (requireIssuable && !issuable(salon.altegioLocationId, custom, null)) {
     return { ok: false, error: "amount_not_available" };

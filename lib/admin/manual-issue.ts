@@ -130,6 +130,9 @@ export async function issueCertificateManually(
   const pricing = await resolveOrderAmount(input.salonId, input.item, {
     requireIssuable: input.syncToAltegio,
     allowNonOrderable: true,
+    // Ручной выпуск бывает на сумму, которая уже на руках у клиента, — список
+    // витрины здесь не ограничение.
+    allowAnyAmount: true,
   });
   if (!pricing.ok) {
     const human: Record<string, string> = {

@@ -12,6 +12,53 @@ export const getActivePrograms = cache(async () => {
   });
 });
 
+/**
+ * Программы витрины: только варианты, которые можно выпустить в Altegio хотя
+ * бы в одном продаваемом филиале, и только программы, у которых такой вариант
+ * остался. Решение заказчика: предлагать только то, что заведено в Altegio.
+ *
+ * Общий источник для главной, каталога с квизом, страниц поводов и
+ * конструктора. Раньше фильтровал только конструктор, и остальные страницы
+ * продавали вариант, которого там уже нет: карточка «Suay от 38 000 ₸» вела в
+ * конструктор с вариантом, который он молча выбрасывал.
+ *
+ * `optionSalons` — вариант → филиалы, где под него есть товар: конструктор по
+ * нему сужает выбор филиала на шаге доставки. Филиал без привязки к CRM
+ * ограничений не имеет — там выпуск идёт без Altegio (так же решает сервер,
+ * issuable() в lib/pricing.ts).
+ */
+export const getSellablePrograms = cache(async () => {
+  const [programs, salons] = await Promise.all([
+    getActivePrograms(),
+    getActiveSalons(),
+  ]);
+  const orderable = salons.filter((s) => s.orderable);
+  const { resolveGoodId, resolveProgramTitle } = await import("./altegio/catalog");
+  const optionSalons: Record<number, number[]> = {};
+  const sellable = programs
+    .map((p) => {
+      const nameRu = (p.names as { ru?: string }).ru ?? "";
+      const options = p.options.filter((o) => {
+        const programTitle = nameRu ? resolveProgramTitle(nameRu, o.priceKzt) : null;
+        const ids = orderable
+          .filter(
+            (s) =>
+              !s.altegioLocationId ||
+              resolveGoodId(s.altegioLocationId, {
+                nominalKzt: o.priceKzt,
+                programTitle,
+              }) !== null,
+          )
+          .map((s) => s.id);
+        optionSalons[o.id] = ids;
+        return ids.length > 0;
+      });
+      return { ...p, options };
+    })
+    .filter((p) => p.options.length > 0);
+  return { programs: sellable, optionSalons };
+});
+
 export const getActiveSalons = cache(async () => {
   return prisma.salon.findMany({
     where: { active: true },
@@ -111,9 +158,10 @@ export const getSetting = cache(async (key: string) => {
 });
 
 /**
- * Суммы «своей суммы», доступные покупателю на выбранном филиале: пересечение
- * настроенного диапазона и того, что реально выпускается в Altegio. Пустой
- * список — филиал не привязан к CRM, ограничивать нечем.
+ * Суммы витрины, доступные покупателю на выбранном филиале: список сайта
+ * (`SITE_NOMINALS`), под который в филиале есть товар в Altegio, в пределах
+ * настроенного диапазона. Пустой список — филиал не привязан к CRM: суммой по
+ * списку там не купить (сервер откажет), остаются только номиналы из админки.
  */
 export async function getAvailableAmounts(salonId: number): Promise<number[]> {
   const [salon, bounds] = await Promise.all([

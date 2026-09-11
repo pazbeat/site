@@ -33,6 +33,13 @@ type Props = Readonly<{
   amountsBySalon: Record<number, number[]>;
   /** Все продаваемые суммы сети — для шага «Подарок», до выбора филиала. */
   allAmounts: number[];
+  /**
+   * Вариант программы → филиалы, где под него есть товар в Altegio. Варианты
+   * без товара ни в одном филиале сюда не попадают — они сняты с витрины ещё
+   * на сервере. На шаге доставки список филиалов сужается по выбранному
+   * варианту: иначе оплата упиралась бы в отказ.
+   */
+  optionSalons: Record<number, number[]>;
   consentHtml: string;
   /** Предвыбор из query: ?option= / ?nominal= / ?type=nominal */
   initialOptionId?: number;
@@ -51,15 +58,16 @@ type Props = Readonly<{
 }>;
 
 type Step = 0 | 1 | 2 | 3 | 4;
-/* v2: порядок шагов изменился (дизайн стал первым), и черновик хранит
-   номер шага — старый ключ восстановил бы покупателя не на тот экран. */
-const DRAFT_KEY = "imbir-builder-draft-v2";
+/* v3: сумма и программа больше не предвыбираются, а в черновиках v2 лежит
+   номинал, подставленный по умолчанию, — восстановление выбрало бы за
+   покупателя то, чего он не нажимал. Старый ключ стирается при входе. */
+const DRAFT_KEY = "imbir-builder-draft-v3";
+const DRAFT_KEY_OLD = "imbir-builder-draft-v2";
 
 /**
  * Меньше восьми сумм на круге не читаются как циферблат: несколько строк
- * висят у края, а остальной круг пуст. Такой набор (филиал без маппинга в
- * CRM отдаёт только карточные номиналы из админки) показывается рядом
- * кнопок справа, вместе со «своей суммой».
+ * висят у края, а остальной круг пуст. Такой набор (филиалы без привязки к
+ * CRM — остаются только номиналы из админки) показывается рядом кнопок.
  */
 const WHEEL_MIN = 8;
 
@@ -71,8 +79,8 @@ type Draft = {
   type: "program" | "nominal";
   programId: number | null;
   optionId: number | null;
-  nominalId: number | null;
-  customAmount: string;
+  /** Выбранная сумма из списка витрины; null — не выбрана. */
+  amountKzt: number | null;
   designId: number | null;
   toName: string;
   fromName: string;
@@ -92,7 +100,7 @@ function isResumable(d: Draft): boolean {
     d.salonId != null ||
     d.programId != null ||
     d.optionId != null ||
-    d.customAmount.trim().length > 0 ||
+    d.amountKzt != null ||
     d.toName.trim().length > 0 ||
     d.fromName.trim().length > 0 ||
     d.message.trim().length > 0 ||
@@ -113,6 +121,7 @@ export function BuilderClient({
   bounds,
   amountsBySalon,
   allAmounts,
+  optionSalons,
   consentHtml,
   initialOptionId,
   initialNominalId,
@@ -144,15 +153,61 @@ export function BuilderClient({
     setAcceptedNow(true);
   };
 
+  /**
+   * Сумма продаётся в филиале: есть в его списке витрины, а у филиала без
+   * привязки к CRM (ключ есть, список пуст) — совпадает с номиналом из
+   * админки, так решает сервер. Филиала нет в списке вовсе — он закрыт или
+   * снят с продажи: там не продаётся ничего.
+   */
+  const amountSoldAt = (salon: number, amount: number) => {
+    const list = amountsBySalon[salon];
+    if (list === undefined) return false;
+    return list.length > 0
+      ? list.includes(amount)
+      : nominals.some((n) => n.amountKzt === amount);
+  };
+  /** Филиал ещё продаётся и продаёт выбранное — черновик и письмо о брошенном
+   *  заказе могли пролежать дольше, чем филиал или товар. */
+  const salonSells = (
+    salon: number | null,
+    kind: "program" | "nominal",
+    optId: number | null,
+    amount: number | null,
+  ) =>
+    salon != null &&
+    salons.some((s) => s.id === salon) &&
+    (kind === "program"
+      ? optId != null && (optionSalons[optId] ?? []).includes(salon)
+      : amount != null && amountSoldAt(salon, amount));
+
   // --- предвыбор из query ---
   const initialProgram = initialOptionId
     ? programs.find((p) => p.options.some((o) => o.id === initialOptionId))
     : undefined;
 
   // Дожим (resume) имеет приоритет над query-предвыбором; заполненный заказ
-  // открываем сразу на шаге оплаты — покупателю остаётся один клик.
-  const [step, setStep] = useState<Step>(resume ? 4 : 0);
-  const [salonId, setSalonId] = useState<number | null>(resume?.salonId ?? null);
+  // открываем сразу на шаге оплаты — покупателю остаётся один клик. Но только
+  // если его выбор всё ещё есть на витрине: сумму могли снять, вариант —
+  // лишиться товара в CRM. Тогда — на шаг выбора, а не к оплате пустого.
+  const resumeSelectionOk = resume
+    ? resume.type === "program"
+      ? programs.some((p) => p.options.some((o) => o.id === resume.optionId))
+      : resume.amountKzt != null &&
+        (allAmounts.length > 0
+          ? allAmounts.includes(resume.amountKzt)
+          : nominals.some((n) => n.amountKzt === resume.amountKzt))
+    : false;
+  const resumeSalonOk = resume
+    ? salonSells(resume.salonId, resume.type, resume.optionId, resume.amountKzt)
+    : false;
+  // Филиал письма закрыт или не продаёт выбранное — на шаг доставки, а не к
+  // оплате: иначе каждый повтор упирался бы в отказ сервера.
+  const [step, setStep] = useState<Step>(
+    resume ? (resumeSelectionOk ? (resumeSalonOk ? 4 : 3) : 1) : 0,
+  );
+  const [salonId, setSalonId] = useState<number | null>(
+    resume && resumeSalonOk ? resume.salonId : null,
+  );
   const [type, setType] = useState<"program" | "nominal">(
     resume?.type ?? initialType ?? (initialNominalId ? "nominal" : "program"),
   );
@@ -170,26 +225,20 @@ export function BuilderClient({
     resume?.programId ?? initialProgram?.id ?? null,
   );
   const [optionId, setOptionId] = useState<number | null>(
-    resume?.optionId ?? initialOptionId ?? null,
+    resume?.optionId ?? (initialProgram ? initialOptionId : undefined) ?? null,
   );
-  const [nominalId, setNominalId] = useState<number | null>(
-    resume?.nominalId ??
-      initialNominalId ??
-      // По умолчанию — первый номинал из продаваемого диапазона, а не просто
-      // первый в админке: там первым стоит служебный «100 ₸ ТЕСТ» для проверки
-      // оплаты. На круге его нет (он ниже минимальной суммы), и шаг открывался
-      // бы крупным «100 ₸» при круге, на котором не выбрано ничего.
-      (
-        nominals.find(
-          (n) => n.amountKzt >= bounds.min && n.amountKzt <= bounds.max,
-        ) ?? nominals[0]
-      )?.id ??
+  /**
+   * Сумма подарка. По умолчанию НЕ выбрана — решение заказчика 2026-09-11:
+   * «клиент сам должен ткнуть». Раньше подставлялся первый номинал из
+   * админки, и человек, не глядя, уходил дальше с суммой, которую не
+   * выбирал. Предвыбор остаётся только там, где выбор уже сделан самим
+   * покупателем: письмо о брошенном заказе и ссылка с конкретным номиналом.
+   */
+  const [amountKzt, setAmountKzt] = useState<number | null>(
+    resume?.amountKzt ??
+      nominals.find((n) => n.id === initialNominalId)?.amountKzt ??
       null,
   );
-  const [customAmount, setCustomAmount] = useState(resume?.customAmount ?? "");
-  /** Своя сумма раскрывается по требованию — но остаётся раскрытой, если
-   *  покупатель вернулся на шаг с уже введённой суммой. */
-  const [customOpen, setCustomOpen] = useState(Boolean(resume?.customAmount));
   /**
    * Открытка хранится ПО НОМЕРУ, а не по месту в списке. С индексом любое
    * переупорядочивание или отключение дизайна в админке молча подменяло бы
@@ -220,6 +269,12 @@ export function BuilderClient({
   const [buyerEmail, setBuyerEmail] = useState(resume?.buyerEmail ?? "");
   const [provider, setProvider] = useState<"kaspi" | "forte" | "mock">("kaspi");
   const [error, setError] = useState("");
+  /** Направление перехода: «Далее» вводит шаг справа, «Назад» — слева. */
+  const [dir, setDir] = useState<"fwd" | "back">("fwd");
+  /** Откуда въезжает выбранная сумма/программа справа от круга. */
+  const [pickDir, setPickDir] = useState<"up" | "down">("up");
+  /** Счётчик неудачных «Далее»: чётность перезапускает покачивание кнопки. */
+  const [shake, setShake] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
@@ -248,14 +303,36 @@ export function BuilderClient({
     }
   };
 
+  /** Выбор из черновика ещё есть на витрине? Сумму могли снять с продажи,
+   *  вариант — лишиться товара в CRM, пока черновик лежал. */
+  const draftSelectionOk = (d: Draft) =>
+    d.type === "program"
+      ? programs.some(
+          (p) => p.id === d.programId && p.options.some((o) => o.id === d.optionId),
+        )
+      : d.amountKzt != null &&
+        (allAmounts.length > 0
+          ? allAmounts.includes(d.amountKzt)
+          : nominals.some((n) => n.amountKzt === d.amountKzt));
+
   const applyDraft = (d: Draft) => {
-    setStep(d.step);
-    setSalonId(d.salonId);
+    const ok = draftSelectionOk(d);
+    const salonOk = ok && salonSells(d.salonId, d.type, d.optionId, d.amountKzt);
+    // Устаревший выбор не восстанавливаем, а возвращаем на шаг выбора; филиал,
+    // который закрылся или не продаёт выбранное, — на шаг доставки. Иначе
+    // черновик довёл бы до оплаты того, чего больше нет.
+    setStep(
+      !ok
+        ? (Math.min(d.step, 1) as Step)
+        : salonOk
+          ? d.step
+          : (Math.min(d.step, 3) as Step),
+    );
+    setSalonId(salonOk ? d.salonId : null);
     setType(d.type);
-    setProgramId(d.programId);
-    setOptionId(d.optionId);
-    setNominalId(d.nominalId);
-    setCustomAmount(d.customAmount);
+    setProgramId(ok && d.type === "program" ? d.programId : null);
+    setOptionId(ok && d.type === "program" ? d.optionId : null);
+    setAmountKzt(ok && d.type === "nominal" ? d.amountKzt : null);
     setDesignId(d.designId ?? designs[0]?.id ?? null);
     setToName(d.toName);
     setFromName(d.fromName);
@@ -290,6 +367,11 @@ export function BuilderClient({
   // «подписка на внешнюю систему», для которой он предназначен.
   /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
+    try {
+      localStorage.removeItem(DRAFT_KEY_OLD);
+    } catch {
+      // приватный режим — нечего стирать
+    }
     if (resume) {
       clearDraft();
       setResumeResolved(true);
@@ -329,8 +411,7 @@ export function BuilderClient({
       type,
       programId,
       optionId,
-      nominalId,
-      customAmount,
+      amountKzt,
       designId,
       toName,
       fromName,
@@ -357,8 +438,7 @@ export function BuilderClient({
     type,
     programId,
     optionId,
-    nominalId,
-    customAmount,
+    amountKzt,
     designId,
     toName,
     fromName,
@@ -411,58 +491,88 @@ export function BuilderClient({
 
   const program = availablePrograms.find((p) => p.id === programId) ?? null;
   const option = program?.options.find((o) => o.id === optionId) ?? null;
-  const nominal = nominals.find((n) => n.id === nominalId) ?? null;
+
   /**
    * Филиалы, где выбранное действительно продаётся. У программы может быть
-   * задан список городов; тогда предлагать филиал вне этого списка нельзя —
-   * покупатель оплатил бы то, чего в филиале нет. Наборы сумм у всех
-   * продаваемых филиалов одинаковы, поэтому номинал список не сужает.
+   * задан список городов, а вариант — иметь товар в Altegio не везде;
+   * предлагать такой филиал нельзя — покупатель оплатил бы то, чего там не
+   * выпустить. Для суммы то же по списку витрины филиала.
    *
    * Программа берётся из ПОЛНОГО списка, а не из отфильтрованного филиалом:
    * иначе получилось бы кольцо — филиал сужает программы, программы сужают
    * филиалы, и первый же выбор обнулял бы сам себя.
    */
-  const salonsForChoice = useMemo(() => {
-    const chosen = programs.find((p) => p.id === programId) ?? null;
-    if (type === "program" && chosen && chosen.cities.length > 0) {
-      return salons.filter((s) => chosen.cities.includes(s.cityKey));
+  const salonsForChoice = salons.filter((s) => {
+    if (type === "program") {
+      const chosen = programs.find((p) => p.id === programId) ?? null;
+      if (chosen && chosen.cities.length > 0 && !chosen.cities.includes(s.cityKey)) {
+        return false;
+      }
+      return optionId == null || (optionSalons[optionId] ?? []).includes(s.id);
     }
-    return salons;
-  }, [salons, programs, programId, type]);
+    return amountKzt == null || amountSoldAt(s.id, amountKzt);
+  });
 
   const cities = [
     ...new Map(salonsForChoice.map((s) => [s.cityKey, s.city])).entries(),
   ];
+  /** Выбранный филиал, если он всё ещё подходит к выбранному; иначе шаг
+   *  доставки просит выбрать заново, а не показывает пустую группу. */
+  const choiceSalon = salonsForChoice.find((s) => s.id === salonId) ?? null;
 
   const design = designs.find((d) => d.id === designId) ?? designs[0];
 
-  const availableAmounts = salonId ? (amountsBySalon[salonId] ?? []) : [];
-  const custom = customAmount ? Number(customAmount) : null;
-  const customValid =
-    custom !== null &&
-    Number.isInteger(custom) &&
-    custom >= bounds.min &&
-    custom <= bounds.max &&
-    // Пустой список — филиал не привязан к CRM, ограничивать нечем.
-    (availableAmounts.length === 0 || availableAmounts.includes(custom));
+  /**
+   * Круг несёт список витрины сети, а не четыре карточки из админки.
+   * Свободного ввода суммы нет ни в Altegio (под каждую сумму свой товар), ни
+   * на витрине (решение заказчика 2026-09-11) — покупатель выбирает только из
+   * этого списка, и сервер принимает только его.
+   *
+   * Источник — allAmounts (объединение по сети), а НЕ список филиала: филиал
+   * спрашивается на шаге доставки, здесь его ещё нет.
+   */
+  const wheelAmounts = ((): { amountKzt: number; label: string | null; text: string }[] => {
+    const byAmount = new Map(nominals.map((n) => [n.amountKzt, n] as const));
+    const source =
+      allAmounts.length > 0 ? allAmounts : nominals.map((n) => n.amountKzt);
+    return [...new Set(source)]
+      .filter((a) => a >= bounds.min && a <= bounds.max)
+      .sort((a, b) => a - b)
+      .map((a) => ({
+        amountKzt: a,
+        label: byAmount.get(a)?.label ?? null,
+        text: formatKzt(a),
+      }));
+  })();
+
+  /** Индекс выбранной суммы на круге; −1 — не выбрана (или устарела). */
+  const selIdx =
+    amountKzt == null ? -1 : wheelAmounts.findIndex((w) => w.amountKzt === amountKzt);
 
   // Отображаемая цена; источник истины — сервер (пересчёт в /api/orders)
   const price =
     type === "program"
       ? (option?.priceKzt ?? 0)
-      : customAmount
-        ? customValid
-          ? custom
-          : 0
-        : (nominal?.amountKzt ?? 0);
+      : selIdx >= 0
+        ? wheelAmounts[selIdx].amountKzt
+        : 0;
 
-  // Выбор позиции для API (единый формат для заказа и превью промокода)
-  const buildItem = () =>
-    type === "program"
-      ? { type: "program" as const, programOptionId: optionId! }
-      : customAmount
-        ? { type: "nominal" as const, customAmountKzt: custom! }
-        : { type: "nominal" as const, nominalId: nominalId! };
+  /** Сумма продаётся в выбранном филиале — проверка шага доставки. */
+  const amountSellableHere =
+    salonId != null && price > 0 && amountSoldAt(salonId, price);
+
+  // Выбор позиции для API (единый формат для заказа и превью промокода).
+  // Номинал из админки уходит своим id, остальные суммы списка — суммой:
+  // сервер примет её, только если она есть в списке витрины филиала.
+  const buildItem = () => {
+    if (type === "program") {
+      return { type: "program" as const, programOptionId: optionId! };
+    }
+    const n = nominals.find((x) => x.amountKzt === price);
+    return n
+      ? { type: "nominal" as const, nominalId: n.id }
+      : { type: "nominal" as const, customAmountKzt: price };
+  };
 
   // Скидка актуальна, только если применена к текущей сумме
   const promoValid = promoApplied !== null && promoApplied.appliedTo === price;
@@ -514,72 +624,19 @@ export function BuilderClient({
   const guests = (count: number) => tCommon("guests", { count });
   const hourUnit = tCommon("hour");
 
-  /**
-   * Колесо несёт ВЕСЬ продаваемый набор сети, а не четыре карточки из
-   * админки. Причина не декоративная: свободного ввода суммы в Altegio нет —
-   * под каждый номинал заведён свой товар, и заказ на сумму вне списка
-   * упирается в amount_not_available. Показать список целиком честнее, чем
-   * объяснять его строкой-подсказкой под полем ввода.
-   *
-   * Источник — allAmounts (объединение по сети), а НЕ availableAmounts:
-   * филиал спрашивается на шаге доставки, здесь salonId ещё null, набор
-   * филиала пуст — на нём колесо не появилось бы ни разу.
-   */
-  const wheelAmounts = ((): { amountKzt: number; label: string | null; text: string }[] => {
-    const byAmount = new Map(nominals.map((n) => [n.amountKzt, n] as const));
-    const source =
-      allAmounts.length > 0 ? allAmounts : nominals.map((n) => n.amountKzt);
-    return [...new Set(source)]
-      .filter((a) => a >= bounds.min && a <= bounds.max)
-      .sort((a, b) => a - b)
-      .map((amountKzt) => ({
-        amountKzt,
-        label: byAmount.get(amountKzt)?.label ?? null,
-        text: formatKzt(amountKzt),
-      }));
-  })();
-
-  /**
-   * −1 значит «выбранной суммы в списке нет»: покупатель набирает свою и она
-   * ещё не сошлась. Подменять −1 нулём нельзя — круг подсветил бы 18 000 и
-   * объявил бы его выбранным скринридеру в тот момент, когда покупатель
-   * набирает другое. Пусть лучше не выбрано ничего.
-   */
-  const selIdx = wheelAmounts.findIndex((w) => w.amountKzt === price);
-  /**
-   * Куда повёрнут круг. Когда выбранной суммы в списке нет (покупатель как
-   * раз набирает свою), круг показывает БЛИЖАЙШУЮ — иначе он прыгал бы на
-   * начало списка. Выбранным при этом не помечается ничего: aria-selected
-   * смотрит на selIdx.
-   *
-   * Скобки вокруг `?? 0` обязательны: без них `a ?? 0 - price` читается как
-   * `a ?? (0 - price)`, и «ближайшей» оказывалась просто самая маленькая
-   * сумма списка.
-   */
-  const pos =
-    selIdx >= 0
-      ? selIdx
-      : wheelAmounts.reduce(
-          (best, w, i) =>
-            Math.abs(w.amountKzt - price) <
-            Math.abs((wheelAmounts[best]?.amountKzt ?? 0) - price)
-              ? i
-              : best,
-          0,
-        );
-
-  const pickAmount = (amountKzt: number) => {
-    const n = nominals.find((x) => x.amountKzt === amountKzt) ?? null;
-    if (n) {
-      setNominalId(n.id);
-      setCustomAmount("");
-    } else {
-      // Сумма без карточки в админке: она продаётся, но отдельного номинала в
-      // админке под неё нет. Едет как «своя» — сервер всё равно перепроверит
-      // её через resolveOrderAmount.
-      setCustomAmount(String(amountKzt));
+  const pickAmount = (amount: number) => {
+    setAmountKzt(amount);
+    // Филиал, выбранный раньше, эту сумму не продаёт — снимаем, чтобы шаг
+    // доставки попросил выбрать заново, а не упёрся в отказ.
+    if (salonId != null && !amountSoldAt(salonId, amount)) setSalonId(null);
+    setError("");
+  };
+  /** Выбор варианта программы; филиал, где его не выпустить, снимается. */
+  const pickOption = (optId: number | null) => {
+    setOptionId(optId);
+    if (salonId != null && (optId == null || !(optionSalons[optId] ?? []).includes(salonId))) {
+      setSalonId(null);
     }
-    setCustomOpen(false);
   };
 
   /**
@@ -606,17 +663,28 @@ export function BuilderClient({
   /** Меньше восьми сумм в круг не складываются — там ряд кнопок. */
   const showDial =
     type === "program" ? dialItems.length > 0 : dialItems.length >= WHEEL_MIN;
-  /** Выбранное — или −1, если в списке его нет (см. selIdx). */
+  /** Выбранное — или −1, если ничего не выбрано. */
   const dialSelected =
     type === "nominal"
       ? selIdx
       : availablePrograms.findIndex((p) => p.id === programId);
-  /** Куда повёрнут круг: к выбранному, а без выбора — к ближайшему. */
-  const dialSel = type === "nominal" ? pos : Math.max(0, dialSelected);
+  /**
+   * Куда повёрнут круг. Без выбора — на середину списка, чтобы суммы легли
+   * вокруг бусины поровну (решение заказчика), причём бусина встаёт МЕЖДУ
+   * двумя строками: строка под бусиной читалась бы как уже выбранная.
+   */
+  const dialMid =
+    (dialItems.length - 1) / 2 - (dialItems.length % 2 === 1 ? 0.5 : 0);
+  const dialSel = dialSelected >= 0 ? dialSelected : Math.max(0, dialMid);
+  /** Строка, на которую встаёт Tab: выбранная, а без выбора — ближайшая к
+   *  бусине (крайние строки в этот момент погашены и схлопнуты). */
+  const dialTab = dialSelected >= 0 ? dialSelected : Math.round(dialSel);
 
   const dialRef = useRef<HTMLDivElement>(null);
 
   const pickDial = (i: number) => {
+    // Откуда въедет крупная сумма справа: к большей — снизу, к меньшей — сверху.
+    setPickDir(i >= dialSel ? "up" : "down");
     const el = dialRef.current;
     if (el) {
       // Длительность — от ПУТИ: соседняя позиция доезжает за четверть
@@ -637,7 +705,8 @@ export function BuilderClient({
     const p = availablePrograms[i];
     if (!p) return;
     setProgramId(p.id);
-    setOptionId(p.options[0]?.id ?? null);
+    pickOption(p.options[0]?.id ?? null);
+    setError("");
   };
 
   /** preventScroll обязателен: фокус ставится ДО того, как круг довернётся,
@@ -658,7 +727,16 @@ export function BuilderClient({
     };
     if (e.key in jump) {
       e.preventDefault(); // иначе стрелки заодно прокрутят страницу
-      goDial(dialSel + jump[e.key]);
+      const delta = jump[e.key];
+      // Без выбора бусина стоит между строками: «вниз» берёт строку под ней,
+      // «вверх» — над ней, а не перескакивает через одну.
+      const from =
+        dialSelected >= 0
+          ? dialSelected
+          : delta > 0
+            ? Math.ceil(dialSel) - 1
+            : Math.floor(dialSel) + 1;
+      goDial(from + delta);
       return;
     }
     if (e.key === "Home") { e.preventDefault(); goDial(0); return; }
@@ -666,30 +744,12 @@ export function BuilderClient({
   };
 
   /**
-   * Смена «сумма ↔ программа». Программа сразу предвыбирается: на круге
-   * всегда что-то стоит под бусиной, и пустое «ничего не выбрано» рядом с
-   * подсвеченной строкой читалось бы как поломка. Первой берётся программа
-   * с меткой из админки («Хит»), без неё — первая не дешевле минимальной
-   * суммы сертификата.
+   * Смена «сумма ↔ программа». Ничего не предвыбирается — программу, как и
+   * сумму, покупатель выбирает сам (решение заказчика 2026-09-11).
    */
   const switchType = (next: "program" | "nominal") => {
     setType(next);
-    if (next === "program" && programId == null) {
-      const first =
-        availablePrograms.find((p) => p.highlight === "hit") ??
-        // Служебная «Тестовая покупка 100 ₸» стоит в списке первой; всё, что
-        // дешевле минимальной суммы сертификата, первым не предлагаем.
-        availablePrograms.find(
-          (p) =>
-            p.options.length > 0 &&
-            Math.min(...p.options.map((o) => o.priceKzt)) >= bounds.min,
-        ) ??
-        availablePrograms[0];
-      if (first) {
-        setProgramId(first.id);
-        setOptionId(first.options[0]?.id ?? null);
-      }
-    }
+    setError("");
   };
 
   const stepValid = (s: Step): boolean => {
@@ -697,23 +757,22 @@ export function BuilderClient({
       case 0:
         return Boolean(design);
       case 1:
-        // Филиала здесь ещё нет — он спрашивается на шаге доставки. Своя
-        // сумма проверяется по границам, а её продаваемость в конкретном
-        // филиале — там же, где филиал и выбирают (шаг 3).
-        return type === "program"
-          ? Boolean(option)
-          : customAmount
-            ? customValid
-            : Boolean(nominal);
+        // Филиала здесь ещё нет — он спрашивается на шаге доставки; там же
+        // проверяется, продаётся ли выбранное в конкретном филиале.
+        return type === "program" ? Boolean(option) : price > 0;
       case 2:
         return toName.trim().length > 0 && fromName.trim().length > 0;
       case 3:
-        if (!salonId) return false;
-        // Своя сумма проверяется ЗДЕСЬ ещё раз: до выбора филиала список
-        // продаваемых сумм неизвестен, и без этой проверки можно было бы
-        // оплатить номинал, которого в Altegio у филиала нет.
-        if (type === "nominal" && customAmount && !customValid) return false;
-        if (type === "program" && !option) return false;
+        // Филиал должен подходить к выбранному: покупатель мог вернуться и
+        // сменить сумму или вариант, а черновик — пережить закрытие филиала.
+        if (!choiceSalon) return false;
+        if (type === "nominal" && !amountSellableHere) return false;
+        if (
+          type === "program" &&
+          (!option || !(optionSalons[option.id] ?? []).includes(choiceSalon.id))
+        ) {
+          return false;
+        }
         // Обязателен только адрес покупателя: почту получателя он часто не
         // знает. Указал — проверяем, чтобы опечатка не увела сертификат.
         if (!/\S+@\S+\.\S+/.test(buyerEmail)) return false;
@@ -725,16 +784,44 @@ export function BuilderClient({
     }
   };
 
+  /** Текст ошибки шага: на шаге подарка — что именно выбрать. */
+  const stepError = (s: Step) =>
+    s === 1
+      ? type === "nominal"
+        ? t("s1ErrAmount")
+        : t("s1ErrProgram")
+      : s === 3 && !choiceSalon
+        ? t("s4ErrSalon")
+        : t("errRequired");
+
   const next = () => {
     if (!stepValid(step)) {
-      setError(t("errRequired"));
+      setError(stepError(step));
+      setShake((n) => n + 1);
       return;
     }
     setError("");
+    setDir("fwd");
     setStep((s) => Math.min(4, s + 1) as Step);
   };
 
+  /** Назад — на шаг раньше или прямо на пройденный шаг из пути слева. */
+  const goBack = (to: Step) => {
+    setError("");
+    setDir("back");
+    setStep(to);
+  };
+
   const submit = async () => {
+    // Перед деньгами — ещё раз выбор и доставка: черновик или письмо о
+    // брошенном заказе могли привести сюда с тем, чего уже нет на витрине.
+    for (const s of [1, 3] as const) {
+      if (!stepValid(s)) {
+        goBack(s);
+        setError(stepError(s));
+        return;
+      }
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -770,7 +857,14 @@ export function BuilderClient({
         return;
       }
       if (!response.ok) {
-        setError(t("errGeneric"));
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setError(
+          body?.error === "amount_not_available"
+            ? t("errAmountUnavailable")
+            : t("errGeneric"),
+        );
         return;
       }
       const data = (await response.json()) as {
@@ -805,6 +899,11 @@ export function BuilderClient({
           type="button"
           onClick={() => {
             setCreatedOrderId(null);
+            // Следующий сертификат — с чистого листа: ничего не выбрано.
+            setAmountKzt(null);
+            setProgramId(null);
+            setOptionId(null);
+            setDir("back");
             setStep(0);
           }}
           className="rounded-full bg-brand-purple px-7 py-3 text-sm font-bold text-white hover:bg-brand-purple-600"
@@ -935,7 +1034,13 @@ export function BuilderClient({
           Прежний каркас (полоса сегментов сверху, открытка в колонке, дуга
           сумм сама по себе) ни к чему не привязывал части друг к другу и
           поэтому читался набором блоков, а не одной вещью. */}
-      <div ref={stageRef} className="stg" data-step={step} data-kind={type}>
+      <div
+        ref={stageRef}
+        className="stg"
+        data-step={step}
+        data-kind={type}
+        data-dir={dir}
+      >
         <nav className="stg__rail" aria-label={t("eyebrow")}>
           {/* key: номер перемонтируется и въезжает заново на каждом шаге */}
           <p className="stg__num" key={step} aria-hidden="true">
@@ -964,10 +1069,7 @@ export function BuilderClient({
                     type="button"
                     disabled={index >= step}
                     aria-current={index === step ? "step" : undefined}
-                    onClick={() => {
-                      setError("");
-                      setStep(index as Step);
-                    }}
+                    onClick={() => goBack(index as Step)}
                   >
                     {index + 1}. {title}
                   </button>
@@ -1066,6 +1168,15 @@ export function BuilderClient({
                   style={{ "--sel": dialSel } as React.CSSProperties}
                 >
                   <span className="dial__head" aria-hidden="true" />
+                  {/* Круг от бусины на каждый выбор: key перемонтирует узел, и
+                      анимация запускается заново. */}
+                  {dialSelected >= 0 && (
+                    <span
+                      key={`p${dialSelected}`}
+                      className="dial__ping"
+                      aria-hidden="true"
+                    />
+                  )}
                   <div
                     className="dial__hub"
                     role="listbox"
@@ -1085,9 +1196,7 @@ export function BuilderClient({
                         data-i={i}
                         aria-selected={i === dialSelected}
                         aria-label={it.aria}
-                        tabIndex={
-                          i === (dialSelected >= 0 ? dialSelected : 0) ? 0 : -1
-                        }
+                        tabIndex={i === dialTab ? 0 : -1}
                         style={{ "--i": i } as React.CSSProperties}
                         onClick={() => goDial(i)}
                       >
@@ -1109,33 +1218,53 @@ export function BuilderClient({
               {step === 1 && (
                 <>
                   {/* Выбранное крупно — главный элемент экрана. key на
-                      значении: узел перемонтируется и проявляется заново на
-                      каждый выбор. */}
+                      значении: узел перемонтируется и въезжает заново на
+                      каждый выбор — снизу к большей сумме, сверху к меньшей.
+                      Пока не выбрано ничего, на месте суммы бледный прочерк и
+                      подсказка: место занято, выбор не двигает раскладку. */}
                   {type === "nominal" ? (
-                    <>
-                      <p className="stg__big" key={price} aria-live="polite">
-                        {price > 0 ? formatKzt(price) : "—"}
-                      </p>
-                      <p className="stg__lede">{t("s1LedeNominal")}</p>
-                    </>
-                  ) : (
+                    price > 0 ? (
+                      <>
+                        <p
+                          className="stg__big"
+                          key={price}
+                          data-dir={pickDir === "down" ? "down" : undefined}
+                          aria-live="polite"
+                        >
+                          {formatKzt(price)}
+                        </p>
+                        <p className="stg__lede">{t("s1LedeNominal")}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="stg__big stg__big--empty" aria-hidden="true">
+                          — ₸
+                        </p>
+                        <p className="stg__lede" aria-live="polite">
+                          {t("s1PickAmount", {
+                            min: wheelAmounts[0]?.text ?? "",
+                            max: wheelAmounts[wheelAmounts.length - 1]?.text ?? "",
+                          })}
+                        </p>
+                      </>
+                    )
+                  ) : program ? (
                     <div
                       className="stg__prog"
-                      key={programId ?? "none"}
+                      key={program.id}
+                      data-dir={pickDir === "down" ? "down" : undefined}
                       aria-live="polite"
                     >
-                      <p className="stg__progname">
-                        {program?.name ?? t("s1SelectProgram")}
-                      </p>
-                      {program && option && (
+                      <p className="stg__progname">{program.name}</p>
+                      {option && (
                         <p className="stg__progprice">
                           {formatKzt(option.priceKzt)}
                         </p>
                       )}
-                      {program?.description && (
+                      {program.description && (
                         <p className="stg__progdesc">{program.description}</p>
                       )}
-                      {program && program.options.length > 1 && (
+                      {program.options.length > 1 && (
                         <div
                           className="seg"
                           role="radiogroup"
@@ -1148,7 +1277,7 @@ export function BuilderClient({
                               role="radio"
                               aria-checked={o.id === optionId}
                               className="seg__it"
-                              onClick={() => setOptionId(o.id)}
+                              onClick={() => pickOption(o.id)}
                             >
                               {optionLabel(o, guests, hourUnit)}
                               <small>{formatKzt(o.priceKzt)}</small>
@@ -1157,43 +1286,36 @@ export function BuilderClient({
                         </div>
                       )}
                     </div>
+                  ) : (
+                    <p
+                      className="stg__progname stg__progname--empty"
+                      aria-live="polite"
+                    >
+                      {t("s1PickProgram")}
+                    </p>
                   )}
 
                   {/* Короткий набор сумм — ряд кнопок: меньше восьми значений
-                      в круг не складываются. Филиалы без маппинга в CRM
-                      реально сюда попадают, и терять на них выбор нельзя. */}
+                      в круг не складываются (филиалы без привязки к CRM, где
+                      остаются только номиналы из админки). */}
                   {type === "nominal" && !showDial && (
                     <div className="seg seg--gap">
-                      {nominals.map((n) => (
+                      {wheelAmounts.map((w) => (
                         <button
-                          key={n.id}
+                          key={w.amountKzt}
                           type="button"
                           className="seg__it"
-                          aria-pressed={!customAmount && n.id === nominalId}
-                          onClick={() => {
-                            setNominalId(n.id);
-                            setCustomAmount("");
-                            setCustomOpen(false);
-                          }}
+                          aria-pressed={w.amountKzt === price}
+                          onClick={() => pickAmount(w.amountKzt)}
                         >
-                          {formatKzt(n.amountKzt)}
-                          {n.label && <small>{n.label}</small>}
+                          {w.text}
+                          {w.label && <small>{w.label}</small>}
                         </button>
                       ))}
                     </div>
                   )}
 
                   <div className="stg__links">
-                    {type === "nominal" && (
-                      <button
-                        type="button"
-                        className="stg__link"
-                        aria-expanded={customOpen}
-                        onClick={() => setCustomOpen(!customOpen)}
-                      >
-                        {t("s1OwnOpen")}
-                      </button>
-                    )}
                     {/* Тип выбран на входном экране — здесь только тихая
                         возможность передумать, без второго большого вопроса. */}
                     <button
@@ -1216,55 +1338,6 @@ export function BuilderClient({
                       </a>
                     )}
                   </div>
-
-                  {/* Свободный ввод остаётся: это единственный путь для Voice
-                      Control и Switch Control и способ доехать до 200 000
-                      одним действием. Датлист берёт тот же список, что круг. */}
-                  {customOpen && type === "nominal" && (
-                    <div className="fld fld--own">
-                      <div className="fld__it">
-                        <label className="fld__label" htmlFor="b-custom">
-                          {t("s1OwnOpen")}
-                        </label>
-                        <input
-                          id="b-custom"
-                          type="number"
-                          inputMode="numeric"
-                          list="b-amounts"
-                          min={bounds.min}
-                          max={bounds.max}
-                          step={500}
-                          className="fld__input"
-                          value={customAmount}
-                          onChange={(e) => setCustomAmount(e.target.value)}
-                        />
-                        <datalist id="b-amounts">
-                          {wheelAmounts.map((w) => (
-                            <option key={w.amountKzt} value={w.amountKzt} />
-                          ))}
-                        </datalist>
-                        {customAmount && !customValid ? (
-                          <p className="fld__err">
-                            {custom !== null &&
-                            custom >= bounds.min &&
-                            custom <= bounds.max
-                              ? t("errAmountUnavailable")
-                              : t("errAmount", {
-                                  min: formatKzt(bounds.min),
-                                  max: formatKzt(bounds.max),
-                                })}
-                          </p>
-                        ) : (
-                          <p className="fld__hint">
-                            {t("s1OwnNote", {
-                              min: formatKzt(bounds.min),
-                              max: formatKzt(bounds.max),
-                            })}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
 
@@ -1304,7 +1377,7 @@ export function BuilderClient({
                       необязательное поле не должно занимать экран с первого
                       взгляда. Уже написанное остаётся раскрытым. */}
                   {msgOpen || message ? (
-                    <div className="fld__it">
+                    <div className="fld__it fld__reveal">
                       <label className="fld__label" htmlFor="b-msg">
                         {t("s3Message")}
                       </label>
@@ -1350,7 +1423,7 @@ export function BuilderClient({
                           key={key}
                           type="button"
                           role="radio"
-                          aria-checked={selectedSalon?.cityKey === key}
+                          aria-checked={choiceSalon?.cityKey === key}
                           className="seg__it"
                           onClick={() => {
                             const cityFirst = salonsForChoice.find(
@@ -1365,14 +1438,19 @@ export function BuilderClient({
                     </div>
                   </div>
 
-                  {selectedSalon && (
+                  {choiceSalon && (
                     <div className="fld__it">
                       <span className="fld__label" id="b-salon">
                         {t("s1Salon")}
                       </span>
-                      <div className="opt" role="radiogroup" aria-labelledby="b-salon">
+                      <div
+                        key={choiceSalon.cityKey}
+                        className="opt"
+                        role="radiogroup"
+                        aria-labelledby="b-salon"
+                      >
                         {salonsForChoice
-                          .filter((x) => x.cityKey === selectedSalon.cityKey)
+                          .filter((x) => x.cityKey === choiceSalon.cityKey)
                           .map((x) => (
                             <button
                               key={x.id}
@@ -1680,8 +1758,10 @@ export function BuilderClient({
 
           {/* ── Кнопки: круглая «Далее» справа внизу ────────────────────── */}
           <div className="stg__nav">
+            {/* key={shake}: повторная ошибка въезжает заново, а не висит
+                неподвижно, будто кнопка не сработала. */}
             {error && (
-              <p className="stg__err" role="alert">
+              <p className="stg__err" role="alert" key={shake}>
                 {error}
               </p>
             )}
@@ -1689,16 +1769,23 @@ export function BuilderClient({
               <button
                 type="button"
                 className="stg__back"
-                onClick={() => {
-                  setError("");
-                  setStep((s) => Math.max(0, s - 1) as Step);
-                }}
+                onClick={() => goBack(Math.max(0, step - 1) as Step)}
               >
                 ← {tCommon("back")}
               </button>
             )}
             {step < 4 ? (
-              <button type="button" onClick={next} className="stg__go">
+              <button
+                type="button"
+                onClick={next}
+                className="stg__go"
+                // Шаг заполнен — кольцо один раз расходится: пора дальше.
+                data-ready={stepValid(step) ? "1" : undefined}
+                // На ошибку кнопка качается; чётность перезапускает анимацию.
+                // Только вместе с видимой ошибкой: возврат с оплаты заново
+                // добавил бы атрибут, и кнопка качнулась бы без причины.
+                data-shake={error && shake ? (shake % 2 ? "a" : "b") : undefined}
+              >
                 <span>{tCommon("next")}</span>
                 <span className="stg__arrow" aria-hidden="true">
                   →

@@ -45,8 +45,8 @@ export type BuilderResume = {
   type: "program" | "nominal";
   programId: number | null;
   optionId: number | null;
-  nominalId: number | null;
-  customAmount: string;
+  /** Сумма из списка витрины, если её всё ещё продаёт филиал заказа. */
+  amountKzt: number | null;
   designIdx: number;
   toName: string;
   fromName: string;

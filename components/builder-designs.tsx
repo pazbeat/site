@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
+import { preload } from "react-dom";
+import Image, { getImageProps } from "next/image";
 import { useTranslations } from "next-intl";
 import { designThumb, groupDesigns, locateDesign } from "@/lib/designs";
 import type { DesignDto } from "@/lib/types";
@@ -44,6 +45,12 @@ export function BuilderDesigns({ designs, value, onChange }: Props) {
   );
   const [groupIndex, setGroupIndex] = useState(start.groupIndex);
   const [cardIndex, setCardIndex] = useState(start.cardIndex);
+  /**
+   * Откуда въезжает открытка: «следующая» — справа, «предыдущая» — слева,
+   * смена повода — проявлением на месте. Без направления стрелка «назад»
+   * выглядела бы так же, как «вперёд».
+   */
+  const [dir, setDir] = useState<"next" | "prev" | "occ" | null>(null);
 
   const group = groups[groupIndex];
   if (!group) return null;
@@ -53,17 +60,41 @@ export function BuilderDesigns({ designs, value, onChange }: Props) {
 
   const move = (delta: number) => {
     const next = (cardIndex + delta + total) % total;
+    setDir(delta > 0 ? "next" : "prev");
     setCardIndex(next);
     onChange(cards[next].id);
   };
 
   const pickGroup = (index: number) => {
+    setDir("occ");
     setGroupIndex(index);
     setCardIndex(0);
     onChange(groups[index].designs[0].id);
   };
 
   const side = (offset: number) => cards[(cardIndex + offset + total) % total];
+
+  // Соседние открытки грузятся заранее: узел открытки перемонтируется на
+  // каждый шаг карусели (так проигрывается въезд), и без предзагрузки въезжала
+  // бы пустая рамка, а картинка появлялась бы следом. preload в рендере —
+  // штатный способ, повторные вызовы React склеивает.
+  if (total > 1) {
+    for (const n of [side(-1), side(1)]) {
+      if (!n.imageUrl) continue;
+      const { props } = getImageProps({ src: n.imageUrl, alt: "", width: 520, height: 312 });
+      preload(props.src, {
+        as: "image",
+        imageSrcSet: props.srcSet,
+        imageSizes: props.sizes,
+        fetchPriority: "low",
+      });
+    }
+    for (const n of total > 2 ? [side(-2), side(2)] : []) {
+      if (!n.imageUrl) continue;
+      const { props } = getImageProps({ src: designThumb(n.imageUrl), alt: "", width: 160, height: 96 });
+      preload(props.src, { as: "image", imageSrcSet: props.srcSet, fetchPriority: "low" });
+    }
+  }
 
   return (
     <div className="dsn">
@@ -97,7 +128,11 @@ export function BuilderDesigns({ designs, value, onChange }: Props) {
           )}
 
           {total > 1 && (
-            <span className="dsn__slot dsn__slot--side" aria-hidden="true">
+            <span
+              key={`l${side(-1).id}`}
+              className="dsn__slot dsn__slot--side"
+              aria-hidden="true"
+            >
               {side(-1).imageUrl && (
                 <Image
                   src={designThumb(side(-1).imageUrl!)}
@@ -109,7 +144,12 @@ export function BuilderDesigns({ designs, value, onChange }: Props) {
             </span>
           )}
 
-          <span className="dsn__slot dsn__slot--main">
+          {/* key на открытке: узел перемонтируется и въезжает заново */}
+          <span
+            key={current.id}
+            className="dsn__slot dsn__slot--main"
+            data-dir={dir ?? undefined}
+          >
             {current.imageUrl && (
               <Image
                 src={current.imageUrl}
@@ -122,7 +162,11 @@ export function BuilderDesigns({ designs, value, onChange }: Props) {
           </span>
 
           {total > 1 && (
-            <span className="dsn__slot dsn__slot--side" aria-hidden="true">
+            <span
+              key={`r${side(1).id}`}
+              className="dsn__slot dsn__slot--side"
+              aria-hidden="true"
+            >
               {side(1).imageUrl && (
                 <Image
                   src={designThumb(side(1).imageUrl!)}

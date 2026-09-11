@@ -5,7 +5,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 import { ProgramCard } from "@/components/program-card";
-import { getActivePrograms } from "@/lib/data";
+import { getSellablePrograms } from "@/lib/data";
 import { toProgramDto } from "@/lib/dto";
 import { OCCASIONS, getOccasion, pickOccasionPrograms } from "@/lib/occasions";
 
@@ -45,7 +45,9 @@ export default async function OccasionPage({
   const t = await getTranslations("Occasion");
   const tNav = await getTranslations("Nav");
 
-  const programs = (await getActivePrograms()).map((p) => toProgramDto(p, locale));
+  const programs = (await getSellablePrograms()).programs.map((p) =>
+    toProgramDto(p, locale),
+  );
   const picks = pickOccasionPrograms(occasion, programs);
 
   return (

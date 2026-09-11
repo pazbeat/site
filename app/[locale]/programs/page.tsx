@@ -4,7 +4,7 @@ import type { Locale } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 import { CatalogClient } from "@/components/catalog-client";
 import { MassageQuiz } from "@/components/massage-quiz";
-import { getActivePrograms } from "@/lib/data";
+import { getSellablePrograms } from "@/lib/data";
 import { toProgramDto } from "@/lib/dto";
 import { priceHref } from "@/lib/price-list";
 
@@ -27,7 +27,7 @@ export default async function ProgramsPage({
   setRequestLocale(locale);
   const t = await getTranslations("Catalog");
   const tPrices = await getTranslations("Prices");
-  const programs = (await getActivePrograms()).map((p) =>
+  const programs = (await getSellablePrograms()).programs.map((p) =>
     toProgramDto(p, locale),
   );
   const pdf = priceHref(locale);

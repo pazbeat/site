@@ -14,11 +14,11 @@ import type { BuilderResume, NominalDto, DesignDto } from "@/lib/types";
 import {
   getActiveDesigns,
   getActiveNominals,
-  getActivePrograms,
   getActiveSalons,
   getAvailableAmounts,
   getCustomAmountBounds,
   getLegalVersionForLocale,
+  getSellablePrograms,
 } from "@/lib/data";
 import {
   toDesignDto,
@@ -60,10 +60,11 @@ export default async function CreatePage({
   const demoEnabled =
     mockEnabled() && (await currentAdmin()) !== null;
 
-  const [salons, programs, nominals, designs, bounds, consentDoc] =
+  const [salons, sellable, nominals, designs, bounds, consentDoc] =
     await Promise.all([
       getActiveSalons(),
-      getActivePrograms(),
+      // Только варианты с товаром в Altegio — см. getSellablePrograms.
+      getSellablePrograms(),
       getActiveNominals(),
       getActiveDesigns(),
       getCustomAmountBounds(),
@@ -82,25 +83,37 @@ export default async function CreatePage({
 
   const nominalDtos = visibleNominals.map(toNominalDto);
   const designDtos = designs.map((d) => toDesignDto(d, locale));
-  const programDtos = programs.map((p) => toProgramDto(p, locale));
 
-  // Дожим: ?resume=token → предзаполнение из ранее брошенного заказа
-  const resume = query.resume
-    ? await buildResume(query.resume, programDtos, nominalDtos, designDtos)
-    : null;
-
-  // Суммы «своей суммы» по филиалам: в Altegio под каждую сумму нужен свой
+  // Суммы витрины по филиалам: в Altegio под каждую сумму нужен свой
   // товар-сертификат, свободного ввода там нет. Показываем ровно то, что
   // реально выпустится, — иначе покупатель заплатит за сертификат, которого
   // кассир в CRM не найдёт.
   const orderableSalons = salons.filter((s) => s.orderable);
-  const amountsBySalon = Object.fromEntries(
+  const amountsBySalon: Record<number, number[]> = Object.fromEntries(
     await Promise.all(
       orderableSalons.map(
         async (s) => [s.id, await getAvailableAmounts(s.id)] as const,
       ),
     ),
   );
+
+  // Варианты без товара в Altegio ни в одном филиале (Suay 90 мин 38 000,
+  // Sakda 120 мин 38 000, Foot релакс 90 мин 22 000 — сверено 2026-08-26)
+  // раньше выбирались и падали только на «Оплатить»; теперь сняты с витрины
+  // целиком, пока салон не заведёт товар и маппинг не пополнится.
+  const { optionSalons } = sellable;
+  const programDtos = sellable.programs.map((p) => toProgramDto(p, locale));
+
+  // Дожим: ?resume=token → предзаполнение из ранее брошенного заказа
+  const resume = query.resume
+    ? await buildResume(
+        query.resume,
+        programDtos,
+        nominalDtos,
+        designDtos,
+        amountsBySalon,
+      )
+    : null;
 
   // Полный список сумм — для шага «Подарок», где филиал ещё не выбран. Наборы
   // у продаваемых филиалов одинаковы (сверено выгрузкой каталога), но берём
@@ -123,6 +136,7 @@ export default async function CreatePage({
           bounds={bounds}
           amountsBySalon={amountsBySalon}
           allAmounts={allAmounts}
+          optionSalons={optionSalons}
           consentHtml={consentDoc?.contentHtmlSanitized ?? ""}
           initialOptionId={initialOptionId}
           initialNominalId={initialNominalId}
@@ -149,6 +163,7 @@ async function buildResume(
   programs: ReturnType<typeof toProgramDto>[],
   nominals: NominalDto[],
   designs: DesignDto[],
+  amountsBySalon: Record<number, number[]>,
 ): Promise<BuilderResume | null> {
   const order = await prisma.order.findUnique({
     where: { successToken: token },
@@ -173,18 +188,31 @@ async function buildResume(
 
   let programId: number | null = null;
   let optionId: number | null = null;
-  let nominalId: number | null = null;
-  let customAmount = "";
+  let amountKzt: number | null = null;
 
   if (type === "program" && item.programOptionId) {
-    optionId = item.programOptionId;
-    programId =
-      programs.find((p) => p.options.some((o) => o.id === optionId))?.id ?? null;
+    // Вариант, снятый с витрины (нет товара в CRM), не восстанавливается —
+    // конструктор откроется на шаге выбора, а не на оплате.
+    const found = programs.find((p) =>
+      p.options.some((o) => o.id === item.programOptionId),
+    );
+    if (found) {
+      programId = found.id;
+      optionId = item.programOptionId;
+    }
   } else {
+    // Сумма восстанавливается, только если её по-прежнему продаёт филиал
+    // заказа; у филиала без привязки к CRM — только номинал из админки.
+    // Закрытый или снятый с продажи филиал в amountsBySalon не попадает —
+    // сумму тогда не восстанавливаем, конструктор спросит заново.
     const face = item.amountKzt ?? 0;
-    const preset = nominals.find((n) => n.amountKzt === face);
-    if (preset) nominalId = preset.id;
-    else if (face > 0) customAmount = String(face);
+    const list = amountsBySalon[order.salonId];
+    const sold =
+      list !== undefined &&
+      (list.length > 0
+        ? list.includes(face)
+        : nominals.some((n) => n.amountKzt === face));
+    if (face > 0 && sold) amountKzt = face;
   }
 
   const designIdx = Math.max(
@@ -197,8 +225,7 @@ async function buildResume(
     type,
     programId,
     optionId,
-    nominalId,
-    customAmount,
+    amountKzt,
     designIdx,
     toName: item.toName ?? "",
     fromName: item.fromName ?? "",
