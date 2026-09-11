@@ -114,7 +114,7 @@ export default async function CreatePage({
   return (
     <main className="flex-1">
       <div className="bld">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:py-16">
+        <div className="mx-auto max-w-[1680px] px-5 py-8 sm:px-8 sm:py-12 xl:px-12">
         <BuilderClient
           salons={orderableSalons.map((s) => toSalonDto(s, locale))}
           programs={programDtos}

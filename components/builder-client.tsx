@@ -56,10 +56,10 @@ type Step = 0 | 1 | 2 | 3 | 4;
 const DRAFT_KEY = "imbir-builder-draft-v2";
 
 /**
- * Меньше восьми чисел в дугу не складываются: выходит не кривая, а
- * перекошенный столбец. Филиал без маппинга в CRM отдаёт только карточные
- * номиналы из админки — такому набору место в прежнем ряду плиток, и он там
- * остался целиком, вместе с кнопкой «своя сумма».
+ * Меньше восьми сумм на круге не читаются как циферблат: несколько строк
+ * висят у края, а остальной круг пуст. Такой набор (филиал без маппинга в
+ * CRM отдаёт только карточные номиналы из админки) показывается рядом
+ * кнопок справа, вместе со «своей суммой».
  */
 const WHEEL_MIN = 8;
 
@@ -198,6 +198,8 @@ export function BuilderClient({
   const [toName, setToName] = useState(resume?.toName ?? "");
   const [fromName, setFromName] = useState(resume?.fromName ?? "");
   const [message, setMessage] = useState(resume?.message ?? "");
+  /** Поле поздравления раскрывается строкой «добавить поздравление +». */
+  const [msgOpen, setMsgOpen] = useState(false);
   // Всегда почта. Старый черновик мог содержать "whatsapp" — приводим к email,
   // иначе восстановление корзины падало бы на несуществующем варианте.
   const method = "email" as const;
@@ -366,6 +368,22 @@ export function BuilderClient({
     void fetch("/api/ab/view", { method: "POST" }).catch(() => {});
   }, []);
 
+  // Смена шага: если начало сцены ушло выше экрана (нажали «Далее» внизу
+  // длинной формы доставки), подтягиваем его, иначе следующий шаг
+  // открывается с середины. Внутри шага положение не трогаем: прыжки
+  // страницы при выборе открытки как раз и были жалобой.
+  const stageRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || el.getBoundingClientRect().top >= 0) return;
+    el.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  }, [step]);
+
   const selectedSalon = salons.find((s) => s.id === salonId) ?? null;
   // Ключ города — русский (совпадает с ProgramDto.cities), подпись — локализованная
   // Филиал фильтрует доступные программы (PRD §5.1.3)
@@ -512,21 +530,20 @@ export function BuilderClient({
 
   /**
    * −1 значит «выбранной суммы в списке нет»: покупатель набирает свою и она
-   * ещё не сошлась. Подменять −1 нулём нельзя — колесо подсветило бы 18 000 и
-   * объявило бы его выбранным скринридеру в тот момент, когда плашка на
-   * открытке показывает другое. Пусть лучше не выбрано ничего.
+   * ещё не сошлась. Подменять −1 нулём нельзя — круг подсветил бы 18 000 и
+   * объявил бы его выбранным скринридеру в тот момент, когда покупатель
+   * набирает другое. Пусть лучше не выбрано ничего.
    */
   const selIdx = wheelAmounts.findIndex((w) => w.amountKzt === price);
   /**
-   * Куда повёрнут диск. Когда выбранной суммы в списке нет (покупатель как
-   * раз набирает свою), диск показывает БЛИЖАЙШУЮ — иначе он прыгал бы на
-   * начало списка и спорил с плашкой на открытке. Это чистое вычисление, а
-   * не запомненное состояние: правка рефа во время рендера пережила бы не
-   * каждый повторный рендер, а эффект добавил бы лишний кадр.
+   * Куда повёрнут круг. Когда выбранной суммы в списке нет (покупатель как
+   * раз набирает свою), круг показывает БЛИЖАЙШУЮ — иначе он прыгал бы на
+   * начало списка. Выбранным при этом не помечается ничего: aria-selected
+   * смотрит на selIdx.
    *
-   * Выбранным при этом НЕ помечается ничего: aria-selected смотрит на selIdx,
-   * поэтому скринридер не объявит суммой подарка то, чего покупатель не
-   * выбирал.
+   * Скобки вокруг `?? 0` обязательны: без них `a ?? 0 - price` читается как
+   * `a ?? (0 - price)`, и «ближайшей» оказывалась просто самая маленькая
+   * сумма списка.
    */
   const pos =
     selIdx >= 0
@@ -534,47 +551,11 @@ export function BuilderClient({
       : wheelAmounts.reduce(
           (best, w, i) =>
             Math.abs(w.amountKzt - price) <
-            Math.abs(wheelAmounts[best]?.amountKzt ?? 0 - price)
+            Math.abs((wheelAmounts[best]?.amountKzt ?? 0) - price)
               ? i
               : best,
           0,
         );
-  /** Одна остановка Tab на весь список; когда не выбрано ничего — первая. */
-  const tabIdx = selIdx >= 0 ? selIdx : 0;
-
-  const wheelRef = useRef<HTMLDivElement>(null);
-  const hubRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{
-    y: number; from: number; pitch: number; at: number; moved: boolean;
-  } | null>(null);
-  /** Перетаскивание кончается кликом. Без этого флага он выбрал бы ту строку,
-   *  над которой случайно оказался курсор в конце жеста. */
-  const clickOffRef = useRef(false);
-
-  /** Числа геометрии читаются ИЗ CSS. Продублировать их в JS значит развести
-   *  вёрстку и жест при первой же правке радиуса или шага. */
-  const cssNum = (name: string, fallback: number) => {
-    const el = wheelRef.current;
-    if (!el) return fallback;
-    const v = parseFloat(getComputedStyle(el).getPropertyValue(name));
-    return Number.isFinite(v) ? v : fallback;
-  };
-
-  /** Где диск СЕЙЧАС, а не куда он ехал. Иначе разворот на полпути (End, через
-   *  сто миллисекунд Home) считает длительность по маршруту, которого уже нет,
-   *  и колесо почти полсекунды «едет никуда». */
-  const wheelPos = () => {
-    const hub = hubRef.current;
-    if (!hub) return pos;
-    const t = getComputedStyle(hub).transform;
-    if (!t || t === "none") return pos;
-    try {
-      const m = new DOMMatrixReadOnly(t);
-      return (-Math.atan2(m.b, m.a) * 180) / Math.PI / cssNum("--whl-step", 5);
-    } catch {
-      return pos;
-    }
-  };
 
   const pickAmount = (amountKzt: number) => {
     const n = nominals.find((x) => x.amountKzt === amountKzt) ?? null;
@@ -590,137 +571,106 @@ export function BuilderClient({
     setCustomOpen(false);
   };
 
-  const pickIndex = (i: number) => {
-    const w = wheelAmounts[i];
-    if (!w) return;
-    const el = wheelRef.current;
+  /**
+   * Циферблат шага «Подарок»: суммы или программы по краю круга. Один и тот
+   * же механизм на оба случая — сетка из двадцати одной карточки программ,
+   * которая стояла здесь раньше, была отдельным экраном со своим языком и
+   * выбиралась наугад.
+   */
+  const dialItems: { key: number; text: string; tag: string | null; aria: string }[] =
+    type === "nominal"
+      ? wheelAmounts.map((w) => ({
+          key: w.amountKzt,
+          text: w.text,
+          tag: w.label,
+          // Метка из админки читается вместе с суммой: «50 000 ₸, Хит».
+          aria: w.label ? `${w.text}, ${w.label}` : w.text,
+        }))
+      : availablePrograms.map((p) => ({
+          key: p.id,
+          text: p.name,
+          tag: null,
+          aria: p.name,
+        }));
+  /** Меньше восьми сумм в круг не складываются — там ряд кнопок. */
+  const showDial =
+    type === "program" ? dialItems.length > 0 : dialItems.length >= WHEEL_MIN;
+  /** Выбранное — или −1, если в списке его нет (см. selIdx). */
+  const dialSelected =
+    type === "nominal"
+      ? selIdx
+      : availablePrograms.findIndex((p) => p.id === programId);
+  /** Куда повёрнут круг: к выбранному, а без выбора — к ближайшему. */
+  const dialSel = type === "nominal" ? pos : Math.max(0, dialSelected);
+
+  const dialRef = useRef<HTMLDivElement>(null);
+
+  const pickDial = (i: number) => {
+    const el = dialRef.current;
     if (el) {
-      // Длительность считается от ПУТИ, а не от того, как часто нажимают:
-      // соседняя сумма доезжает за 0.2с, край списка за 0.45с. Одна
-      // длительность на обе роли не годится — 0.45с на соседнюю читается как
-      // залипшая кнопка, а 0.2с на двадцать пять позиций как рывок. Заодно
-      // это и есть ответ на удержание стрелки: шаг там всегда один, значит
-      // ход всегда короткий и жирное число не отстаёт от головки.
-      const d = Math.abs(i - wheelPos());
+      // Длительность — от ПУТИ: соседняя позиция доезжает за четверть
+      // секунды, край списка — за семь десятых. Одна длительность на обе
+      // роли не годится: долгий ход на соседнюю читается как залипшая
+      // кнопка, короткий через весь круг — как рывок.
+      const d = Math.abs(i - dialSel);
       el.style.setProperty(
-        "--whl-dur",
-        `${Math.min(0.45, 0.14 + 0.08 * Math.sqrt(d)).toFixed(2)}s`,
+        "--dial-dur",
+        `${Math.min(0.7, 0.24 + 0.08 * Math.sqrt(d)).toFixed(2)}s`,
       );
     }
-    pickAmount(w.amountKzt);
+    if (type === "nominal") {
+      const w = wheelAmounts[i];
+      if (w) pickAmount(w.amountKzt);
+      return;
+    }
+    const p = availablePrograms[i];
+    if (!p) return;
+    setProgramId(p.id);
+    setOptionId(p.options[0]?.id ?? null);
   };
 
-  /** preventScroll обязателен: фокус ставится ДО того, как диск довернётся,
-   *  то есть на строку, которая физически лежит за пределами окна, и браузер
-   *  попытался бы подтянуть к ней страницу. */
-  const focusOpt = (i: number) =>
-    hubRef.current
-      ?.querySelector<HTMLElement>(`[data-i="${i}"]`)
+  /** preventScroll обязателен: фокус ставится ДО того, как круг довернётся,
+   *  то есть на строку, которая ещё стоит в стороне, и браузер подтянул бы к
+   *  ней страницу. */
+  const goDial = (i: number) => {
+    const j = Math.min(dialItems.length - 1, Math.max(0, i));
+    pickDial(j);
+    dialRef.current
+      ?.querySelector<HTMLElement>(`[data-i="${j}"]`)
       ?.focus({ preventScroll: true });
-
-  const goTo = (i: number) => {
-    const j = Math.min(wheelAmounts.length - 1, Math.max(0, i));
-    pickIndex(j);
-    // Фокус переезжает вместе с выбором: иначе следующая стрелка придёт в
-    // узел с tabIndex=-1, который уже не выбран.
-    focusOpt(j);
   };
 
-  const onWheelKey = (e: React.KeyboardEvent) => {
+  const onDialKey = (e: React.KeyboardEvent) => {
     const jump: Record<string, number> = {
       ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1,
       PageUp: -5, PageDown: 5,
     };
     if (e.key in jump) {
       e.preventDefault(); // иначе стрелки заодно прокрутят страницу
-      goTo(pos + jump[e.key]);
+      goDial(dialSel + jump[e.key]);
       return;
     }
-    if (e.key === "Home") { e.preventDefault(); goTo(0); return; }
-    if (e.key === "End") { e.preventDefault(); goTo(wheelAmounts.length - 1); return; }
+    if (e.key === "Home") { e.preventDefault(); goDial(0); return; }
+    if (e.key === "End") { e.preventDefault(); goDial(dialItems.length - 1); }
   };
 
-  /* Перетаскивание — ТОЛЬКО мышью. Пальцем страницу листают тем же движением,
-     и отобрать у него вертикаль (touch-action:none) значит менять СУММУ
-     ПОДАРКА случайным жестом при обычном пролистывании. Мышь страницу
-     перетаскиванием не листает, конфликта нет. */
-  const onWheelDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    clickOffRef.current = false;
-    if (e.pointerType !== "mouse" || e.button !== 0) return;
-    dragRef.current = {
-      y: e.clientY,
-      from: wheelPos(),
-      pitch: cssNum("--whl-line", 40),
-      at: -1,
-      moved: false,
-    };
-    wheelRef.current?.style.setProperty("--whl-dur", "0s");
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const onWheelMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = dragRef.current;
-    if (!d) return;
-    const dy = e.clientY - d.y;
-    // Порог: дрожание руки на обычном клике не должно крутить колесо.
-    if (!d.moved && Math.abs(dy) < 8) return;
-    d.moved = true;
-    const el = wheelRef.current;
-    el?.setAttribute("data-drag", "1");
-    const f = Math.min(
-      wheelAmounts.length - 1,
-      Math.max(0, d.from + dy / d.pitch),
-    );
-    // Значение ДРОБНОЕ — колесо идёт за курсором, а не защёлкивается шагами.
-    // Пишем прямо в DOM: React здесь не нужен, иначе это шестьдесят
-    // перерисовок в секунду и перезапуск анимации плашки на каждом кадре.
-    // --whl-drag перекрывает --whl-sel только на время жеста (см. --whl-at).
-    el?.style.setProperty("--whl-drag", String(f));
-    const near = Math.round(f);
-    if (near !== d.at) {
-      d.at = near;
-      hubRef.current
-        ?.querySelectorAll("[data-live]")
-        .forEach((n) => n.removeAttribute("data-live"));
-      hubRef.current
-        ?.querySelector(`[data-i="${near}"]`)
-        ?.setAttribute("data-live", "1");
+  /**
+   * Смена «сумма ↔ программа». Программа сразу предвыбирается: на круге
+   * всегда что-то стоит под бусиной, и пустое «ничего не выбрано» рядом с
+   * подсвеченной строкой читалось бы как поломка. Первой берётся программа
+   * с меткой из админки («Хит»), без неё — первая в списке.
+   */
+  const switchType = (next: "program" | "nominal") => {
+    setType(next);
+    if (next === "program" && programId == null) {
+      const first =
+        availablePrograms.find((p) => p.highlight === "hit") ??
+        availablePrograms[0];
+      if (first) {
+        setProgramId(first.id);
+        setOptionId(first.options[0]?.id ?? null);
+      }
     }
-  };
-
-  const onWheelUp = () => {
-    const d = dragRef.current;
-    dragRef.current = null;
-    const el = wheelRef.current;
-    el?.removeAttribute("data-drag");
-    if (!d || !d.moved) return;
-    // Доводка до целого: снимаем --whl-drag, и --whl-at падает обратно на
-    // --whl-sel, который React обновит в этом же кадре.
-    el?.style.setProperty("--whl-dur", ".24s");
-    el?.style.removeProperty("--whl-drag");
-    hubRef.current
-      ?.querySelectorAll("[data-live]")
-      .forEach((n) => n.removeAttribute("data-live"));
-    clickOffRef.current = true;
-    pickAmount(wheelAmounts[d.at >= 0 ? d.at : pos]?.amountKzt ?? 0);
-  };
-
-  /** Клик по пустому месту колеса выбирает БЛИЖАЙШУЮ сумму. Обратная задача
-   *  к посадке на дугу: y = R·sin(d·шаг). Без этого левая половина окна и
-   *  гаснущие крайние строки были бы мёртвой зоной, в которую всё равно
-   *  целятся. */
-  const onWheelClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest(".whl__opt")) return;
-    if (clickOffRef.current) { clickOffRef.current = false; return; }
-    const el = wheelRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const R = cssNum("--whl-r", 460);
-    const stepDeg = cssNum("--whl-step", 5);
-    const dy = e.clientY - (r.top + r.height / 2);
-    const d =
-      (Math.asin(Math.max(-1, Math.min(1, dy / R))) * 180) / Math.PI / stepDeg;
-    goTo(Math.round(pos + d));
   };
 
   const stepValid = (s: Step): boolean => {
@@ -902,7 +852,7 @@ export function BuilderClient({
         sampleAmount={sampleAmount}
         sampleProgram={sampleProgram}
         onPick={(picked) => {
-          setType(picked);
+          switchType(picked);
           setIntroDone(true);
         }}
       />
@@ -958,777 +908,795 @@ export function BuilderClient({
         </div>
       )}
 
-      {/* Шкала шагов: пять сегментов, пройденные залиты золотом, текущий
-          заливается наполовину. Серые подписи в строку читались как хлебные
-          крошки и не говорили главного — сколько осталось. Кликать нечего:
-          это указатель, а не вкладки, переходы идут только кнопками. */}
-      <ol className="stp" aria-label={t("eyebrow")}>
-        {stepTitles.map((title, index) => (
-          <li
-            key={title}
-            className="stp__it"
-            data-state={
-              index === step ? "on" : index < step ? "done" : "next"
-            }
-            aria-current={index === step ? "step" : undefined}
-          >
-            <span className="stp__bar" aria-hidden="true" />
-            <span className="stp__label">{title}</span>
-          </li>
-        ))}
-      </ol>
-
-      {/* Каждый шаг занимает всю ширину — правой колонки с вечным
-          предпросмотром больше нет. Она превращала любой экран в придаток к
-          сводке пустого заказа: на выборе открытки одна и та же картинка
-          показывалась дважды и обе выходили мелкими. Предпросмотр остался
-          там, где он что-то решает: на «Подписи» (имена ложатся на карточку)
-          и на «Оплате» (итог перед списанием). */}
-      <div
-        className={`bld__flow${step > 0 ? " bld__flow--split" : ""}`}
-        data-step={step}
-      >
-        {/* Открытка — герой всего пути, как в подарочных картах Apple и у
-            Золотого Яблока: слева крупно, справа то, что её меняет. На шаге
-            дизайна героя нет — там карусель сама и есть открытка, и ей нужна
-            вся ширина. Суммы на открытке на шаге суммы нет намеренно: там
-            огромное число справа, и второе такое же было бы дублем. */}
-        {step > 0 && (
-          <aside className="hero" aria-label={t("previewNote")}>
-            <div className="hero__stage">
-              <span className="hero__glow" aria-hidden="true" />
-              <div className="hero__card">
-                {design.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
-                  <img src={design.imageUrl} alt={design.name} />
-                )}
-                <span className="hero__edge" aria-hidden="true" />
-                {step >= 2 && (
-                  <div className="hero__panel">
-                    <div className="hero__row">
-                      <span
-                        className={`hero__title${type === "nominal" ? " hero__title--sum" : ""}`}
-                      >
-                        {previewTitle}
-                      </span>
-                      <span className="hero__gift">{t("certGift")}</span>
-                    </div>
-                    {previewSubtitle && type === "program" && (
-                      <span className="hero__sub">{previewSubtitle}</span>
-                    )}
-                    <div className="hero__row hero__row--end">
-                      <span className="hero__for">
-                        {toName && (
-                          <span className="hero__to">
-                            {t("certFor", { name: toName })}
-                          </span>
-                        )}
-                        {message && <em className="hero__msg">«{message}»</em>}
-                      </span>
-                      <span className="hero__code">WM••••</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <p className="hero__note">{design.name}</p>
-          </aside>
-        )}
-
-        {/* key={step}: перемонтаж контейнера при смене шага даёт короткий
-            вход .step-enter вместо мгновенной подмены контента */}
-        <div key={step} className="step-enter bld__pane">
-          {/* ШАГ 2: филиал и что именно дарим.
-              Сумма спрашивается ПОСЛЕ филиала и только так: в Altegio под
-              каждый номинал заведён свой товар, и наборы у филиалов разные —
-              сумма, выбранная раньше филиала, могла бы оказаться непродаваемой. */}
-          {step === 1 && (
-            <>
-              <div className="bld__head">
-                <h2 className="bld__title">
-                  {type === "nominal" ? t("s1TitleNominal") : t("s1TitleProgram")}
-                </h2>
-                <p className="bld__lede">
-                  {type === "nominal" ? t("s1LedeNominal") : t("s1LedeProgram")}
-                </p>
-              </div>
-
-              {/* Тип уже выбран на входном экране — не спрашиваем второй раз,
-                  а даём тихо передумать одной строкой. Два больших переключателя
-                  здесь повторяли тот же вопрос и превращали экран в анкету. */}
-              <p className="bld__swap">
-                {type === "nominal" ? t("s1IsNominal") : t("s1IsProgram")}{" "}
-                <button
-                  type="button"
-                  className="bld__swaplink"
-                  onClick={() => setType(type === "nominal" ? "program" : "nominal")}
+      {/* ── Сцена конструктора — по устройству подарочных карт Золотого
+          Яблока (три снимка заказчика). Вся композиция держится на одном
+          большом круге: открытка лежит на нём, суммы и программы идут по его
+          краю циферблатом, поля ввода стоят справа. Слева — крупный номер
+          шага и путь столбиком, справа внизу — круглая «Далее».
+          Прежний каркас (полоса сегментов сверху, открытка в колонке, дуга
+          сумм сама по себе) ни к чему не привязывал части друг к другу и
+          поэтому читался набором блоков, а не одной вещью. */}
+      <div ref={stageRef} className="stg" data-step={step} data-kind={type}>
+        <nav className="stg__rail" aria-label={t("eyebrow")}>
+          {/* key: номер перемонтируется и въезжает заново на каждом шаге */}
+          <p className="stg__num" key={step} aria-hidden="true">
+            {String(step + 1).padStart(2, "0")}
+          </p>
+          <div className="stg__path">
+            <p className="stg__cur" aria-hidden="true">
+              {stepTitles[step]}
+            </p>
+            {/* Пройденные шаги кликабельны — вернуться можно прямо отсюда,
+                как у референса. Вперёд — только кнопкой «Далее»: там
+                проверяются обязательные поля. */}
+            <ol
+              className="stg__steps"
+              style={{ "--at": step } as React.CSSProperties}
+            >
+              {stepTitles.map((title, index) => (
+                <li
+                  key={title}
+                  className="stg__step"
+                  data-state={
+                    index === step ? "on" : index < step ? "done" : "next"
+                  }
                 >
-                  {type === "nominal" ? t("s1ToProgram") : t("s1ToNominal")}
-                </button>
-              </p>
+                  <button
+                    type="button"
+                    disabled={index >= step}
+                    aria-current={index === step ? "step" : undefined}
+                    onClick={() => {
+                      setError("");
+                      setStep(index as Step);
+                    }}
+                  >
+                    {index + 1}. {title}
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </nav>
 
-              {/* ── Сумма или программа ─────────────────────────────────── */}
-              {type === "program" ? (
-                <>
-                  <p className="bld__sect">{t("s1SelectProgram")}</p>
-                  <div className="prg">
-                    {availablePrograms.map((p) => (
+        <div className="stg__main">
+          <h2 className="stg__title" key={`t${step}${type}`}>
+            {step === 0
+              ? t("s2Title")
+              : step === 1
+                ? type === "nominal"
+                  ? t("s1TitleNominal")
+                  : t("s1TitleProgram")
+                : step === 2
+                  ? t("s3Title")
+                  : step === 3
+                    ? t("s4Title")
+                    : t("s5Title")}
+          </h2>
+
+          {/* ── Визуал: круг, открытка, циферблат ─────────────────────── */}
+          <div className="stg__visual">
+            <div className="stg__orb">
+              {/* Круг и открытка — одни и те же узлы на шагах 2–5: при
+                  переходе они не появляются заново, а переезжают на новое
+                  место, и путь читается одним движением. */}
+              <span className="stg__circle" aria-hidden="true" />
+
+              {step === 0 ? (
+                <BuilderDesigns
+                  designs={designs}
+                  value={designId}
+                  onChange={setDesignId}
+                />
+              ) : (
+                <div className="stg__card">
+                  {design.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- динамический путь дизайна
+                    <img src={design.imageUrl} alt={design.name} />
+                  )}
+                  <span className="stg__edge" aria-hidden="true" />
+                  {/* Подпись появляется с шага «Кому»: имя и поздравление
+                      ложатся на открытку прямо при вводе. На шаге суммы
+                      открытка чистая — сумма крупно справа, вторая копия
+                      была бы дублем. */}
+                  {step >= 2 && (
+                    <div className="stg__panel">
+                      <div className="stg__prow">
+                        <span
+                          className={`stg__ptitle${type === "nominal" ? " stg__ptitle--sum" : ""}`}
+                        >
+                          {previewTitle}
+                        </span>
+                        <span className="stg__pgift">{t("certGift")}</span>
+                      </div>
+                      {type === "program" && previewSubtitle && (
+                        <span className="stg__psub">{previewSubtitle}</span>
+                      )}
+                      <div className="stg__prow stg__prow--end">
+                        <span className="stg__pfor">
+                          {toName && (
+                            <span className="stg__pto">
+                              {t("certFor", { name: toName })}
+                            </span>
+                          )}
+                          {message && (
+                            <em className="stg__pmsg">«{message}»</em>
+                          )}
+                        </span>
+                        <span className="stg__pcode">WM••••</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Циферблат: суммы или программы по краю круга ─────────
+                  Каждая строка стоит РАДИАЛЬНО — повёрнута от центра круга
+                  наружу, как деление циферблата: вверху наклонена вверх, на
+                  «трёх часах» горизонтальна, внизу почти вертикальна. Выбор
+                  поворачивает весь круг, и выбранное встаёт на «три часа»
+                  под золотую бусину. Так устроен экран номинала референса.
+                  key={type}: при смене «сумма ↔ программа» круг
+                  перемонтируется и раскрывается веером заново. */}
+              {step === 1 && showDial && (
+                <div
+                  key={type}
+                  ref={dialRef}
+                  className="dial"
+                  data-kind={type}
+                  data-none={dialSelected < 0 ? "1" : undefined}
+                  style={{ "--sel": dialSel } as React.CSSProperties}
+                >
+                  <span className="dial__head" aria-hidden="true" />
+                  <div
+                    className="dial__hub"
+                    role="listbox"
+                    aria-label={
+                      type === "nominal"
+                        ? t("s1SelectAmount")
+                        : t("s1SelectProgram")
+                    }
+                    onKeyDown={onDialKey}
+                  >
+                    {dialItems.map((it, i) => (
                       <button
-                        key={p.id}
+                        key={it.key}
                         type="button"
-                        className="prg__it"
-                        data-on={p.id === programId ? "1" : undefined}
-                        onClick={() => {
-                          setProgramId(p.id);
-                          setOptionId(p.options[0]?.id ?? null);
-                        }}
+                        role="option"
+                        className="dial__opt"
+                        data-i={i}
+                        aria-selected={i === dialSelected}
+                        aria-label={it.aria}
+                        tabIndex={
+                          i === (dialSelected >= 0 ? dialSelected : 0) ? 0 : -1
+                        }
+                        style={{ "--i": i } as React.CSSProperties}
+                        onClick={() => goDial(i)}
                       >
-                        <span className="prg__name">{p.name}</span>
-                        <span className="prg__from">
-                          {tCommon("from", {
-                            price: formatKzt(
-                              Math.min(...p.options.map((o) => o.priceKzt)),
-                            ),
-                          })}
+                        <span className="dial__txt">
+                          {it.text}
+                          {it.tag && <small className="dial__tag">{it.tag}</small>}
                         </span>
                       </button>
                     ))}
                   </div>
-                  {program && (
-                    <>
-                      <p className="bld__sect">{t("s1SelectOption")}</p>
-                      <div className="pil">
-                        {program.options.map((o) => (
-                          <button
-                            key={o.id}
-                            type="button"
-                            className="pil__it"
-                            data-on={o.id === optionId ? "1" : undefined}
-                            onClick={() => setOptionId(o.id)}
-                          >
-                            {optionLabel(o, guests, hourUnit)}
-                            <small>{formatKzt(o.priceKzt)}</small>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </>
-              ) : (
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Правая колонка: решение шага ──────────────────────────── */}
+          {step > 0 && (
+            <div key={step} className="stg__content">
+              {step === 1 && (
                 <>
-                  <div className="amt">
-                    {wheelAmounts.length < WHEEL_MIN ? (
-                      /* Короткий набор — прежний ряд плиток целиком, вместе со «своей
-                         суммой». Это не заглушка: филиалы без маппинга в CRM (WJ, WE)
-                         реально сюда попадают, и терять на них свободный ввод нельзя. */
-                      <div className="amt__picker">
-                        {nominals.map((n) => (
-                          <button
-                            key={n.id}
-                            type="button"
-                            className="amt__chip"
-                            data-on={!customAmount && n.id === nominalId ? "1" : undefined}
-                            onClick={() => {
-                              setNominalId(n.id);
-                              setCustomAmount("");
-                              setCustomOpen(false);
-                            }}
-                          >
-                            {formatKzt(n.amountKzt)}
-                            {n.label && <small>{n.label}</small>}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          className="amt__chip amt__chip--own"
-                          data-on={customOpen ? "1" : undefined}
-                          onClick={() => setCustomOpen(true)}
-                        >
-                          {t("s1OwnOpen")}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="amt__side">
+                  {/* Выбранное крупно — главный элемент экрана. key на
+                      значении: узел перемонтируется и проявляется заново на
+                      каждый выбор. */}
+                  {type === "nominal" ? (
+                    <>
+                      <p className="stg__big" key={price} aria-live="polite">
+                        {price > 0 ? formatKzt(price) : "—"}
+                      </p>
+                      <p className="stg__lede">{t("s1LedeNominal")}</p>
+                    </>
+                  ) : (
+                    <div
+                      className="stg__prog"
+                      key={programId ?? "none"}
+                      aria-live="polite"
+                    >
+                      <p className="stg__progname">
+                        {program?.name ?? t("s1SelectProgram")}
+                      </p>
+                      {program && option && (
+                        <p className="stg__progprice">
+                          {formatKzt(option.priceKzt)}
+                        </p>
+                      )}
+                      {program?.description && (
+                        <p className="stg__progdesc">{program.description}</p>
+                      )}
+                      {program && program.options.length > 1 && (
                         <div
-                          ref={wheelRef}
-                          className="whl"
-                          style={{ "--whl-sel": pos } as React.CSSProperties}
-                          onPointerDown={onWheelDown}
-                          onPointerMove={onWheelMove}
-                          onPointerUp={onWheelUp}
-                          onPointerCancel={onWheelUp}
-                          onClick={onWheelClick}
+                          className="seg"
+                          role="radiogroup"
+                          aria-label={t("s1SelectOption")}
                         >
-                          {/* Читающая головка: бусина стоит НЕПОДВИЖНО у правого края, суммы
-                              едут под ней. Она и говорит, что выбор определяется положением
-                              диска, а не тем, куда последний раз попал палец. */}
-                          <span className="whl__head" aria-hidden="true" />
-
-                          <div
-                            ref={hubRef}
-                            className="whl__hub"
-                            role="listbox"
-                            aria-label={t("s1SelectAmount")}
-                            onKeyDown={onWheelKey}
-                          >
-                            {wheelAmounts.map((w, i) => (
-                              <button
-                                key={w.amountKzt}
-                                type="button"
-                                role="option"
-                                data-i={i}
-                                className="whl__opt"
-                                aria-selected={i === selIdx}
-                                /* Метка из админки читается вместе с суммой, а не отдельным
-                                   узлом после неё: «50 000 ₸, Хит». */
-                                aria-label={w.label ? `${w.text}, ${w.label}` : undefined}
-                                tabIndex={i === tabIdx ? 0 : -1}
-                                style={{ "--whl-i": i } as React.CSSProperties}
-                                onClick={() => {
-                                  if (clickOffRef.current) { clickOffRef.current = false; return; }
-                                  pickIndex(i);
-                                  focusOpt(i);
-                                }}
-                              >
-                                <span className="whl__num">
-                                  {w.label && <small className="whl__tag">{w.label}</small>}
-                                  {w.text}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
+                          {program.options.map((o) => (
+                            <button
+                              key={o.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={o.id === optionId}
+                              className="seg__it"
+                              onClick={() => setOptionId(o.id)}
+                            >
+                              {optionLabel(o, guests, hourUnit)}
+                              <small>{formatKzt(o.priceKzt)}</small>
+                            </button>
+                          ))}
                         </div>
+                      )}
+                    </div>
+                  )}
 
-                        {/* Свободный ввод остаётся. Формально сумма и так ограничена списком
-                            колеса, но это единственный путь для Voice Control и Switch
-                            Control и единственный способ доехать до 200 000 одним действием,
-                            а не семью нажатиями. */}
+                  {/* Короткий набор сумм — ряд кнопок: меньше восьми значений
+                      в круг не складываются. Филиалы без маппинга в CRM
+                      реально сюда попадают, и терять на них выбор нельзя. */}
+                  {type === "nominal" && !showDial && (
+                    <div className="seg seg--gap">
+                      {nominals.map((n) => (
                         <button
+                          key={n.id}
                           type="button"
-                          className="amt__own"
-                          data-on={customOpen ? "1" : undefined}
-                          onClick={() => setCustomOpen(true)}
+                          className="seg__it"
+                          aria-pressed={!customAmount && n.id === nominalId}
+                          onClick={() => {
+                            setNominalId(n.id);
+                            setCustomAmount("");
+                            setCustomOpen(false);
+                          }}
                         >
-                          {t("s1OwnOpen")}
+                          {formatKzt(n.amountKzt)}
+                          {n.label && <small>{n.label}</small>}
                         </button>
-                      </div>
-                    )}
+                      ))}
+                    </div>
+                  )}
 
-                    {/* Выбранная сумма крупно — главный элемент экрана, как в
-                        референсе. На открытке слева на этом шаге суммы НЕТ:
-                        одно число, одно место. key={price} перемонтирует узел, и
-                        сумма проявляется заново на каждый выбор. */}
-                    <p className="amt__big" key={price} aria-live="polite">
-                      {price > 0 ? formatKzt(price) : "—"}
-                    </p>
+                  <div className="stg__links">
+                    {type === "nominal" && (
+                      <button
+                        type="button"
+                        className="stg__link"
+                        aria-expanded={customOpen}
+                        onClick={() => setCustomOpen(!customOpen)}
+                      >
+                        {t("s1OwnOpen")}
+                      </button>
+                    )}
+                    {/* Тип выбран на входном экране — здесь только тихая
+                        возможность передумать, без второго большого вопроса. */}
+                    <button
+                      type="button"
+                      className="stg__link"
+                      onClick={() =>
+                        switchType(type === "nominal" ? "program" : "nominal")
+                      }
+                    >
+                      {type === "nominal" ? t("s1ToProgram") : t("s1ToNominal")}
+                    </button>
+                    {type === "program" && (
+                      <a
+                        href={priceHref(locale as "ru" | "kk" | "en")}
+                        target="_blank"
+                        rel="noopener"
+                        className="stg__link"
+                      >
+                        {t("priceLink")}
+                      </a>
+                    )}
                   </div>
 
-                  {customOpen && (
-                    <div className="amt__ownbox">
-                      <label className="bld__label" htmlFor="b-custom">
-                        {t("s1OwnOpen")}
-                      </label>
-                      <input
-                        id="b-custom"
-                        type="number"
-                        list="b-amounts"
-                        min={bounds.min}
-                        max={bounds.max}
-                        step={500}
-                        className="bld__input"
-                        value={customAmount}
-                        onChange={(e) => setCustomAmount(e.target.value)}
-                      />
-                      {/* Подсказка и датлист берут тот же список, что и колесо: раньше они
-                          читали availableAmounts, который на этом шаге пуст, и молчали. */}
-                      <datalist id="b-amounts">
-                        {wheelAmounts.map((w) => (
-                          <option key={w.amountKzt} value={w.amountKzt} />
-                        ))}
-                      </datalist>
-                      <p className="bld__hint">
-                        {t("s1OwnNote", {
-                          min: formatKzt(bounds.min),
-                          max: formatKzt(bounds.max),
-                        })}
-                      </p>
-                      {customAmount && !customValid && (
-                        <p className="mt-1.5 text-xs font-semibold text-brand-red">
-                          {custom !== null && custom >= bounds.min && custom <= bounds.max
-                            ? t("errAmountUnavailable")
-                            : t("errAmount", {
-                                min: formatKzt(bounds.min),
-                                max: formatKzt(bounds.max),
-                              })}
-                        </p>
-                      )}
-                      {wheelAmounts.length > 0 && (
-                        <p className="bld__hint">
-                          {t("amountsHint", {
-                            list: wheelAmounts.map((w) => w.text).join(", "),
-                          })}
-                        </p>
-                      )}
+                  {/* Свободный ввод остаётся: это единственный путь для Voice
+                      Control и Switch Control и способ доехать до 200 000
+                      одним действием. Датлист берёт тот же список, что круг. */}
+                  {customOpen && type === "nominal" && (
+                    <div className="fld fld--own">
+                      <div className="fld__it">
+                        <label className="fld__label" htmlFor="b-custom">
+                          {t("s1OwnOpen")}
+                        </label>
+                        <input
+                          id="b-custom"
+                          type="number"
+                          inputMode="numeric"
+                          list="b-amounts"
+                          min={bounds.min}
+                          max={bounds.max}
+                          step={500}
+                          className="fld__input"
+                          value={customAmount}
+                          onChange={(e) => setCustomAmount(e.target.value)}
+                        />
+                        <datalist id="b-amounts">
+                          {wheelAmounts.map((w) => (
+                            <option key={w.amountKzt} value={w.amountKzt} />
+                          ))}
+                        </datalist>
+                        {customAmount && !customValid ? (
+                          <p className="fld__err">
+                            {custom !== null &&
+                            custom >= bounds.min &&
+                            custom <= bounds.max
+                              ? t("errAmountUnavailable")
+                              : t("errAmount", {
+                                  min: formatKzt(bounds.min),
+                                  max: formatKzt(bounds.max),
+                                })}
+                          </p>
+                        ) : (
+                          <p className="fld__hint">
+                            {t("s1OwnNote", {
+                              min: formatKzt(bounds.min),
+                              max: formatKzt(bounds.max),
+                            })}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </>
               )}
 
-              <a
-                href={priceHref(locale as "ru" | "kk" | "en")}
-                target="_blank"
-                rel="noopener"
-                className="bld__pricelink"
-              >
-                📄 {t("priceLink")}
-              </a>
-            </>
-          )}
-
-          {/* ШАГ 1: открытка. Дизайн выбирается ПЕРВЫМ — список открыток
-              ни от филиала, ни от типа сертификата не зависит (проверено:
-              getActiveDesigns без единого фильтра), поэтому спрашивать про
-              город раньше, чем про подарок, незачем. */}
-          {step === 0 && (
-            <>
-              <div className="bld__head">
-                <h2 className="bld__title">{t("s2Title")}</h2>
-                <p className="bld__lede">{t("s2Hint")}</p>
-              </div>
-              <BuilderDesigns
-                designs={designs}
-                value={designId}
-                onChange={setDesignId}
-              />
-            </>
-          )}
-
-          {/* ШАГ 3: персонализация */}
-          {step === 2 && (
-            <>
-              <div className="bld__head">
-                <h2 className="bld__title">{t("s3Title")}</h2>
-                <p className="bld__lede">{t("s3Hint")}</p>
-              </div>
-
-              <div className="fld">
-                <div className="fld__pair">
-                  <div>
-                    <label className="bld__label" htmlFor="b-to">
-                      {t("s3To")} <span className="text-brand-red">*</span>
+              {/* ── Кому ─────────────────────────────────────────────── */}
+              {step === 2 && (
+                <div className="fld">
+                  <div className="fld__it">
+                    <label className="fld__label" htmlFor="b-to">
+                      {t("s3To")} <span className="fld__req">*</span>
                     </label>
                     <input
                       id="b-to"
-                      className="bld__input"
+                      className="fld__input"
                       maxLength={80}
                       required
+                      autoComplete="off"
                       value={toName}
                       onChange={(e) => setToName(e.target.value)}
                     />
                   </div>
-                  <div>
-                    <label className="bld__label" htmlFor="b-from">
-                      {t("s3From")} <span className="text-brand-red">*</span>
+                  <div className="fld__it">
+                    <label className="fld__label" htmlFor="b-from">
+                      {t("s3From")} <span className="fld__req">*</span>
                     </label>
                     <input
                       id="b-from"
-                      className="bld__input"
+                      className="fld__input"
                       maxLength={80}
                       required
+                      autoComplete="name"
                       value={fromName}
                       onChange={(e) => setFromName(e.target.value)}
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="bld__label" htmlFor="b-msg">
-                    {t("s3Message")}
-                  </label>
-                  <textarea
-                    id="b-msg"
-                    className="bld__input bld__input--area"
-                    maxLength={120}
-                    placeholder={t("s3MessagePh")}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                  />
-                  <p className="fld__count">{message.length}/120</p>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* ШАГ 4: доставка */}
-          {step === 3 && (
-            <>
-              <div className="bld__head">
-                <h2 className="bld__title">{t("s4Title")}</h2>
-                <p className="bld__lede">{t("s4Hint")}</p>
-              </div>
-
-              {/* ── Город и филиал ──────────────────────────────────────
-                  Филиал спрашивается здесь, а не на шаге суммы: набор сумм у
-                  продаваемых филиалов одинаковый (проверено выгрузкой
-                  каталога), поэтому выбирать город раньше подарка незачем —
-                  а шаг подарка от этого получал полэкрана анкеты. Если у
-                  программы задан список городов, здесь остаются только те
-                  филиалы, где она есть: выбор, сделанный раньше, сужает
-                  предложенное позже, а не наоборот. */}
-              <p className="bld__sect">{t("s1City")}</p>
-              <div className="pil">
-                {cities.map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className="pil__it"
-                    data-on={selectedSalon?.cityKey === key ? "1" : undefined}
-                    onClick={() => {
-                      const cityFirst = salonsForChoice.find(
-                        (x) => x.cityKey === key,
-                      );
-                      setSalonId(cityFirst?.id ?? null);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {selectedSalon && (
-                <>
-                  <p className="bld__sect">{t("s1Salon")}</p>
-                  <div className="brc">
-                    {salonsForChoice
-                      .filter((x) => x.cityKey === selectedSalon.cityKey)
-                      .map((x) => (
-                        <button
-                          key={x.id}
-                          type="button"
-                          className="brc__it"
-                          data-on={x.id === salonId ? "1" : undefined}
-                          onClick={() => setSalonId(x.id)}
-                        >
-                          <span className="brc__name">{x.name}</span>
-                          <span className="brc__addr">{x.address}</span>
-                        </button>
-                      ))}
-                  </div>
-                </>
-              )}
-
-              <p className="bld__sect">{t("s4When")}</p>
-              <div className="pil">
-                <button
-                  type="button"
-                  className="pil__it"
-                  data-on={when === "now" ? "1" : undefined}
-                  onClick={() => setWhen("now")}
-                >
-                  {t("s4Now")}
-                </button>
-                <button
-                  type="button"
-                  className="pil__it"
-                  data-on={when === "scheduled" ? "1" : undefined}
-                  onClick={() => setWhen("scheduled")}
-                >
-                  {t("s4Scheduled")}
-                </button>
-              </div>
-
-              <div className="fld">
-                {when === "scheduled" && (
-                  <div>
-                    <label className="bld__label" htmlFor="b-when">
-                      {t("s4DateTime")}
-                    </label>
-                    <input
-                      id="b-when"
-                      type="datetime-local"
-                      className="bld__input"
-                      value={scheduledAt}
-                      onChange={(e) => setScheduledAt(e.target.value)}
-                    />
-                    <p className="bld__hint">{t("s4TimeZone")}</p>
-                  </div>
-                )}
-                <div>
-                  <label className="bld__label" htmlFor="b-buyer">
-                    {t("s4BuyerEmail")} <span className="text-brand-red">*</span>
-                  </label>
-                  <input
-                    id="b-buyer"
-                    type="email"
-                    placeholder="name@mail.kz"
-                    className="bld__input"
-                    required
-                    value={buyerEmail}
-                    onChange={(e) => setBuyerEmail(e.target.value)}
-                  />
-                  <p className="bld__hint">{t("s4BuyerNote")}</p>
-                </div>
-                <div>
-                  <label className="bld__label" htmlFor="b-contact">
-                    {t("s4ContactEmail")}{" "}
-                    <span className="bld__opt">{t("s4Optional")}</span>
-                  </label>
-                  <input
-                    id="b-contact"
-                    type="email"
-                    placeholder="name@mail.kz"
-                    className="bld__input"
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                  />
-                  <p className="bld__hint">{t("s4ContactNote")}</p>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* ШАГ 5: оплата */}
-          {step === 4 && (
-            <>
-              <div className="bld__head">
-                <h2 className="bld__title">{t("s5Title")}</h2>
-              </div>
-
-              {/* Сводка стоит перед способом оплаты, а не сбоку: это
-                  последнее место, где ещё можно заметить чужой филиал или не
-                  ту сумму. */}
-              <dl className="sum">
-                <div className="sum__row">
-                  <dt className="sum__k">
-                    {type === "program" ? t("sumTypeProgram") : t("sumTypeNominal")}
-                  </dt>
-                  <dd>
-                    {type === "program"
-                      ? (program?.name ?? "—")
-                      : price > 0
-                        ? formatKzt(price)
-                        : "—"}
-                  </dd>
-                </div>
-                <div className="sum__row">
-                  <dt className="sum__k">{t("sumSalon")}</dt>
-                  <dd>
-                    {selectedSalon
-                      ? `${selectedSalon.city}, ${selectedSalon.address}`
-                      : "—"}
-                  </dd>
-                </div>
-                <div className="sum__row">
-                  <dt className="sum__k">{t("sumDesign")}</dt>
-                  <dd>{design.name}</dd>
-                </div>
-                <div className="sum__row">
-                  <dt className="sum__k">{t("sumDelivery")}</dt>
-                  <dd>{buyerEmail.trim() || t("s4Email")}</dd>
-                </div>
-                {promoValid && (
-                  <div className="sum__row sum__row--promo">
-                    <dt>{t("sumPromo", { code: promoApplied.code })}</dt>
-                    <dd>−{formatKzt(promoApplied.discountKzt)}</dd>
-                  </div>
-                )}
-                <div className="sum__row sum__row--total">
-                  <dt>{t("sumTotal")}</dt>
-                  <dd>{price > 0 ? formatKzt(total) : "—"}</dd>
-                </div>
-                <p className="sum__note">{t("validity")}</p>
-              </dl>
-
-              <p className="bld__sect">{t("s5How")}</p>
-              <div className="pay">
-                <button
-                  type="button"
-                  className="pay__it"
-                  data-on={provider === "kaspi" ? "1" : undefined}
-                  onClick={() => setProvider("kaspi")}
-                >
-                  <span className="pay__mark pay__mark--kaspi">Kaspi.kz</span>
-                  <span className="pay__note">{t("s5KaspiSub")}</span>
-                </button>
-                {cardEnabled && (
-                  <button
-                    type="button"
-                    className="pay__it"
-                    data-on={provider === "forte" ? "1" : undefined}
-                    onClick={() => setProvider("forte")}
-                  >
-                    <span className="pay__mark">{t("s5Card")}</span>
-                    <span className="pay__note">{t("s5CardSub")}</span>
-                  </button>
-                )}
-                {/* Демо-оплата: видна только вошедшему администратору, сервер
-                    проверяет это ещё раз. Нужна, чтобы пройти покупку целиком,
-                    пока настоящая оплата не подключена. */}
-                {demoEnabled && (
-                  <button
-                    type="button"
-                    className="pay__it"
-                    data-on={provider === "mock" ? "1" : undefined}
-                    onClick={() => setProvider("mock")}
-                  >
-                    <span className="pay__mark pay__mark--demo">Демо-оплата</span>
-                    <span className="pay__note">
-                      без списания денег · видно только вам
-                    </span>
-                  </button>
-                )}
-              </div>
-
-              {/* Промокод */}
-              <div className="bld__promo">
-                {promoValid ? (
-                  <div className="bld__promook">
-                    <span className="font-bold text-brand-purple">
-                      {promoApplied.code}
-                    </span>
-                    <span className="text-brand-purple-950/70">
-                      {t("promoApplied", {
-                        amount: formatKzt(promoApplied.discountKzt),
-                      })}
-                    </span>
+                  {/* Поздравление раскрывается по требованию — строкой
+                      «добавить поздравление +», как у референса:
+                      необязательное поле не должно занимать экран с первого
+                      взгляда. Уже написанное остаётся раскрытым. */}
+                  {msgOpen || message ? (
+                    <div className="fld__it">
+                      <label className="fld__label" htmlFor="b-msg">
+                        {t("s3Message")}
+                      </label>
+                      <textarea
+                        id="b-msg"
+                        className="fld__input fld__input--area"
+                        maxLength={120}
+                        placeholder={t("s3MessagePh")}
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                      />
+                      <p className="fld__hint fld__hint--end">
+                        {message.length}/120
+                      </p>
+                    </div>
+                  ) : (
                     <button
                       type="button"
-                      onClick={clearPromo}
-                      className="ml-auto text-xs font-semibold text-brand-red hover:underline"
+                      className="fld__add"
+                      onClick={() => setMsgOpen(true)}
                     >
-                      {t("promoRemove")}
+                      {t("s3AddMessage")}
+                      <span aria-hidden="true">+</span>
                     </button>
+                  )}
+                </div>
+              )}
+
+              {/* ── Куда отправить: город, филиал, почта ─────────────── */}
+              {step === 3 && (
+                <div className="fld">
+                  {/* Филиал спрашивается здесь, а не на шаге суммы: набор
+                      сумм у продаваемых филиалов одинаковый (сверено
+                      выгрузкой каталога). Если у программы задан список
+                      городов, остаются только филиалы, где она есть. */}
+                  <div className="fld__it">
+                    <span className="fld__label" id="b-city">
+                      {t("s1City")}
+                    </span>
+                    <div className="seg" role="radiogroup" aria-labelledby="b-city">
+                      {cities.map(([key, label]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          role="radio"
+                          aria-checked={selectedSalon?.cityKey === key}
+                          className="seg__it"
+                          onClick={() => {
+                            const cityFirst = salonsForChoice.find(
+                              (x) => x.cityKey === key,
+                            );
+                            setSalonId(cityFirst?.id ?? null);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <label className="bld__label" htmlFor="b-promo">
-                      {t("promoLabel")}
-                    </label>
-                    <div className="bld__promorow">
-                      <input
-                        id="b-promo"
-                        className="bld__input"
-                        placeholder={t("promoPlaceholder")}
-                        value={promoInput}
-                        maxLength={40}
-                        autoCapitalize="characters"
-                        onChange={(e) => {
-                          setPromoInput(e.target.value);
-                          setPromoError("");
-                        }}
-                      />
+
+                  {selectedSalon && (
+                    <div className="fld__it">
+                      <span className="fld__label" id="b-salon">
+                        {t("s1Salon")}
+                      </span>
+                      <div className="opt" role="radiogroup" aria-labelledby="b-salon">
+                        {salonsForChoice
+                          .filter((x) => x.cityKey === selectedSalon.cityKey)
+                          .map((x) => (
+                            <button
+                              key={x.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={x.id === salonId}
+                              className="opt__it"
+                              onClick={() => setSalonId(x.id)}
+                            >
+                              <span className="opt__name">{x.name}</span>
+                              <span className="opt__sub">{x.address}</span>
+                            </button>
+                          ))}
+                      </div>
+                      <p className="fld__hint">{t("s4Hint")}</p>
+                    </div>
+                  )}
+
+                  <div className="fld__it">
+                    <span className="fld__label" id="b-whenlbl">
+                      {t("s4When")}
+                    </span>
+                    <div className="seg" role="radiogroup" aria-labelledby="b-whenlbl">
                       <button
                         type="button"
-                        onClick={applyPromo}
-                        disabled={promoChecking || !promoInput.trim()}
-                        className="bld__btn bld__btn--ghost"
+                        role="radio"
+                        aria-checked={when === "now"}
+                        className="seg__it"
+                        onClick={() => setWhen("now")}
                       >
-                        {promoChecking ? "…" : t("promoApply")}
+                        {t("s4Now")}
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={when === "scheduled"}
+                        className="seg__it"
+                        onClick={() => setWhen("scheduled")}
+                      >
+                        {t("s4Scheduled")}
                       </button>
                     </div>
-                  </>
-                )}
-                {promoError && (
-                  <p className="mt-1.5 text-xs font-semibold text-brand-red">
-                    {promoError}
-                  </p>
-                )}
-              </div>
-            </>
+                  </div>
+
+                  {when === "scheduled" && (
+                    <div className="fld__it">
+                      <label className="fld__label" htmlFor="b-when">
+                        {t("s4DateTime")}
+                      </label>
+                      <input
+                        id="b-when"
+                        type="datetime-local"
+                        className="fld__input"
+                        value={scheduledAt}
+                        onChange={(e) => setScheduledAt(e.target.value)}
+                      />
+                      <p className="fld__hint">{t("s4TimeZone")}</p>
+                    </div>
+                  )}
+
+                  <div className="fld__it">
+                    <label className="fld__label" htmlFor="b-buyer">
+                      {t("s4BuyerEmail")} <span className="fld__req">*</span>
+                    </label>
+                    <input
+                      id="b-buyer"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      placeholder="name@mail.kz"
+                      className="fld__input"
+                      required
+                      value={buyerEmail}
+                      onChange={(e) => setBuyerEmail(e.target.value)}
+                    />
+                    <p className="fld__hint">{t("s4BuyerNote")}</p>
+                  </div>
+
+                  <div className="fld__it">
+                    <label className="fld__label" htmlFor="b-contact">
+                      {t("s4ContactEmail")}{" "}
+                      <span className="fld__opt">{t("s4Optional")}</span>
+                    </label>
+                    <input
+                      id="b-contact"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="off"
+                      placeholder="name@mail.kz"
+                      className="fld__input"
+                      value={contact}
+                      onChange={(e) => setContact(e.target.value)}
+                    />
+                    <p className="fld__hint">{t("s4ContactNote")}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Оплата ───────────────────────────────────────────── */}
+              {step === 4 && (
+                <div className="fld">
+                  {/* Сводка перед способом оплаты: последнее место, где ещё
+                      можно заметить чужой филиал или не ту сумму. */}
+                  <div>
+                    <dl className="sum">
+                      <div className="sum__row">
+                        <dt>
+                          {type === "program"
+                            ? t("sumTypeProgram")
+                            : t("sumTypeNominal")}
+                        </dt>
+                        <dd>
+                          {type === "program"
+                            ? [program?.name, previewSubtitle]
+                                .filter(Boolean)
+                                .join(" · ") || "—"
+                            : price > 0
+                              ? formatKzt(price)
+                              : "—"}
+                        </dd>
+                      </div>
+                      <div className="sum__row">
+                        <dt>{t("sumSalon")}</dt>
+                        <dd>
+                          {selectedSalon
+                            ? `${selectedSalon.city}, ${selectedSalon.address}`
+                            : "—"}
+                        </dd>
+                      </div>
+                      <div className="sum__row">
+                        <dt>{t("sumDesign")}</dt>
+                        <dd>{design.name}</dd>
+                      </div>
+                      <div className="sum__row">
+                        <dt>{t("sumDelivery")}</dt>
+                        <dd>{buyerEmail.trim() || t("s4Email")}</dd>
+                      </div>
+                      {promoValid && (
+                        <div className="sum__row sum__row--promo">
+                          <dt>{t("sumPromo", { code: promoApplied.code })}</dt>
+                          <dd>−{formatKzt(promoApplied.discountKzt)}</dd>
+                        </div>
+                      )}
+                      <div className="sum__row sum__row--total">
+                        <dt>{t("sumTotal")}</dt>
+                        <dd>{price > 0 ? formatKzt(total) : "—"}</dd>
+                      </div>
+                    </dl>
+                    <p className="fld__hint">{t("validity")}</p>
+                  </div>
+
+                  <div className="fld__it">
+                    <span className="fld__label" id="b-how">
+                      {t("s5How")}
+                    </span>
+                    <div className="seg" role="radiogroup" aria-labelledby="b-how">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={provider === "kaspi"}
+                        className="seg__it seg__it--tall"
+                        onClick={() => setProvider("kaspi")}
+                      >
+                        <span className="seg__mark seg__mark--kaspi">Kaspi.kz</span>
+                        <small>{t("s5KaspiSub")}</small>
+                      </button>
+                      {cardEnabled && (
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={provider === "forte"}
+                          className="seg__it seg__it--tall"
+                          onClick={() => setProvider("forte")}
+                        >
+                          <span className="seg__mark">{t("s5Card")}</span>
+                          <small>{t("s5CardSub")}</small>
+                        </button>
+                      )}
+                      {/* Демо-оплата: видна только вошедшему администратору,
+                          сервер проверяет это ещё раз. Нужна, чтобы пройти
+                          покупку целиком без списания денег. */}
+                      {demoEnabled && (
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={provider === "mock"}
+                          className="seg__it seg__it--tall"
+                          onClick={() => setProvider("mock")}
+                        >
+                          <span className="seg__mark seg__mark--demo">
+                            Демо-оплата
+                          </span>
+                          <small>без списания денег · видно только вам</small>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="fld__it">
+                    {promoValid ? (
+                      <div className="promo promo--ok">
+                        <span className="promo__code">{promoApplied.code}</span>
+                        <span className="promo__txt">
+                          {t("promoApplied", {
+                            amount: formatKzt(promoApplied.discountKzt),
+                          })}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={clearPromo}
+                          className="promo__rm"
+                        >
+                          {t("promoRemove")}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <label className="fld__label" htmlFor="b-promo">
+                          {t("promoLabel")}
+                        </label>
+                        <div className="promo">
+                          <input
+                            id="b-promo"
+                            className="fld__input"
+                            placeholder={t("promoPlaceholder")}
+                            value={promoInput}
+                            maxLength={40}
+                            autoCapitalize="characters"
+                            autoComplete="off"
+                            onChange={(e) => {
+                              setPromoInput(e.target.value);
+                              setPromoError("");
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={applyPromo}
+                            disabled={promoChecking || !promoInput.trim()}
+                            className="promo__apply"
+                          >
+                            {promoChecking ? "…" : t("promoApply")}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {promoError && <p className="fld__err">{promoError}</p>}
+                  </div>
+
+                  <label className="agree">
+                    <input
+                      type="checkbox"
+                      checked={payAgreed}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          consentAtRef.current.payment = new Date().toISOString();
+                        }
+                        setPayAgreed(e.target.checked);
+                      }}
+                    />
+                    <span>
+                      {t.rich("s5Agree", {
+                        rules: (chunks) => (
+                          <Link
+                            href="/legal/rules"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {chunks}
+                          </Link>
+                        ),
+                        offer: (chunks) => (
+                          <Link
+                            href="/legal/offer"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {chunks}
+                          </Link>
+                        ),
+                        privacy: (chunks) => (
+                          <Link
+                            href="/legal/privacy"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {chunks}
+                          </Link>
+                        ),
+                        payment: (chunks) => (
+                          <Link
+                            href="/legal/payment_info"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {chunks}
+                          </Link>
+                        ),
+                      })}
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
           )}
 
-          {step === 4 && (
-            <label className="bld__consent">
-              <input
-                type="checkbox"
-                checked={payAgreed}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    consentAtRef.current.payment = new Date().toISOString();
-                  }
-                  setPayAgreed(e.target.checked);
-                }}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-brand-purple"
-              />
-              <span>
-                {t.rich("s5Agree", {
-                  rules: (chunks) => (
-                    <Link
-                      href="/legal/rules"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-gold"
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                  offer: (chunks) => (
-                    <Link
-                      href="/legal/offer"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-gold"
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                  privacy: (chunks) => (
-                    <Link
-                      href="/legal/privacy"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-gold"
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                  payment: (chunks) => (
-                    <Link
-                      href="/legal/payment_info"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-gold"
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                })}
-              </span>
-            </label>
-          )}
-
-          {error && (
-            <p className="mt-4 text-sm font-semibold text-brand-red">{error}</p>
-          )}
-
-          <div className="bld__actions">
-            <button
-              type="button"
-              onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
-              className={`bld__btn bld__btn--ghost${step === 0 ? " bld__btn--hidden" : ""}`}
-            >
-              {tCommon("back")}
-            </button>
-            {step < 4 ? (
+          {/* ── Кнопки: круглая «Далее» справа внизу ────────────────────── */}
+          <div className="stg__nav">
+            {error && (
+              <p className="stg__err" role="alert">
+                {error}
+              </p>
+            )}
+            {step > 0 && (
               <button
                 type="button"
-                onClick={next}
-                className="bld__btn bld__btn--go"
+                className="stg__back"
+                onClick={() => {
+                  setError("");
+                  setStep((s) => Math.max(0, s - 1) as Step);
+                }}
               >
-                {tCommon("next")} →
+                ← {tCommon("back")}
+              </button>
+            )}
+            {step < 4 ? (
+              <button type="button" onClick={next} className="stg__go">
+                <span>{tCommon("next")}</span>
+                <span className="stg__arrow" aria-hidden="true">
+                  →
+                </span>
               </button>
             ) : (
               <button
                 type="button"
                 disabled={submitting || !payAgreed}
                 onClick={submit}
-                className="bld__btn bld__btn--pay"
+                className="stg__go stg__go--pay"
               >
                 {t("s5Pay", { price: formatKzt(total) })}
               </button>
             )}
           </div>
         </div>
-
       </div>
     </>
   );
