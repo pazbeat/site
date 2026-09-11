@@ -173,7 +173,18 @@ export function BuilderClient({
     resume?.optionId ?? initialOptionId ?? null,
   );
   const [nominalId, setNominalId] = useState<number | null>(
-    resume?.nominalId ?? initialNominalId ?? nominals[0]?.id ?? null,
+    resume?.nominalId ??
+      initialNominalId ??
+      // По умолчанию — первый номинал из продаваемого диапазона, а не просто
+      // первый в админке: там первым стоит служебный «100 ₸ ТЕСТ» для проверки
+      // оплаты. На круге его нет (он ниже минимальной суммы), и шаг открывался
+      // бы крупным «100 ₸» при круге, на котором не выбрано ничего.
+      (
+        nominals.find(
+          (n) => n.amountKzt >= bounds.min && n.amountKzt <= bounds.max,
+        ) ?? nominals[0]
+      )?.id ??
+      null,
   );
   const [customAmount, setCustomAmount] = useState(resume?.customAmount ?? "");
   /** Своя сумма раскрывается по требованию — но остаётся раскрытой, если
@@ -658,13 +669,21 @@ export function BuilderClient({
    * Смена «сумма ↔ программа». Программа сразу предвыбирается: на круге
    * всегда что-то стоит под бусиной, и пустое «ничего не выбрано» рядом с
    * подсвеченной строкой читалось бы как поломка. Первой берётся программа
-   * с меткой из админки («Хит»), без неё — первая в списке.
+   * с меткой из админки («Хит»), без неё — первая не дешевле минимальной
+   * суммы сертификата.
    */
   const switchType = (next: "program" | "nominal") => {
     setType(next);
     if (next === "program" && programId == null) {
       const first =
         availablePrograms.find((p) => p.highlight === "hit") ??
+        // Служебная «Тестовая покупка 100 ₸» стоит в списке первой; всё, что
+        // дешевле минимальной суммы сертификата, первым не предлагаем.
+        availablePrograms.find(
+          (p) =>
+            p.options.length > 0 &&
+            Math.min(...p.options.map((o) => o.priceKzt)) >= bounds.min,
+        ) ??
         availablePrograms[0];
       if (first) {
         setProgramId(first.id);
