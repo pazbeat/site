@@ -770,13 +770,19 @@ export function BuilderClient({
   // Круг забирает колесо и палец, только когда они над ним самим или над его
   // строками. Сцена широкая, и ловить жест по всей её площади значило бы
   // молча выбирать сумму у того, кто просто листает страницу.
-  const inDialZone = (x: number, y: number, target: EventTarget | null) => {
+  const inDialZone = (
+    x: number,
+    y: number,
+    target: EventTarget | null,
+    rightHalfOnly = false,
+  ) => {
     const sun = orbRef.current?.querySelector(".stg__sun")?.getBoundingClientRect();
+    const cx = sun === undefined ? 0 : sun.left + sun.width / 2;
     const inDisc =
       sun !== undefined &&
       sun.width > 0 &&
-      Math.hypot(x - (sun.left + sun.width / 2), y - (sun.top + sun.height / 2)) <=
-        sun.width / 2;
+      Math.hypot(x - cx, y - (sun.top + sun.height / 2)) <= sun.width / 2 &&
+      (!rightHalfOnly || x >= cx);
     return inDisc || !!(target as Element | null)?.closest?.(".dial__opt");
   };
   const onDialWheel = useEffectEvent((e: WheelEvent) => {
@@ -828,6 +834,7 @@ export function BuilderClient({
     lastY: number;
     lastT: number;
     v: number;
+    rowPx: number;
   } | null>(null);
   const dialTarget = (from: number, n: number) => {
     const last = dialItems.length - 1;
@@ -850,7 +857,7 @@ export function BuilderClient({
     dialTouch.current = null;
     if (step !== 1 || !showDial || e.touches.length !== 1) return;
     const p = e.touches[0];
-    if (!inDialZone(p.clientX, p.clientY, e.target)) return;
+    if (!inDialZone(p.clientX, p.clientY, e.target, true)) return;
     dialTouch.current = {
       id: p.identifier,
       x: p.clientX,
@@ -861,11 +868,22 @@ export function BuilderClient({
       lastY: p.clientY,
       lastT: e.timeStamp,
       v: 0,
+      // Высота строки за жест не меняется, а чтение offsetHeight посреди
+      // поворота круга стоит целый кадр — меряем один раз здесь.
+      rowPx: dialRowPx(),
     };
   });
   const onDialTouchMove = useEffectEvent((e: TouchEvent) => {
     const t = dialTouch.current;
     if (!t || t.mode === "page") return;
+    // Второй палец — это щипок (масштаб страницы) или двухпальцевая
+    // прокрутка. Он может лечь мимо сцены, и тогда его touchstart сюда не
+    // придёт: смотрим на список касаний прямо здесь. Режим «page» до конца
+    // жеста — даже если лишний палец уберут, жест остаётся браузерным.
+    if (e.touches.length > 1) {
+      t.mode = "page";
+      return;
+    }
     const p = Array.from(e.touches).find((q) => q.identifier === t.id);
     if (!p) return;
     const dx = p.clientX - t.x;
@@ -884,17 +902,25 @@ export function BuilderClient({
       }
       t.mode = "dial";
     }
-    if (e.cancelable) e.preventDefault();
+    if (!e.cancelable) {
+      t.mode = "page";
+      return;
+    }
+    e.preventDefault();
     const dt = e.timeStamp - t.lastT;
     if (dt > 0) t.v = 0.7 * ((p.clientY - t.lastY) / dt) + 0.3 * t.v;
     t.lastY = p.clientY;
     t.lastT = e.timeStamp;
-    const n = Math.trunc(-dy / dialRowPx());
+    const n = Math.trunc(-dy / t.rowPx);
     if (n === 0) return;
     const target = dialTarget(t.from, n);
     if (target !== t.applied) {
       t.applied = target;
       pickDial(target);
+    }
+    if (target === 0 || target === dialItems.length - 1) {
+      t.from = target;
+      t.y = p.clientY;
     }
   });
   const onDialTouchEnd = useEffectEvent((e: TouchEvent) => {
@@ -904,7 +930,7 @@ export function BuilderClient({
     // Взмах: чем быстрее, тем дальше докручивает (не больше шести строк).
     // Палец, остановившийся перед отпусканием, не докручивает ничего.
     if (e.timeStamp - t.lastT > 80 || Math.abs(t.v) < 0.35) return;
-    const extra = Math.max(-6, Math.min(6, Math.round((-t.v * 160) / dialRowPx())));
+    const extra = Math.max(-6, Math.min(6, Math.round((-t.v * 96) / t.rowPx)));
     if (!extra) return;
     const base = t.applied >= 0 ? t.applied : dialTarget(t.from, extra > 0 ? 1 : -1);
     const target = Math.min(dialItems.length - 1, Math.max(0, base + extra));

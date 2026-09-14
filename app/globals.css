@@ -1931,10 +1931,19 @@ h3,
   .pick__lede{font-size:15px;line-height:1.55;color:var(--ui-ink-2);max-width:44ch;
         margin:12px auto 0}
 
-  .pick__scene{display:grid;grid-template-columns:1fr;gap:clamp(3rem,7svh,4rem);
+  .pick__scene{display:grid;grid-template-columns:1fr;gap:clamp(2rem,5svh,3rem);
          justify-items:center}
+  /* Телефон: одна колонка, у веера задних карт подъём заметнее — подписи
+     нужно больше места, чтобы последняя строка не легла на карту. Промежуток
+     между открытками при этом уменьшен: страница не должна стать длиннее. */
+  @media (max-width:759px){
+    .pick__cap{margin-bottom:42px}
+    /* Промежуток между открытками меньше: разделяет их теперь подпись
+       второй, и страница не должна стать длиннее прежней. */
+    .pick__scene{gap:clamp(1rem,2.5svh,1.5rem)}
+  }
 
-  .pick__opt{all:unset;display:block;cursor:pointer;width:100%;max-width:400px;
+  .pick__opt{all:unset;display:flex;flex-direction:column;cursor:pointer;width:100%;max-width:400px;
        border-radius:20px;-webkit-tap-highlight-color:transparent}
   .pick__opt:focus-visible{outline:2px solid var(--ui-ink);outline-offset:10px}
 
@@ -1982,7 +1991,7 @@ h3,
   /* Подпись — над открыткой (просьба заказчика 2026-09-11). Узко — прямо
      над своей картой; с 1080px — в свободном поле по бокам от заголовка и
      вне потока (правило ниже): страница от этого не длиннее, а короче. */
-  .pick__cap{display:block;margin:0 0 20px;text-align:center}
+  .pick__cap{display:block;margin:auto 0 34px;text-align:center}
   .pick__name{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.6rem,3vw,2.1rem);
         line-height:1.05;color:var(--ui-ink);display:block}
   .pick__note{display:block;font-size:14px;line-height:1.55;color:var(--ui-ink-2);max-width:34ch;
@@ -1997,34 +2006,43 @@ h3,
   }
 
   @media (min-width:760px){
-    .pick__scene{grid-template-columns:1fr 1fr;gap:clamp(2rem,5vw,4.5rem);align-items:start}
+    .pick__scene{grid-template-columns:1fr 1fr;gap:clamp(2rem,5vw,4.5rem);align-items:stretch}
     .pick__opt{max-width:none}
-    /* Две колонки: подписи разной длины, а открытки должны стоять вровень —
-       у пояснения высота на три строки. */
-    .pick__note{min-height:4.65em}
   }
   /* Широко: по бокам от заголовка хватает места. Подпись «на сумму» — слева
      над своей картой, «на услугу» — справа над своей, обе на одной высоте с
      заголовком «Что вы дарите?»: отсчёт от верха общего блока, а не от
      карт (подписи разной длины встали бы вразнобой). Заголовок остаётся по
      центру и не задевается. */
-  @media (min-width:1080px){
+  @media (min-width:1180px) and (min-height:521px){
     .pick__inner{position:relative}
     .pick__cap{position:absolute;top:38px;width:260px;margin:0}
     .pick__opt--sum .pick__cap{left:0;text-align:left}
     .pick__opt--prog .pick__cap{right:0;text-align:right}
     .pick__note{max-width:none;min-height:0;margin:8px 0 0}
+    /* Нажимаются сами слова, а не пустая половина колонки: прозрачный
+       прямоугольник подписи накрывал последние слова подзаголовка, и клик
+       по тексту-пояснению выбирал сертификат. */
+    .pick__cap{pointer-events:none}
+    .pick__name,.pick__note{pointer-events:auto;display:inline-block}
+    /* Рамка фокуса обводит и подпись: с клавиатуры иначе подсвечивалась
+       только картинка, а слова, называющие кнопку, оставались вне рамки. */
+    .pick__opt:focus-visible .pick__cap{outline:2px solid var(--ui-ink);outline-offset:6px;border-radius:10px}
   }
-  @media (min-width:1280px){.pick__cap{width:300px}}
+  @media (min-width:1280px) and (min-height:521px){.pick__cap{width:300px}}
 
   /* Телефон лёжа — по ВЫСОТЕ, не по ширине. */
   @media (max-height:520px) and (orientation:landscape){
-    .pick{padding:1rem 1rem 1.5rem}
+    .pick{padding:.5rem 1rem 1rem}
     .pick__head{margin-bottom:1rem}
     .pick__title{font-size:1.4rem}
     .pick__lede{display:none}
     .pick__scene{grid-template-columns:1fr 1fr;gap:1.5rem}
-    .pick__cap{margin:0 0 10px}
+    .pick__cap{margin:auto 0 24px}
+    /* Веер задних карт поднимается меньше: иначе подпись над открыткой
+       ложится на них, а места по высоте здесь и так нет. */
+    .pick__card--2{transform:rotateX(5deg) rotateY(-5deg) rotate(-5deg) translate(-13px,-7px) scale(.955)}
+    .pick__card--3{transform:rotateX(5deg) rotateY(-5deg) rotate(-9.5deg) translate(-25px,-14px) scale(.915)}
     .pick__name{font-size:1.15rem}
     .pick__note{font-size:11px;max-width:30ch;margin-top:5px}
     .pick__plate{font-size:10px;padding:5px 9px;left:12px;bottom:11px}
@@ -2503,6 +2521,7 @@ h3,
      transform:rotate(calc(var(--sel) * var(--step) * -1deg));
      transition:transform var(--dial-dur,.6s) var(--ui-spring-b)}
 .dial__opt{all:unset;box-sizing:border-box;cursor:pointer;position:absolute;
+     touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
      left:calc(var(--R) + var(--gap));top:calc(var(--line) / -2);height:var(--line);
      display:flex;align-items:center;white-space:nowrap;
      transform-origin:calc(-1 * (var(--R) + var(--gap))) 50%;
