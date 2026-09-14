@@ -1970,9 +1970,9 @@ h3,
                  0 34px 44px -22px rgba(37,8,47,.24),
                  0 70px 90px -50px rgba(37,8,47,.34)}
   .pick__opt--prog .pick__card--1{transform:rotateX(6deg) rotateY(9deg)}
-  .pick__card--2{transform:rotateX(6deg) rotateY(-9deg) rotate(-7.5deg) translate(-30px,-15px) scale(.95);
+  .pick__card--2{transform:rotateX(6deg) rotateY(-9deg) rotate(-7.5deg) translate(-30px,-15px) scale(.95) translateZ(-60px);
       opacity:.7;box-shadow:0 24px 34px -22px rgba(37,8,47,.28)}
-  .pick__card--3{transform:rotateX(6deg) rotateY(-9deg) rotate(-14deg) translate(-56px,-29px) scale(.90);
+  .pick__card--3{transform:rotateX(6deg) rotateY(-9deg) rotate(-14deg) translate(-56px,-29px) scale(.90) translateZ(-120px);
       opacity:.42;box-shadow:0 22px 30px -22px rgba(37,8,47,.24)}
 
   /* Кромка вместо рамки: свет сверху-слева, тень снизу-справа.
@@ -2000,8 +2000,8 @@ h3,
   @media (hover:hover) and (pointer:fine){
     .pick__opt:hover .pick__card--1{transform:rotateX(3deg) rotateY(-5deg) translateY(-10px) scale(1.025)}
     .pick__opt--prog:hover .pick__card--1{transform:rotateX(3deg) rotateY(5deg) translateY(-10px) scale(1.025)}
-    .pick__opt:hover .pick__card--2{transform:rotateX(6deg) rotateY(-9deg) rotate(-9deg) translate(-30px,-16px) scale(.955)}
-    .pick__opt:hover .pick__card--3{transform:rotateX(6deg) rotateY(-9deg) rotate(-16deg) translate(-56px,-30px) scale(.915)}
+    .pick__opt:hover .pick__card--2{transform:rotateX(6deg) rotateY(-9deg) rotate(-9deg) translate(-30px,-16px) scale(.955) translateZ(-60px)}
+    .pick__opt:hover .pick__card--3{transform:rotateX(6deg) rotateY(-9deg) rotate(-16deg) translate(-56px,-30px) scale(.915) translateZ(-120px)}
     .pick__opt:hover .pick__glow{opacity:1;transform:scale(1.06)}
   }
 
@@ -2041,8 +2041,8 @@ h3,
     .pick__cap{margin:auto 0 24px}
     /* Веер задних карт поднимается меньше: иначе подпись над открыткой
        ложится на них, а места по высоте здесь и так нет. */
-    .pick__card--2{transform:rotateX(5deg) rotateY(-5deg) rotate(-5deg) translate(-13px,-7px) scale(.955)}
-    .pick__card--3{transform:rotateX(5deg) rotateY(-5deg) rotate(-9.5deg) translate(-25px,-14px) scale(.915)}
+    .pick__card--2{transform:rotateX(5deg) rotateY(-5deg) rotate(-5deg) translate(-13px,-7px) scale(.955) translateZ(-60px)}
+    .pick__card--3{transform:rotateX(5deg) rotateY(-5deg) rotate(-9.5deg) translate(-25px,-14px) scale(.915) translateZ(-120px)}
     .pick__name{font-size:1.15rem}
     .pick__note{font-size:11px;max-width:30ch;margin-top:5px}
     .pick__plate{font-size:10px;padding:5px 9px;left:12px;bottom:11px}
@@ -2050,8 +2050,8 @@ h3,
   @media (max-width:420px){
     .pick__card--1,.pick__opt--prog .pick__card--1{transform:rotateX(5deg) rotateY(-5deg)}
     .pick__opt--prog .pick__card--1{transform:rotateX(5deg) rotateY(5deg)}
-    .pick__card--2{transform:rotateX(5deg) rotateY(-5deg) rotate(-5deg) translate(-13px,-7px) scale(.955)}
-    .pick__card--3{transform:rotateX(5deg) rotateY(-5deg) rotate(-9.5deg) translate(-25px,-14px) scale(.915)}
+    .pick__card--2{transform:rotateX(5deg) rotateY(-5deg) rotate(-5deg) translate(-13px,-7px) scale(.955) translateZ(-60px)}
+    .pick__card--3{transform:rotateX(5deg) rotateY(-5deg) rotate(-9.5deg) translate(-25px,-14px) scale(.915) translateZ(-120px)}
   }
   @media (prefers-reduced-motion:reduce){
     .pick__card,.pick__glow{transition:none}
@@ -2461,27 +2461,30 @@ h3,
 .stg__edge{position:absolute;inset:0;border-radius:inherit;pointer-events:none;
      box-shadow:inset 1px 1px 0 rgba(255,255,255,.5),inset -1px -1.5px 0 rgba(37,8,47,.3)}
 
-/* Подпись на открытке. Плотная и высокая: у открыток бренда снизу часто
-   своя крупная надпись, и лёгкий градиент оставлял имя лежать прямо на ней.
+/* Подпись на открытке — узкая полоса внизу (просьба заказчика 2026-09-14:
+   прежняя занимала половину картинки). Всё, что нужно, осталось: сумма или
+   название услуги, кому и номер сертификата; поздравление ушло в ту же
+   строку, что и имя. Градиент короткий — картинку он больше не закрывает.
    Кегли — от ширины карты (cqi): карта меняет размер от шага к шагу. */
-.stg__panel{position:absolute;inset:auto 0 0;display:flex;flex-direction:column;gap:.35em;
-     padding:18cqi 6cqi 5cqi;color:#fff;font-size:clamp(10px,2.4cqi,15px);
-     background:linear-gradient(to top,var(--color-brand-purple) 0%,var(--color-brand-purple) 42%,
-                rgba(77,41,93,.9) 70%,transparent 100%);
+.stg__panel{position:absolute;inset:auto 0 0;display:flex;flex-direction:column;gap:.2em;
+     padding:5cqi 5cqi 3.4cqi;color:#fff;font-size:clamp(9px,2cqi,12.5px);
+     background:linear-gradient(to top,var(--color-brand-purple) 0%,rgba(77,41,93,.95) 70%,
+                rgba(77,41,93,0) 100%);
      animation:stg-panel .6s var(--ui-spring) both}
 @keyframes stg-panel{from{opacity:0;transform:translateY(12px)}}
 .stg__prow{display:flex;align-items:baseline;justify-content:space-between;gap:1em;min-width:0}
 .stg__prow--end{align-items:flex-end}
-.stg__ptitle{font-family:var(--font-display),Georgia,serif;font-size:clamp(1rem,5cqi,1.9rem);
+.stg__ptitle{font-family:var(--font-display),Georgia,serif;font-size:clamp(.85rem,3.5cqi,1.35rem);
      line-height:1.05;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stg__ptitle--sum{font-family:var(--font-sans),system-ui,sans-serif;font-weight:700;letter-spacing:-.02em}
-.stg__pgift{flex:none;font-size:.62em;font-weight:700;letter-spacing:.24em;text-transform:uppercase;opacity:.8}
-.stg__psub{font-size:.85em;opacity:.85}
-.stg__pfor{display:flex;flex-direction:column;gap:.15em;min-width:0}
-.stg__pto{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}
-.stg__pmsg{font-family:var(--font-display),Georgia,serif;font-style:italic;font-size:1.12em;
-     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
-.stg__pcode{flex:none;font-weight:700;letter-spacing:.16em}
+.stg__pgift{flex:none;font-size:.6em;font-weight:700;letter-spacing:.2em;text-transform:uppercase;opacity:.75}
+.stg__psub{font-size:.82em;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Имя и поздравление — одной строкой: две строки поднимали полосу вдвое. */
+.stg__pfor{display:flex;flex-direction:row;align-items:baseline;gap:.4em;min-width:0}
+.stg__pto{flex:none;max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}
+.stg__pmsg{font-family:var(--font-display),Georgia,serif;font-style:italic;font-size:1em;
+     min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+.stg__pcode{flex:none;font-weight:700;letter-spacing:.14em;font-size:.9em}
 
 /* ── Циферблат ───────────────────────────────────────────────────────────
    Точка отсчёта — центр круга (у .dial нулевой размер). Каждая строка

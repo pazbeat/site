@@ -55,8 +55,9 @@ const PROGRAMS: SeedProgram[] = [
 
 const SALONS = SALON_SEED;
 
+// Ряд витрины начинается с 20 000 — как на действующем сайте (2026-09-14).
 const NOMINALS = [
-  { amountKzt: 18000, label: null as string | null },
+  { amountKzt: 20000, label: null as string | null },
   { amountKzt: 30000, label: null },
   { amountKzt: 50000, label: "Хит" },
   { amountKzt: 100000, label: null },

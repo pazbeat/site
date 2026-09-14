@@ -136,9 +136,9 @@ describe("altegio catalog", () => {
     expect(resolveGoodId(225022, { nominalKzt: 12345 })).toBeNull();
   });
 
-  it("покрывает все номиналы сайта (18000/30000/50000/100000) в каждом филиале", () => {
+  it("покрывает весь ряд витрины (SITE_NOMINALS) в каждом филиале", () => {
     for (const companyId of Object.keys(BRANCH_PARAMS)) {
-      for (const nominal of [18000, 30000, 50000, 100000]) {
+      for (const nominal of SITE_NOMINALS) {
         expect(
           resolveGoodId(Number(companyId), { nominalKzt: nominal }),
           `company ${companyId} / номинал ${nominal}`,

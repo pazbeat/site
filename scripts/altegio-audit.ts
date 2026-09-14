@@ -15,7 +15,7 @@
 import "dotenv/config";
 import { prisma } from "../lib/db";
 import { altegioRequest } from "../lib/altegio/client";
-import { resolveGoodId, resolveProgramTitle } from "../lib/altegio/catalog";
+import { SITE_NOMINALS, resolveGoodId, resolveProgramTitle } from "../lib/altegio/catalog";
 
 type Good = {
   good_id?: number;
@@ -83,9 +83,16 @@ function judge(
   good: Good | undefined,
   type: CertType | undefined,
   priceKzt: number,
-  kind: "номинал" | "программа",
+  kind: "номинал" | "номинал витрины" | "программа",
 ): string {
-  if (goodId === null) return "НЕТ МАППИНГА";
+  if (goodId === null) {
+    // Сумма, которую предлагает круг конструктора, обязана иметь товар в
+    // каждом продаваемом филиале: иначе покупатель её выберет, а филиал
+    // с ней не найдётся.
+    return kind === "номинал витрины"
+      ? "СУММА С ВИТРИНЫ БЕЗ ТОВАРА (купить нельзя)"
+      : "НЕТ МАППИНГА";
+  }
   if (!good) return "ТОВАРА НЕТ В ФИЛИАЛЕ";
   if (!good.loyalty_certificate_type_id) return "НЕ СЕРТИФИКАТ";
   if (!type) return "ТИП НЕ НАЙДЕН";
@@ -94,10 +101,10 @@ function judge(
   // Номинал обязан тратиться на что угодно и делиться на части: покупатель
   // дарит сумму, а не конкретную процедуру. Тип, привязанный к услуге,
   // молча превратит подарок в талон на одну процедуру.
-  if (kind === "номинал" && type.item_type_id !== 0) {
+  if (kind.startsWith("номинал") && type.item_type_id !== 0) {
     return `НОМИНАЛ ОГРАНИЧЕН: ${type.item_type?.title ?? type.item_type_id}`;
   }
-  if (kind === "номинал" && type.is_multi === false) {
+  if (kind.startsWith("номинал") && type.is_multi === false) {
     return "НОМИНАЛ НЕДЕЛИМ (нельзя тратить частями)";
   }
   return "ок";
@@ -111,10 +118,18 @@ async function main() {
     where: { orderable: true, active: true, altegioLocationId: { not: null } },
     orderBy: { id: "asc" },
   });
-  const nominals = await prisma.nominal.findMany({
+  const adminNominals = await prisma.nominal.findMany({
     where: { active: true },
     orderBy: { amountKzt: "asc" },
   });
+  // Проверяем ИМЕННО ТО, ЧТО ПОКУПАЮТ: весь ряд сумм витрины (SITE_NOMINALS),
+  // а не только номиналы админки. Раньше сверка брала таблицу nominals — это
+  // пять сумм, а на круге конструктора их девятнадцать, и расхождение по
+  // остальным никто бы не увидел.
+  const siteAmounts = new Set<number>(SITE_NOMINALS);
+  const amounts = [
+    ...new Set([...SITE_NOMINALS, ...adminNominals.map((n) => n.amountKzt)]),
+  ].sort((a, b) => a - b);
   const programs = await prisma.program.findMany({
     where: { active: true },
     include: { options: { orderBy: { priceKzt: "asc" } } },
@@ -132,8 +147,8 @@ async function main() {
     const branch = `${salon.codePrefix ?? "??"} ${salon.city} ${salon.name}`;
     const goods = await fetchGoods(companyId);
 
-    for (const nominal of nominals) {
-      const goodId = resolveGoodId(companyId, { nominalKzt: nominal.amountKzt });
+    for (const amountKzt of amounts) {
+      const goodId = resolveGoodId(companyId, { nominalKzt: amountKzt });
       const good = goodId ? goods.get(goodId) : undefined;
       const type = good?.loyalty_certificate_type_id
         ? typeById.get(good.loyalty_certificate_type_id)
@@ -142,15 +157,21 @@ async function main() {
         branch,
         companyId,
         kind: "номинал",
-        what: `${nominal.amountKzt} ₸`,
-        priceKzt: nominal.amountKzt,
+        what: `${amountKzt} ₸${siteAmounts.has(amountKzt) ? "" : " (только админка)"}`,
+        priceKzt: amountKzt,
         goodId,
         goodTitle: good?.title ?? "",
         typeBalance: type?.balance ?? null,
         typeTitle: type?.title ?? "",
         itemType: type?.item_type?.title ?? "",
         isMulti: type?.is_multi ?? null,
-        verdict: judge(goodId, good, type, nominal.amountKzt, "номинал"),
+        verdict: judge(
+          goodId,
+          good,
+          type,
+          amountKzt,
+          siteAmounts.has(amountKzt) ? "номинал витрины" : "номинал",
+        ),
       });
     }
 
