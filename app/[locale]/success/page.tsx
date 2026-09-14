@@ -85,6 +85,17 @@ export default async function SuccessPage({
     certificate.type === "program" && option
       ? pickL10n(option.program.names, locale)
       : formatKzt(certificate.amountKzt ?? 0);
+  // Подарок самому себе: почта получателя не указана или совпала с почтой
+  // покупателя. Письмо тогда уходит ОДНО (lib/delivery.ts, giftingSelf), и
+  // фраза «и копию вам» на этом экране была бы неправдой — человек получил не
+  // копию, а сам сертификат. Условие повторяет delivery.ts дословно.
+  const deliveredTo =
+    certificate.deliveryMethod === "email"
+      ? certificate.deliveryContact
+      : order.buyerEmail;
+  const giftingSelf =
+    deliveredTo.trim().toLowerCase() === order.buyerEmail.trim().toLowerCase();
+
   const subtitle =
     certificate.type === "program" && option
       ? option.persons
@@ -108,7 +119,9 @@ export default async function SuccessPage({
           <h1 className="mb-3 font-display text-3xl font-semibold text-brand-purple sm:text-4xl">
             {t("title")}
           </h1>
-          <p className="mb-8 text-sm text-brand-purple-950/65">{t("subtitle")}</p>
+          <p className="mb-8 text-sm text-brand-purple-950/65">
+            {t(giftingSelf ? "subtitleSelf" : "subtitle")}
+          </p>
 
           <div className="mx-auto mb-8 max-w-md text-left">
             <CertPreview

@@ -304,6 +304,7 @@
   "Success": {
     "title": "Certificate paid!",
     "subtitle": "We sent the certificate to the recipient and a copy to your email. Thank you for gifting care!",
+    "subtitleSelf": "We sent the certificate to your email. Thank you for gifting care!",
     "waitingTitle": "Waiting for payment confirmation…",
     "waitingText": "This usually takes a few seconds. The page will refresh automatically.",
     "codeLabel": "Certificate code",
