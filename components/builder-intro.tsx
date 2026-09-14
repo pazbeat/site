@@ -59,6 +59,10 @@ export function BuilderIntro({
             onClick={() => onPick("nominal")}
             className="pick__opt pick__opt--sum"
           >
+            <span className="pick__cap">
+              <span className="pick__name">{t("nominalName")}</span>
+              <span className="pick__note">{t("nominalText")}</span>
+            </span>
             <span className="pick__stage">
               <span className="pick__glow" aria-hidden="true" />
               <span className="pick__deck">
@@ -83,10 +87,6 @@ export function BuilderIntro({
                 </span>
               </span>
             </span>
-            <span className="pick__cap">
-              <span className="pick__name">{t("nominalName")}</span>
-              <span className="pick__note">{t("nominalText")}</span>
-            </span>
           </button>
 
           {/* На услугу — одна карта, повёрнутая к зрителю */}
@@ -95,6 +95,10 @@ export function BuilderIntro({
             onClick={() => onPick("program")}
             className="pick__opt pick__opt--prog"
           >
+            <span className="pick__cap">
+              <span className="pick__name">{t("programName")}</span>
+              <span className="pick__note">{t("programText")}</span>
+            </span>
             <span className="pick__stage">
               <span className="pick__glow" aria-hidden="true" />
               <span className="pick__deck">
@@ -108,10 +112,6 @@ export function BuilderIntro({
                   </span>
                 </span>
               </span>
-            </span>
-            <span className="pick__cap">
-              <span className="pick__name">{t("programName")}</span>
-              <span className="pick__note">{t("programText")}</span>
             </span>
           </button>
         </div>

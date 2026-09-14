@@ -1979,11 +1979,14 @@ h3,
          box-shadow:0 8px 18px -8px rgba(37,8,47,.4)}
   .pick__plate--small{font-size:12px}
 
-  .pick__cap{display:block;margin-top:34px;text-align:center}
+  /* Подпись — над открыткой (просьба заказчика 2026-09-11). Узко — прямо
+     над своей картой; с 1080px — в свободном поле по бокам от заголовка и
+     вне потока (правило ниже): страница от этого не длиннее, а короче. */
+  .pick__cap{display:block;margin:0 0 20px;text-align:center}
   .pick__name{font-family:var(--font-display), Georgia, serif;font-weight:500;font-size:clamp(1.6rem,3vw,2.1rem);
         line-height:1.05;color:var(--ui-ink);display:block}
   .pick__note{display:block;font-size:14px;line-height:1.55;color:var(--ui-ink-2);max-width:34ch;
-        margin:9px auto 0;min-height:3.2em}
+        margin:8px auto 0;text-wrap:pretty}
 
   @media (hover:hover) and (pointer:fine){
     .pick__opt:hover .pick__card--1{transform:rotateX(3deg) rotateY(-5deg) translateY(-10px) scale(1.025)}
@@ -1996,7 +1999,23 @@ h3,
   @media (min-width:760px){
     .pick__scene{grid-template-columns:1fr 1fr;gap:clamp(2rem,5vw,4.5rem);align-items:start}
     .pick__opt{max-width:none}
+    /* Две колонки: подписи разной длины, а открытки должны стоять вровень —
+       у пояснения высота на три строки. */
+    .pick__note{min-height:4.65em}
   }
+  /* Широко: по бокам от заголовка хватает места. Подпись «на сумму» — слева
+     над своей картой, «на услугу» — справа над своей, обе на одной высоте с
+     заголовком «Что вы дарите?»: отсчёт от верха общего блока, а не от
+     карт (подписи разной длины встали бы вразнобой). Заголовок остаётся по
+     центру и не задевается. */
+  @media (min-width:1080px){
+    .pick__inner{position:relative}
+    .pick__cap{position:absolute;top:38px;width:260px;margin:0}
+    .pick__opt--sum .pick__cap{left:0;text-align:left}
+    .pick__opt--prog .pick__cap{right:0;text-align:right}
+    .pick__note{max-width:none;min-height:0;margin:8px 0 0}
+  }
+  @media (min-width:1280px){.pick__cap{width:300px}}
 
   /* Телефон лёжа — по ВЫСОТЕ, не по ширине. */
   @media (max-height:520px) and (orientation:landscape){
@@ -2005,7 +2024,7 @@ h3,
     .pick__title{font-size:1.4rem}
     .pick__lede{display:none}
     .pick__scene{grid-template-columns:1fr 1fr;gap:1.5rem}
-    .pick__cap{margin-top:18px}
+    .pick__cap{margin:0 0 10px}
     .pick__name{font-size:1.15rem}
     .pick__note{font-size:11px;max-width:30ch;margin-top:5px}
     .pick__plate{font-size:10px;padding:5px 9px;left:12px;bottom:11px}

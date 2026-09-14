@@ -767,6 +767,18 @@ export function BuilderClient({
    * круге, когда дальше крутить некуда.
    */
   const wheelAcc = useRef(0);
+  // Круг забирает колесо и палец, только когда они над ним самим или над его
+  // строками. Сцена широкая, и ловить жест по всей её площади значило бы
+  // молча выбирать сумму у того, кто просто листает страницу.
+  const inDialZone = (x: number, y: number, target: EventTarget | null) => {
+    const sun = orbRef.current?.querySelector(".stg__sun")?.getBoundingClientRect();
+    const inDisc =
+      sun !== undefined &&
+      sun.width > 0 &&
+      Math.hypot(x - (sun.left + sun.width / 2), y - (sun.top + sun.height / 2)) <=
+        sun.width / 2;
+    return inDisc || !!(target as Element | null)?.closest?.(".dial__opt");
+  };
   const onDialWheel = useEffectEvent((e: WheelEvent) => {
     if (step !== 1 || !showDial) return;
     // Ctrl/⌘ + колесо и щипок тачпада — это масштаб страницы, не круг.
@@ -774,18 +786,7 @@ export function BuilderClient({
     // круг, пока страница всё равно едет, тоже нельзя.
     if (e.ctrlKey || e.metaKey || !e.cancelable) return;
     if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-    // Круг забирает колесо, только когда курсор над ним самим или над его
-    // строками. Сцена широкая, и ловить колесо по всей её площади значило бы
-    // молча выбирать сумму у того, кто просто листает страницу.
-    const hit = e.target as Element | null;
-    const sun = orbRef.current?.querySelector(".stg__sun")?.getBoundingClientRect();
-    const inDisc =
-      sun !== undefined &&
-      Math.hypot(
-        e.clientX - (sun.left + sun.width / 2),
-        e.clientY - (sun.top + sun.height / 2),
-      ) <= sun.width / 2;
-    if (!inDisc && !hit?.closest(".dial__opt")) return;
+    if (!inDialZone(e.clientX, e.clientY, e.target)) return;
     const dir = e.deltaY > 0 ? 1 : -1;
     const last = dialItems.length - 1;
     if (
@@ -808,16 +809,131 @@ export function BuilderClient({
           : Math.floor(dialSel);
     pickDial(Math.min(last, Math.max(0, target)));
   });
-  // Слушатель нативный и НЕ пассивный: React вешает wheel пассивным, и
-  // preventDefault в onWheel не сработал бы — страница уезжала бы вместе с
-  // кругом. Переподписка на смену шага: сцена появляется только после
-  // согласия, а шаг «Подарок» может открыться сразу из черновика.
+  /**
+   * Палец на телефоне — как колесо мыши (просьба заказчика 2026-09-11): повёл
+   * по кругу или по строкам — крутятся суммы и программы, повёл по
+   * свободному месту правее — едет страница. Вверх — к следующей строке, как
+   * список под пальцем; круг проходит строку на каждые ~0,8 шага между
+   * строками, а резкий взмах докручивает ещё несколько, как колесо выбора в
+   * iOS. Направление решает первое движение: вбок — не наш жест; на краю
+   * списка, если тянут дальше края, палец тоже отдаётся странице.
+   */
+  const dialTouch = useRef<{
+    id: number;
+    x: number;
+    y: number;
+    from: number;
+    applied: number;
+    mode: "wait" | "dial" | "page";
+    lastY: number;
+    lastT: number;
+    v: number;
+  } | null>(null);
+  const dialTarget = (from: number, n: number) => {
+    const last = dialItems.length - 1;
+    // Ничего не выбрано — бусина между строками: первый шаг встаёт на
+    // ближайшую строку в сторону жеста, как у колеса.
+    const t = Number.isInteger(from)
+      ? from + n
+      : n > 0
+        ? Math.ceil(from) + n - 1
+        : n < 0
+          ? Math.floor(from) + n + 1
+          : from;
+    return Math.min(last, Math.max(0, Math.round(t)));
+  };
+  const dialRowPx = () => {
+    const row = dialRef.current?.querySelector<HTMLElement>(".dial__opt");
+    return Math.max(24, (row?.offsetHeight ?? 40) * 0.8);
+  };
+  const onDialTouchStart = useEffectEvent((e: TouchEvent) => {
+    dialTouch.current = null;
+    if (step !== 1 || !showDial || e.touches.length !== 1) return;
+    const p = e.touches[0];
+    if (!inDialZone(p.clientX, p.clientY, e.target)) return;
+    dialTouch.current = {
+      id: p.identifier,
+      x: p.clientX,
+      y: p.clientY,
+      from: dialSelected >= 0 ? dialSelected : dialSel,
+      applied: dialSelected,
+      mode: "wait",
+      lastY: p.clientY,
+      lastT: e.timeStamp,
+      v: 0,
+    };
+  });
+  const onDialTouchMove = useEffectEvent((e: TouchEvent) => {
+    const t = dialTouch.current;
+    if (!t || t.mode === "page") return;
+    const p = Array.from(e.touches).find((q) => q.identifier === t.id);
+    if (!p) return;
+    const dx = p.clientX - t.x;
+    const dy = p.clientY - t.y;
+    if (t.mode === "wait") {
+      if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+      const last = dialItems.length - 1;
+      const dir = dy < 0 ? 1 : -1;
+      const atEdge =
+        dialSelected >= 0 &&
+        ((dir > 0 && dialSelected >= last) || (dir < 0 && dialSelected <= 0));
+      // Неотменяемое движение значит, что страница уже поехала, — не спорим.
+      if (Math.abs(dx) > Math.abs(dy) || atEdge || !e.cancelable) {
+        t.mode = "page";
+        return;
+      }
+      t.mode = "dial";
+    }
+    if (e.cancelable) e.preventDefault();
+    const dt = e.timeStamp - t.lastT;
+    if (dt > 0) t.v = 0.7 * ((p.clientY - t.lastY) / dt) + 0.3 * t.v;
+    t.lastY = p.clientY;
+    t.lastT = e.timeStamp;
+    const n = Math.trunc(-dy / dialRowPx());
+    if (n === 0) return;
+    const target = dialTarget(t.from, n);
+    if (target !== t.applied) {
+      t.applied = target;
+      pickDial(target);
+    }
+  });
+  const onDialTouchEnd = useEffectEvent((e: TouchEvent) => {
+    const t = dialTouch.current;
+    dialTouch.current = null;
+    if (!t || t.mode !== "dial" || e.type === "touchcancel") return;
+    // Взмах: чем быстрее, тем дальше докручивает (не больше шести строк).
+    // Палец, остановившийся перед отпусканием, не докручивает ничего.
+    if (e.timeStamp - t.lastT > 80 || Math.abs(t.v) < 0.35) return;
+    const extra = Math.max(-6, Math.min(6, Math.round((-t.v * 160) / dialRowPx())));
+    if (!extra) return;
+    const base = t.applied >= 0 ? t.applied : dialTarget(t.from, extra > 0 ? 1 : -1);
+    const target = Math.min(dialItems.length - 1, Math.max(0, base + extra));
+    if (target !== t.applied) pickDial(target);
+  });
+  // Слушатели нативные: React вешает wheel и touchmove пассивными, и
+  // preventDefault в них не сработал бы — страница уезжала бы вместе с
+  // кругом. touchstart пассивный намеренно: отменять его нельзя — пропало бы
+  // нажатие на строку. Переподписка на смену шага: сцена появляется только
+  // после согласия, а шаг «Подарок» может открыться сразу из черновика.
   useEffect(() => {
     const el = orbRef.current;
     if (!el) return;
-    const handler = (e: WheelEvent) => onDialWheel(e);
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
+    const wheel = (e: WheelEvent) => onDialWheel(e);
+    const start = (e: TouchEvent) => onDialTouchStart(e);
+    const move = (e: TouchEvent) => onDialTouchMove(e);
+    const end = (e: TouchEvent) => onDialTouchEnd(e);
+    el.addEventListener("wheel", wheel, { passive: false });
+    el.addEventListener("touchstart", start, { passive: true });
+    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchend", end, { passive: true });
+    el.addEventListener("touchcancel", end, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", wheel);
+      el.removeEventListener("touchstart", start);
+      el.removeEventListener("touchmove", move);
+      el.removeEventListener("touchend", end);
+      el.removeEventListener("touchcancel", end);
+    };
   }, [step, acceptedNow, introDone]);
 
   /**
