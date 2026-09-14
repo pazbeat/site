@@ -2479,11 +2479,16 @@ h3,
 .stg__ptitle--sum{font-family:var(--font-sans),system-ui,sans-serif;font-weight:700;letter-spacing:-.02em}
 .stg__pgift{flex:none;font-size:.6em;font-weight:700;letter-spacing:.2em;text-transform:uppercase;opacity:.75}
 .stg__psub{font-size:.82em;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* Имя и поздравление — одной строкой: две строки поднимали полосу вдвое. */
-.stg__pfor{display:flex;flex-direction:row;align-items:baseline;gap:.4em;min-width:0}
-.stg__pto{flex:none;max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}
+/* Имя и поздравление — одной строкой: две строки поднимали полосу вдвое.
+   Ширину делят по длине: при нехватке места первым сокращается поздравление,
+   имя режется только если само длиннее строки. Процентная max-width тут не
+   годится — она считается от строки, ширина которой сама зависит от текста,
+   и «Для: Айгерим» без поздравления обрезалось до одной буквы. */
+.stg__pfor{display:flex;flex-direction:row;align-items:baseline;gap:.4em;min-width:0;overflow:hidden}
+.stg__pto{flex:0 1 auto;min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;
+     text-overflow:ellipsis;opacity:.95}
 .stg__pmsg{font-family:var(--font-display),Georgia,serif;font-style:italic;font-size:1em;
-     min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+     flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
 .stg__pcode{flex:none;font-weight:700;letter-spacing:.14em;font-size:.9em}
 
 /* ── Циферблат ───────────────────────────────────────────────────────────
