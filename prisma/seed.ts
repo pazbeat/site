@@ -176,8 +176,6 @@ async function main() {
   await prisma.setting.createMany({
     data: [
       { key: "certificate_validity_months", value: 3 },
-      { key: "custom_amount_min_kzt", value: 18000 },
-      { key: "custom_amount_max_kzt", value: 500000 },
       {
         key: "contacts",
         value: { phone: "+7 708 111 8098", email: "spa@imbir.kz" },

@@ -46,6 +46,16 @@ export function HeroShowcase({
   const [muted, setMuted] = useState(true);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const userMutedRef = useRef(false);
+  // Приветствие звучит ОДИН раз за визит. Ролик крутится дальше, но молча:
+  // повтор «здравствуйте» каждые полминуты у человека, который просто читает
+  // страницу, раздражает (замечание заказчика 2026-09-14). Кнопка звука
+  // сильнее правила: нажал — звук идёт и на следующих кругах.
+  const autoSoundUsedRef = useRef(false);
+  const userUnmutedRef = useRef(false);
+  const soundAllowed = (withSound: boolean) =>
+    withSound &&
+    !userMutedRef.current &&
+    (userUnmutedRef.current || !autoSoundUsedRef.current);
   // Человек мог попросить систему убрать анимацию — тогда никакого
   // самозапуска и никакой автосмены слайдов: показываем постер. Это
   // требование ТЗ, и правилом в CSS его не закрыть — видео стартует отсюда.
@@ -72,15 +82,25 @@ export function HeroShowcase({
     const withSound = !!slides[current].sound;
 
     v.currentTime = 0;
-    v.muted = withSound ? userMutedRef.current : true;
+    const allowSound = soundAllowed(withSound);
+    v.muted = !allowSound;
     setMuted(v.muted);
     const attempt = v.play();
     if (attempt) {
-      attempt.catch(() => {
-        v.muted = true;
-        setMuted(true);
-        v.play().catch(() => {});
-      });
+      attempt
+        .then(() => {
+          // «Уже прозвучало» отмечаем по факту: браузер часто не даёт звук до
+          // первого касания страницы, и записывать попытку в прозвучавшее
+          // значило бы навсегда лишить посетителя приветствия.
+          if (!v.muted) autoSoundUsedRef.current = true;
+        })
+        .catch(() => {
+          v.muted = true;
+          setMuted(true);
+          v.play().catch(() => {});
+        });
+    } else if (allowSound) {
+      autoSoundUsedRef.current = true;
     }
 
     const advance = () => setCurrent((c) => (c + 1) % slides.length);
@@ -102,8 +122,11 @@ export function HeroShowcase({
   useEffect(() => {
     const enable = () => {
       const v = videoRefs.current[current];
-      if (v && slides[current]?.sound && !userMutedRef.current && v.muted) {
+      // Браузер не дал звук до первого касания страницы — включаем тогда,
+      // но по тому же правилу: один раз за визит.
+      if (v && v.muted && soundAllowed(!!slides[current]?.sound)) {
         v.muted = false;
+        autoSoundUsedRef.current = true;
         setMuted(false);
       }
       document.removeEventListener("pointerdown", enable);
@@ -118,6 +141,8 @@ export function HeroShowcase({
     const next = !v.muted;
     v.muted = next;
     userMutedRef.current = next;
+    userUnmutedRef.current = !next;
+    if (!next) autoSoundUsedRef.current = true;
     setMuted(next);
   }
 

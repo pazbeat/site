@@ -12,16 +12,41 @@ import {
 import { prisma } from "@/lib/db";
 import { formatKzt } from "@/lib/format";
 import { isAbVariant } from "@/lib/ab";
+import { availableNominalAmounts } from "@/lib/altegio/catalog";
 
 export default async function AdminNominalsPage() {
   const admin = await requireCatalogEditor();
-  const nominals = await prisma.nominal.findMany({ orderBy: { sort: "asc" } });
+  const [nominals, salons] = await Promise.all([
+    prisma.nominal.findMany({ orderBy: { sort: "asc" } }),
+    prisma.salon.findMany({
+      where: { orderable: true, active: true },
+      select: { id: true, altegioLocationId: true },
+    }),
+  ]);
   const experimentOn = nominals.some((n) => isAbVariant(n.variant));
+  // В Altegio под каждую сумму нужен свой товар-сертификат: сумма без товара
+  // не выпустится, и на круге конструктора её быть не должно. Считаем, в
+  // скольких продаваемых филиалах сумма реально заведена.
+  const amounts = nominals.map((n) => n.amountKzt);
+  const issuableIn = new Map<number, number>(
+    amounts.map((a) => [
+      a,
+      salons.filter(
+        (s) =>
+          s.altegioLocationId !== null &&
+          availableNominalAmounts(s.altegioLocationId, [a]).length > 0,
+      ).length,
+    ]),
+  );
+  const salonCount = salons.length;
 
   return (
     <AdminChrome email={admin.email} role={admin.role} title="Номиналы">
       <p className="mb-4 max-w-3xl text-sm text-brand-purple-950/60">
-        Готовые суммы сертификата. Колонка «A/B» запускает тест цен: поставьте
+        Суммы на круге конструктора: что здесь включено, то покупатель и
+        видит. Колонка «В Altegio» показывает, в скольких филиалах сумма
+        реально выпустится — сумму без товара покупать нельзя, её лучше
+        скрыть. Колонка «A/B» запускает тест цен: поставьте
         одним номиналам группу A, другим B — половина посетителей увидит первый
         набор, половина второй. Номинал без группы видят все.{" "}
         {experimentOn ? (
@@ -54,6 +79,7 @@ export default async function AdminNominalsPage() {
               <th className="px-4 py-3 font-semibold">Сумма</th>
               <th className="px-4 py-3 font-semibold">Метка</th>
               <th className="px-4 py-3 font-semibold">A/B</th>
+              <th className="px-4 py-3 font-semibold">В Altegio</th>
               <th className="px-4 py-3 font-semibold">Статус</th>
               <th className="px-4 py-3" />
             </tr>
@@ -79,6 +105,29 @@ export default async function AdminNominalsPage() {
                       { value: "B", label: "Только B" },
                     ]}
                   />
+                </td>
+                <td className="px-4 py-3">
+                  {(() => {
+                    const ok = issuableIn.get(n.amountKzt) ?? 0;
+                    if (ok === 0) {
+                      return (
+                        <span className="font-semibold text-brand-red">
+                          нет товара — не выпустится
+                        </span>
+                      );
+                    }
+                    return (
+                      <span
+                        className={
+                          ok === salonCount ? "" : "text-brand-gold"
+                        }
+                      >
+                        {ok === salonCount
+                          ? `во всех ${salonCount} филиалах`
+                          : `в ${ok} из ${salonCount} филиалов`}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   {n.active ? "Активен" : "Скрыт"}

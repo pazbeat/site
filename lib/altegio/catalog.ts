@@ -574,13 +574,24 @@ export const SITE_NOMINALS: readonly number[] = [
 ];
 
 /**
- * Суммы витрины, под которые в филиале есть товар-сертификат, по возрастанию.
+ * Суммы, под которые в филиале есть товар-сертификат, по возрастанию.
  * Свободного ввода суммы в Altegio нет — баланс задаёт тип товара, поэтому
  * покупатель выбирает только из этого списка, и сервер принимает только его.
+ *
+ * Что предлагать, решает АДМИНКА: список сумм (`amounts`) приходит из таблицы
+ * `nominals` — добавили или скрыли там, изменилось на сайте. Здесь остаётся
+ * только вторая половина правила: сумма должна быть заведена в Altegio, иначе
+ * покупатель заплатит за сертификат, которого кассир в CRM не найдёт.
+ * `SITE_NOMINALS` — ряд по умолчанию (сид и разовые скрипты), не витрина.
  */
-export function availableNominalAmounts(companyId: number): number[] {
+export function availableNominalAmounts(
+  companyId: number,
+  amounts: readonly number[] = SITE_NOMINALS,
+): number[] {
   const goods = NOMINAL_GOODS[String(companyId)] ?? {};
-  return SITE_NOMINALS.filter((a) => goods[String(a)] !== undefined);
+  return [...amounts]
+    .filter((a) => goods[String(a)] !== undefined)
+    .sort((a, b) => a - b);
 }
 
 /** Складские параметры филиала или null. */

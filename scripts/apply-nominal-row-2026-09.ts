@@ -1,15 +1,20 @@
 /**
- * Ряд номиналов витрины — как на действующем сайте sert.imbir.kz
- * (снимок заказчика 2026-09-14): 20 000 … 200 000, суммы 18 000 в ряду нет.
+ * Ряд номиналов витрины в таблице `nominals` — как на действующем сайте
+ * sert.imbir.kz (снимок заказчика 2026-09-14): 20 000 … 200 000.
  *
- * Сам ряд круга берётся из `SITE_NOMINALS` в коде; здесь правится таблица
- * `nominals` — это номиналы админки: они дают подписи («Хит»), короткий набор
- * кнопок для филиалов без привязки к CRM и ссылки вида `/create?nominal=…`.
- * Номинал 18 000 из этого набора переводится в 20 000, чтобы ни одна ссылка
- * и ни одна кнопка не вела на сумму, которой на витрине больше нет.
+ * С 2026-09-14 круг конструктора строится ИЗ ЭТОЙ ТАБЛИЦЫ (пересечённой с
+ * товарами Altegio по филиалу), поэтому в ней должен лежать весь ряд: раньше
+ * там было пять номиналов, а на витрине — восемнадцать сумм из кода, и
+ * админка на витрину не влияла.
  *
- * Идемпотентно: если 20 000 уже есть, лишний 18 000 просто выключается.
- * Каталог помечен `server-only`, поэтому запуск как у сверки:
+ * Что делает:
+ *  - заводит недостающие суммы ряда (метки и сортировку существующих не трогает);
+ *  - включает выключенные суммы ряда;
+ *  - выключает активные суммы ВНЕ ряда (например тестовый 100 ₸) — на витрине
+ *    их быть не должно; вернуть можно кнопкой «Показать» в админке;
+ *  - сортировку выставляет по возрастанию суммы.
+ *
+ * Идемпотентно. Каталог помечен `server-only`, поэтому запуск как у сверки:
  *   NODE_OPTIONS=--conditions=react-server npx tsx scripts/apply-nominal-row-2026-09.ts        — применить
  *   NODE_OPTIONS=--conditions=react-server npx tsx scripts/apply-nominal-row-2026-09.ts --dry  — показать
  */
@@ -23,31 +28,52 @@ async function main() {
   const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
   const prisma = new PrismaClient({ adapter });
   try {
-    const all = await prisma.nominal.findMany({ orderBy: { amountKzt: "asc" } });
-    console.log("было:", all.map((n) => `${n.amountKzt}${n.active ? "" : " (выкл)"}`).join(", "));
+    const before = await prisma.nominal.findMany({ orderBy: { amountKzt: "asc" } });
+    console.log(
+      "было:",
+      before.map((n) => `${n.amountKzt}${n.active ? "" : " (выкл)"}`).join(", "),
+    );
 
-    const old = all.find((n) => n.amountKzt === 18000);
-    const has20 = all.find((n) => n.amountKzt === 20000);
-    if (!old) {
-      console.log("= номинала 18 000 нет — правка не нужна");
-    } else if (has20) {
-      console.log(`${dry ? "~" : "✓"} 20 000 уже есть — выключаем 18 000 (id ${old.id})`);
-      if (!dry) await prisma.nominal.update({ where: { id: old.id }, data: { active: false } });
-    } else {
-      console.log(`${dry ? "~" : "✓"} 18 000 → 20 000 (id ${old.id}, метка и сортировка сохраняются)`);
-      if (!dry) await prisma.nominal.update({ where: { id: old.id }, data: { amountKzt: 20000 } });
+    const row = [...SITE_NOMINALS].sort((a, b) => a - b);
+    const byAmount = new Map(before.map((n) => [n.amountKzt, n]));
+
+    for (const [i, amountKzt] of row.entries()) {
+      const found = byAmount.get(amountKzt);
+      if (!found) {
+        console.log(`${dry ? "~" : "+"} добавить ${amountKzt} ₸`);
+        if (!dry) {
+          await prisma.nominal.create({ data: { amountKzt, sort: i, active: true } });
+        }
+        continue;
+      }
+      const needs = !found.active || found.sort !== i;
+      if (needs) {
+        console.log(
+          `${dry ? "~" : "✓"} ${amountKzt} ₸: ${found.active ? "" : "включить, "}порядок ${found.sort} → ${i}`,
+        );
+        if (!dry) {
+          await prisma.nominal.update({
+            where: { id: found.id },
+            data: { active: true, sort: i },
+          });
+        }
+      }
     }
 
-    // Проверка: каждая активная сумма админки должна быть на витрине или быть
-    // служебной (тестовые 100 ₸). Иначе ссылка ведёт на сумму, которой нет.
-    const after = await prisma.nominal.findMany({ where: { active: true }, orderBy: { amountKzt: "asc" } });
-    const strays = after.filter((n) => n.amountKzt !== 100 && !SITE_NOMINALS.includes(n.amountKzt));
-    console.log("стало:", after.map((n) => n.amountKzt).join(", "));
-    if (strays.length) {
-      console.log("! вне ряда витрины:", strays.map((n) => n.amountKzt).join(", "));
-    } else {
-      console.log("все активные номиналы админки есть на витрине");
+    const strays = before.filter((n) => n.active && !row.includes(n.amountKzt));
+    for (const n of strays) {
+      console.log(`${dry ? "~" : "−"} скрыть ${n.amountKzt} ₸ (вне ряда витрины${n.label ? `, метка «${n.label}»` : ""})`);
+      if (!dry) {
+        await prisma.nominal.update({ where: { id: n.id }, data: { active: false } });
+      }
     }
+
+    const after = await prisma.nominal.findMany({
+      where: { active: true },
+      orderBy: { sort: "asc" },
+    });
+    console.log("стало на витрине:", after.map((n) => n.amountKzt).join(", "));
+    console.log(dry ? "проверка без записи" : "готово");
   } finally {
     await prisma.$disconnect();
   }

@@ -29,7 +29,6 @@ type Props = Readonly<{
   programs: ProgramDto[];
   nominals: NominalDto[];
   designs: DesignDto[];
-  bounds: { min: number; max: number };
   /**
    * Филиал → суммы, под которые в Altegio есть товар-сертификат. Свободного
    * ввода суммы там нет: баланс задаёт тип товара. Предлагать покупателю
@@ -126,7 +125,6 @@ export function BuilderClient({
   programs,
   nominals,
   designs,
-  bounds,
   amountsBySalon,
   allAmounts,
   optionSalons,
@@ -547,9 +545,7 @@ export function BuilderClient({
     const byAmount = new Map(nominals.map((n) => [n.amountKzt, n] as const));
     const source =
       allAmounts.length > 0 ? allAmounts : nominals.map((n) => n.amountKzt);
-    return [...new Set(source)]
-      .filter((a) => a >= bounds.min && a <= bounds.max)
-      .sort((a, b) => a - b)
+    return [...new Set(source)].sort((a, b) => a - b)
       .map((a) => ({
         amountKzt: a,
         label: byAmount.get(a)?.label ?? null,

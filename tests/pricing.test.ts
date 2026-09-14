@@ -42,8 +42,9 @@ vi.mock("../lib/db", () => ({
     programOption: { findUnique: async () => null },
   },
 }));
+// Суммы витрины задаёт админка (таблица nominals) — здесь подменяем её.
 vi.mock("../lib/data", () => ({
-  getCustomAmountBounds: async () => ({ min: 18000, max: 500000 }),
+  getStorefrontAmounts: async () => [20000, 25000, 30000, 50000, 100000],
 }));
 
 const { resolveOrderAmount } = await import("../lib/pricing");
@@ -86,10 +87,11 @@ describe("resolveOrderAmount: покупатель выбирает только
     expect(r).toMatchObject({ ok: true, amountKzt: 50000 });
   });
 
-  it("сумма вне границ — своя ошибка", async () => {
+  it("сумма, скрытая в админке, не принимается", async () => {
+    // 10 000 нет в списке админки — покупать нечего, даже если товар нашёлся.
     expect(await resolveOrderAmount(1, amount(10000))).toEqual({
       ok: false,
-      error: "amount_out_of_bounds",
+      error: "amount_not_available",
     });
   });
 

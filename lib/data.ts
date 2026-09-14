@@ -158,33 +158,37 @@ export const getSetting = cache(async (key: string) => {
 });
 
 /**
- * Суммы витрины, доступные покупателю на выбранном филиале: список сайта
- * (`SITE_NOMINALS`), под который в филиале есть товар в Altegio, в пределах
- * настроенного диапазона. Пустой список — филиал не привязан к CRM: суммой по
- * списку там не купить (сервер откажет), остаются только номиналы из админки.
+ * Суммы витрины — активные номиналы админки: что там включено, то и на круге
+ * конструктора. Диапазоном из настроек список больше не режется: свободного
+ * ввода суммы нет, и «минимум» молча выбрасывал бы добавленный номинал.
  */
-export async function getAvailableAmounts(salonId: number): Promise<number[]> {
-  const [salon, bounds] = await Promise.all([
+export const getStorefrontAmounts = cache(async (): Promise<number[]> => {
+  const rows = await prisma.nominal.findMany({
+    where: { active: true },
+    select: { amountKzt: true },
+    orderBy: { amountKzt: "asc" },
+  });
+  return rows.map((r) => r.amountKzt);
+});
+
+/**
+ * Суммы админки, которые реально выпустятся в этом филиале: пересечение с
+ * товарами Altegio. Пустой список — филиал не привязан к CRM: суммой там не
+ * купить вовсе (сервер откажет).
+ */
+export async function getAvailableAmounts(
+  salonId: number,
+  amounts?: readonly number[],
+): Promise<number[]> {
+  const [salon, list] = await Promise.all([
     prisma.salon.findUnique({
       where: { id: salonId },
       select: { altegioLocationId: true },
     }),
-    getCustomAmountBounds(),
+    amounts ? Promise.resolve(amounts) : getStorefrontAmounts(),
   ]);
   if (!salon?.altegioLocationId) return [];
   const { availableNominalAmounts } = await import("./altegio/catalog");
-  return availableNominalAmounts(salon.altegioLocationId).filter(
-    (a) => a >= bounds.min && a <= bounds.max,
-  );
+  return availableNominalAmounts(salon.altegioLocationId, list);
 }
 
-export async function getCustomAmountBounds() {
-  const [min, max] = await Promise.all([
-    getSetting("custom_amount_min_kzt"),
-    getSetting("custom_amount_max_kzt"),
-  ]);
-  return {
-    min: typeof min === "number" ? min : 18_000,
-    max: typeof max === "number" ? max : 500_000,
-  };
-}

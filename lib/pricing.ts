@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "./db";
-import { getCustomAmountBounds } from "./data";
+import { getStorefrontAmounts } from "./data";
 import {
   availableNominalAmounts,
   resolveGoodId,
@@ -149,18 +149,17 @@ export async function resolveOrderAmount(
   if (typeof custom !== "number") {
     return { ok: false, error: "amount_out_of_bounds" };
   }
-  const bounds = await getCustomAmountBounds();
-  if (custom < bounds.min || custom > bounds.max) {
-    return { ok: false, error: "amount_out_of_bounds" };
-  }
-  // Покупатель: только сумма из списка витрины этого филиала. Филиал без
-  // привязки к Altegio не принимает сумму по списку вовсе — проверить её
-  // нечем, а issuable() такой филиал пропускает, и заказ на любую сумму
-  // оплачивался бы мимо CRM. Номинал из админки (nominalId) идёт своим путём.
+  // Покупатель: только сумма, включённая в админке И заведённая в Altegio для
+  // этого филиала. Филиал без привязки к Altegio не принимает сумму вовсе —
+  // проверить её нечем, а issuable() такой филиал пропускает, и заказ на
+  // любую сумму оплачивался бы мимо CRM. Диапазон из настроек здесь не
+  // проверяется: список админки и есть витрина. Номинал из админки
+  // (nominalId) идёт своим путём.
   if (!options.allowAnyAmount) {
+    const amounts = await getStorefrontAmounts();
     if (
       !salon.altegioLocationId ||
-      !availableNominalAmounts(salon.altegioLocationId).includes(custom)
+      !availableNominalAmounts(salon.altegioLocationId, amounts).includes(custom)
     ) {
       return { ok: false, error: "amount_not_available" };
     }

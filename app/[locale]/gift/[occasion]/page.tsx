@@ -9,6 +9,12 @@ import { getSellablePrograms } from "@/lib/data";
 import { toProgramDto } from "@/lib/dto";
 import { OCCASIONS, getOccasion, pickOccasionPrograms } from "@/lib/occasions";
 
+// Страница собирается заранее (SSG), а программы приходят из админки:
+// без пересборки снятая с продажи программа висела бы здесь ещё долго.
+// Пять минут — компромисс: посадочная страница остаётся быстрой, а правка
+// в админке доезжает сама.
+export const revalidate = 300;
+
 export function generateStaticParams() {
   return OCCASIONS.map((o) => ({ occasion: o.slug }));
 }

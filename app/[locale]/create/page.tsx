@@ -16,7 +16,6 @@ import {
   getActiveNominals,
   getActiveSalons,
   getAvailableAmounts,
-  getCustomAmountBounds,
   getLegalVersionForLocale,
   getSellablePrograms,
 } from "@/lib/data";
@@ -60,14 +59,13 @@ export default async function CreatePage({
   const demoEnabled =
     mockEnabled() && (await currentAdmin()) !== null;
 
-  const [salons, sellable, nominals, designs, bounds, consentDoc] =
+  const [salons, sellable, nominals, designs, consentDoc] =
     await Promise.all([
       getActiveSalons(),
       // Только варианты с товаром в Altegio — см. getSellablePrograms.
       getSellablePrograms(),
       getActiveNominals(),
       getActiveDesigns(),
-      getCustomAmountBounds(),
       // Текст consent-модалки из админки (PRD §5.2), на языке посетителя;
       // санитизирован при сохранении. Пусто → встроенный текст из переводов.
       getLegalVersionForLocale("consent_modal", locale),
@@ -82,6 +80,9 @@ export default async function CreatePage({
   const visibleNominals = filterByVariant(nominals, abVariant);
 
   const nominalDtos = visibleNominals.map(toNominalDto);
+  // Круг сумм — это номиналы админки (с поправкой на A/B): включили или
+  // скрыли там, изменилось здесь. Второе условие — товар в Altegio.
+  const storefrontAmounts = visibleNominals.map((n) => n.amountKzt);
   const designDtos = designs.map((d) => toDesignDto(d, locale));
 
   // Суммы витрины по филиалам: в Altegio под каждую сумму нужен свой
@@ -92,7 +93,8 @@ export default async function CreatePage({
   const amountsBySalon: Record<number, number[]> = Object.fromEntries(
     await Promise.all(
       orderableSalons.map(
-        async (s) => [s.id, await getAvailableAmounts(s.id)] as const,
+        async (s) =>
+          [s.id, await getAvailableAmounts(s.id, storefrontAmounts)] as const,
       ),
     ),
   );
@@ -114,9 +116,7 @@ export default async function CreatePage({
   const sampleOptionId =
     thai.flatMap((p) => p.options).find((o) => o.durationMin === 90)?.id ??
     thai[0]?.options[0]?.id ??
-    sellable.programs
-      .flatMap((p) => p.options)
-      .find((o) => o.priceKzt >= bounds.min)?.id;
+    sellable.programs.flatMap((p) => p.options)[0]?.id;
 
   // Дожим: ?resume=token → предзаполнение из ранее брошенного заказа
   const resume = query.resume
@@ -147,7 +147,6 @@ export default async function CreatePage({
           programs={programDtos}
           nominals={nominalDtos}
           designs={designDtos}
-          bounds={bounds}
           amountsBySalon={amountsBySalon}
           allAmounts={allAmounts}
           optionSalons={optionSalons}
