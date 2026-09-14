@@ -2,7 +2,8 @@ import Link from "next/link";
 import { requireCatalogEditor } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { ToggleActiveButton } from "@/components/admin/toggle-active";
-import { toggleProgramActiveAction } from "./actions";
+import { DeleteRowButton } from "@/components/admin/delete-row";
+import { deleteProgramAction, toggleProgramActiveAction } from "./actions";
 import { prisma } from "@/lib/db";
 import { pickL10n } from "@/lib/l10n";
 import { formatKzt } from "@/lib/format";
@@ -72,11 +73,20 @@ export default async function AdminProgramsPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <ToggleActiveButton
-                    id={p.id}
-                    active={p.active}
-                    action={toggleProgramActiveAction}
-                  />
+                  <div className="flex justify-end gap-2">
+                    <ToggleActiveButton
+                      id={p.id}
+                      active={p.active}
+                      action={toggleProgramActiveAction}
+                    />
+                    <DeleteRowButton
+                      id={p.id}
+                      name={pickL10n(p.names, "ru")}
+                      what="программу"
+                      body="Программа со всеми вариантами длительности исчезнет с сайта и из админки. Если по ней уже продавали сертификаты, удалить не получится — тогда «Скрыть»."
+                      action={deleteProgramAction}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}

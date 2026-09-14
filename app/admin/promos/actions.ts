@@ -114,6 +114,36 @@ export async function savePromoAction(formData: FormData) {
   return { ok: true };
 }
 
+/**
+ * Удаление промокода — только если по нему не было заказов: заказ ссылается
+ * на строку промокода, и удаление порвало бы эту связь (в отчётах и в сверке
+ * скидка осталась бы без объяснения). Использованный — «Скрыть».
+ */
+export async function deletePromoAction(formData: FormData) {
+  const admin = await requireCatalogEditor();
+  const id = Number(formData.get("id"));
+  const promo = await prisma.promo.findUnique({ where: { id } });
+  if (!promo) return { error: "Промокод не найден." };
+
+  const used = await prisma.order.count({ where: { promoId: id } });
+  if (used > 0) {
+    return {
+      error: `Нельзя удалить: по промокоду есть заказы — ${used}. Скройте его вместо удаления.`,
+    };
+  }
+
+  await prisma.promo.delete({ where: { id } });
+  await auditLog({
+    actor: admin.email,
+    action: "promo.delete",
+    entity: "promo",
+    entityId: String(id),
+    diff: { code: promo.code },
+  });
+  revalidatePath("/admin/promos");
+  return { ok: true };
+}
+
 export async function togglePromoActiveAction(formData: FormData) {
   const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));

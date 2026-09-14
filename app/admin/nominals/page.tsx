@@ -2,9 +2,11 @@ import Link from "next/link";
 import { requireCatalogEditor } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { ToggleActiveButton } from "@/components/admin/toggle-active";
+import { DeleteRowButton } from "@/components/admin/delete-row";
 import { InlineCreateForm } from "@/components/admin/inline-create";
 import { StatusSelect } from "@/components/admin/status-select";
 import {
+  deleteNominalAction,
   saveNominalAction,
   setNominalVariantAction,
   toggleNominalActiveAction,
@@ -133,11 +135,20 @@ export default async function AdminNominalsPage() {
                   {n.active ? "Активен" : "Скрыт"}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <ToggleActiveButton
-                    id={n.id}
-                    active={n.active}
-                    action={toggleNominalActiveAction}
-                  />
+                  <div className="flex justify-end gap-2">
+                    <ToggleActiveButton
+                      id={n.id}
+                      active={n.active}
+                      action={toggleNominalActiveAction}
+                    />
+                    <DeleteRowButton
+                      id={n.id}
+                      name={formatKzt(n.amountKzt)}
+                      what="номинал"
+                      body="Сумма пропадёт с круга конструктора — купить её будет нельзя. Уже выпущенные сертификаты не изменятся: сумма записана в них самих. Если сумму нужно убрать временно, лучше «Скрыть»."
+                      action={deleteNominalAction}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}

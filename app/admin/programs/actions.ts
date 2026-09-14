@@ -174,6 +174,50 @@ export async function saveProgramAction(formData: FormData) {
   return { ok: true };
 }
 
+/**
+ * Удаление программы — только если по её вариантам не продано ни одного
+ * сертификата (PRD §6.2): иначе в проданном сертификате не останется, что
+ * именно куплено. Есть продажи — «Скрыть»: программа исчезнет с витрины, а
+ * история сохранится.
+ */
+export async function deleteProgramAction(formData: FormData) {
+  const admin = await requireCatalogEditor();
+  const id = Number(formData.get("id"));
+  const program = await prisma.program.findUnique({
+    where: { id },
+    include: { options: { select: { id: true } } },
+  });
+  if (!program) return { error: "Программа не найдена." };
+
+  const optionIds = program.options.map((o) => o.id);
+  const sold = optionIds.length
+    ? await prisma.certificate.count({
+        where: { programOptionId: { in: optionIds } },
+      })
+    : 0;
+  if (sold > 0) {
+    return {
+      error: `Нельзя удалить: по этой программе продано сертификатов — ${sold}. Скройте её вместо удаления.`,
+    };
+  }
+
+  const nameRu = (program.names as { ru?: string }).ru ?? `#${id}`;
+  await prisma.$transaction([
+    prisma.programOption.deleteMany({ where: { programId: id } }),
+    prisma.program.delete({ where: { id } }),
+  ]);
+  if (program.photoUrl) await deleteUpload(program.photoUrl, "programs");
+  await auditLog({
+    actor: admin.email,
+    action: "program.delete",
+    entity: "program",
+    entityId: String(id),
+    diff: { name: nameRu, options: optionIds.length },
+  });
+  revalidatePath("/admin/programs");
+  return { ok: true };
+}
+
 /** Деактивация/активация. Удаление запрещено, если есть проданные сертификаты (PRD §6.2). */
 export async function toggleProgramActiveAction(formData: FormData) {
   const admin = await requireCatalogEditor();

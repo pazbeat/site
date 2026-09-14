@@ -75,6 +75,30 @@ export async function saveNominalAction(formData: FormData) {
   return { ok: true };
 }
 
+/**
+ * Удаление номинала. История продаж не пострадает: в заказе лежит снимок
+ * позиции (сумма и вид), ссылки на строку номинала там нет. Поэтому запрета
+ * нет — но спрашиваем подтверждение в интерфейсе и пишем в журнал.
+ */
+export async function deleteNominalAction(formData: FormData) {
+  const admin = await requireCatalogEditor();
+  const id = Number(formData.get("id"));
+  const nominal = await prisma.nominal.findUnique({ where: { id } });
+  if (!nominal) return { error: "Номинал не найден." };
+
+  await prisma.nominal.delete({ where: { id } });
+  await auditLog({
+    actor: admin.email,
+    action: "nominal.delete",
+    entity: "nominal",
+    entityId: String(id),
+    diff: { amountKzt: nominal.amountKzt, label: nominal.label },
+  });
+  revalidatePath("/admin/nominals");
+  revalidatePath("/admin/experiments");
+  return { ok: true };
+}
+
 export async function toggleNominalActiveAction(formData: FormData) {
   const admin = await requireCatalogEditor();
   const id = Number(formData.get("id"));

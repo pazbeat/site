@@ -1,8 +1,13 @@
 import { requireCatalogEditor } from "@/lib/admin/guard";
 import { AdminChrome } from "@/components/admin/chrome";
 import { ToggleActiveButton } from "@/components/admin/toggle-active";
+import { DeleteRowButton } from "@/components/admin/delete-row";
 import { PromoForm, type PromoFormValues } from "@/components/admin/promo-form";
-import { savePromoAction, togglePromoActiveAction } from "./actions";
+import {
+  deletePromoAction,
+  savePromoAction,
+  togglePromoActiveAction,
+} from "./actions";
 import { prisma } from "@/lib/db";
 import { formatKzt } from "@/lib/format";
 import { promoState, type PromoLimits, type PromoState } from "@/lib/promo";
@@ -183,11 +188,20 @@ export default async function AdminPromosPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col items-end gap-2">
-                      <ToggleActiveButton
-                        id={p.id}
-                        active={p.active}
-                        action={togglePromoActiveAction}
-                      />
+                      <div className="flex gap-2">
+                        <ToggleActiveButton
+                          id={p.id}
+                          active={p.active}
+                          action={togglePromoActiveAction}
+                        />
+                        <DeleteRowButton
+                          id={p.id}
+                          name={p.code}
+                          what="промокод"
+                          body="Код исчезнет насовсем, ввести его на сайте будет нельзя. Если по нему уже были заказы, удалить не получится — тогда «Скрыть»."
+                          action={deletePromoAction}
+                        />
+                      </div>
                       <details className="w-full">
                         <summary className="cursor-pointer text-right text-xs font-semibold text-brand-purple hover:underline">
                           Изменить
