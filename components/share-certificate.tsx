@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type Props = Readonly<{
   /** Ссылка на PDF сертификата (с токеном заказа). */
@@ -14,6 +14,10 @@ type Props = Readonly<{
   /** Подпись запасной ссылки «отправить текстом». */
   textLabel: string;
   fileName: string;
+  /** Классы основной кнопки — у экрана подарка своё оформление. */
+  className?: string;
+  /** Иконка перед подписью основной кнопки. */
+  icon?: ReactNode;
 }>;
 
 /**
@@ -55,6 +59,8 @@ export function ShareCertificate({
   label,
   textLabel,
   fileName,
+  className = "ui-btn px-7 py-3 text-center text-[15px]",
+  icon,
 }: Props) {
   const fileRef = useRef<File | null>(null);
   const [ready, setReady] = useState(false);
@@ -116,8 +122,9 @@ export function ShareCertificate({
       <button
         type="button"
         onClick={share}
-        className="ui-btn px-7 py-3 text-center text-[15px]"
+        className={className}
       >
+        {icon}
         {label}
       </button>
       {/* Второй путь — на случай, когда нужно именно сообщение: WhatsApp

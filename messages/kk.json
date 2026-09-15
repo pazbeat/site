@@ -299,7 +299,11 @@
     "forName": "{name} үшін",
     "fromName": "{name} сыйлайды",
     "open": "Сыйлықты ашу",
-    "openHint": "Сертификатты ашу үшін басыңыз"
+    "openHint": "Сертификатты ашу үшін басыңыз",
+    "openedEyebrow": "Сыйлық ашылды",
+    "openedTitle": "{name}, бұл сізге",
+    "openedSub": "{name} сыйлаған Imbir Thai Spa Classic сертификаты",
+    "openedSubNoFrom": "Imbir Thai Spa Classic сертификаты"
   },
   "Success": {
     "title": "Сертификат төленді!",
@@ -320,8 +324,8 @@
     "downloadPdf": "PDF жүктеу",
     "downloadReceipt": "Чекті жүктеу",
     "addToWallet": "Әмиянға қосу",
-    "createMore": "Тағы біреуін жасау",
-    "termValidUntil": "Жарамдылық мерзімі — сатып алған сәттен бастап 3 ай, {date} дейін.",
+    "createMore": "Тағы сыйлау",
+    "termValidUntil": "Жарамдылық мерзімі — сатып алған сәттен бастап 3 ай, <b>{date}</b> дейін.",
     "termBranches": "Imbir Thai Spa Classic желісінің кез келген филиалында жарамды, Imbir Platinum-нан басқа.",
     "termElectronic": "Сертификаттың тек электрондық нұсқасы қолжетімді.",
     "termBooking": "Жазылу алдын ала — 7 күн бұрын."

@@ -1,4 +1,5 @@
 import "server-only";
+import { randomInt } from "node:crypto";
 import { prisma } from "./db";
 import {
   formatSalonCode,
@@ -10,6 +11,7 @@ import { encryptSecret } from "./crypto";
 import { getSetting } from "./data";
 import { reportFailure } from "./alerts";
 import { recordPaymentEvent, type PaymentEventSource } from "./payment-events";
+import { GIFT_PALETTE_ROTATION } from "./gift-palettes";
 import type { Prisma } from "./generated/prisma/client";
 
 /** Обычный клиент Prisma или клиент внутри транзакции — оба подходят. */
@@ -195,6 +197,9 @@ export async function fulfillOrder(
         toName: item.toName,
         fromName: item.fromName,
         message: item.message || null,
+        // Цвет коробки на экране «Вам подарок» — случайный из ротации,
+        // закрепляется за сертификатом (lib/gift-palettes.ts)
+        giftPalette: GIFT_PALETTE_ROTATION[randomInt(GIFT_PALETTE_ROTATION.length)],
         deliveryMethod: item.delivery.method,
         deliveryContact: item.delivery.contact,
         scheduledAt: item.delivery.scheduledAt

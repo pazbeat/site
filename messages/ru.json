@@ -299,7 +299,11 @@
     "forName": "Для {name}",
     "fromName": "от {name}",
     "open": "Открыть подарок",
-    "openHint": "Нажмите, чтобы раскрыть сертификат"
+    "openHint": "Нажмите, чтобы раскрыть сертификат",
+    "openedEyebrow": "Подарок открыт",
+    "openedTitle": "{name}, это вам",
+    "openedSub": "Сертификат в Imbir Thai Spa Classic от {name}",
+    "openedSubNoFrom": "Сертификат в Imbir Thai Spa Classic"
   },
   "Success": {
     "title": "Сертификат оплачен!",
@@ -320,8 +324,8 @@
     "downloadPdf": "Скачать PDF",
     "downloadReceipt": "Скачать чек",
     "addToWallet": "Добавить в кошелёк",
-    "createMore": "Создать ещё один",
-    "termValidUntil": "Срок действия — 3 месяца с момента покупки, до {date}.",
+    "createMore": "Подарить ещё",
+    "termValidUntil": "Срок действия — 3 месяца с момента покупки, до <b>{date}</b>.",
     "termBranches": "Действует в любом филиале сети Imbir Thai Spa Classic, кроме Imbir Platinum.",
     "termElectronic": "Доступна только электронная версия сертификата.",
     "termBooking": "Запись предварительная — за 7 дней."

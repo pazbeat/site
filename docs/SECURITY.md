@@ -24,6 +24,7 @@
 - `GET /admin/*` без сессии → 307 на `/admin/login`; `GET /api/admin/*` → 401.
 - Вебхук оплаты с неверной подписью → 400, сертификат не создаётся; повторный валидный вебхук идемпотентен (один сертификат).
 - Production CSP: `script-src 'self' 'nonce-…' 'strict-dynamic'` (без unsafe-inline); nonce из заголовка совпадает с nonce на скриптах Next → скрипты исполняются.
+- `style-src 'self' 'unsafe-inline'` — не только ради Tailwind/Next. На нём держится версия экрана «Вам подарок» без JavaScript: `<noscript><style>` в `components/gift-reveal.tsx` открывает сертификат вместо коробки. При ужесточении стилей (nonce/hash) этот `<style>` молча перестанет применяться — без JS сертификат останется за закрытой коробкой, которую без скрипта не открыть. Ужесточая, перенести правило или дать ему nonce и проверить страницу с выключенным JavaScript.
 - Security-заголовки в проде: HSTS (preload), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy.
 
 ## Известные уязвимости (npm audit)

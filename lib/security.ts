@@ -23,7 +23,10 @@ export function buildCsp(nonce: string, isDev: boolean): string {
     `default-src 'self'`,
     `script-src ${scriptSrc}`,
     // Стили: unsafe-inline допустим (PRD запрещает inline только для скриптов);
-    // Tailwind/Next инжектят inline-стили
+    // Tailwind/Next инжектят inline-стили. На нём же держится версия экрана
+    // «Вам подарок» без JavaScript (<noscript><style> в components/gift-reveal.tsx):
+    // перейдя на nonce/hash для стилей, проверьте /success с выключенным JS —
+    // иначе сертификат молча останется за закрытой коробкой (docs/SECURITY.md).
     `style-src 'self' 'unsafe-inline'`,
     // Фото программ (imbir.kz), data:-URI (QR-превью), blob: (предпросмотр
     // загружаемой открытки в админке)

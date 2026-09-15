@@ -38,6 +38,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Локальные git worktree сессий Claude — чужие копии репозитория на своих
+    // ветках, линтить их вместе с рабочим деревом нельзя
+    ".claude/**",
   ]),
 ]);
 

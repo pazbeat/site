@@ -299,7 +299,11 @@
     "forName": "For {name}",
     "fromName": "from {name}",
     "open": "Open your gift",
-    "openHint": "Tap to reveal the certificate"
+    "openHint": "Tap to reveal the certificate",
+    "openedEyebrow": "Gift opened",
+    "openedTitle": "{name}, this is for you",
+    "openedSub": "A gift certificate to Imbir Thai Spa Classic from {name}",
+    "openedSubNoFrom": "A gift certificate to Imbir Thai Spa Classic"
   },
   "Success": {
     "title": "Certificate paid!",
@@ -320,8 +324,8 @@
     "downloadPdf": "Download PDF",
     "downloadReceipt": "Download receipt",
     "addToWallet": "Add to wallet",
-    "createMore": "Create another",
-    "termValidUntil": "Valid for 3 months from purchase, until {date}.",
+    "createMore": "Give another gift",
+    "termValidUntil": "Valid for 3 months from purchase, until <b>{date}</b>.",
     "termBranches": "Accepted at any Imbir Thai Spa Classic salon except Imbir Platinum.",
     "termElectronic": "The certificate is available in electronic form only.",
     "termBooking": "Please book at least 7 days in advance."

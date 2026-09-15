@@ -425,6 +425,12 @@ model Certificate {
   fromName          String            @map("from_name")
   /// Поздравление ≤ 120 символов (валидируется Zod'ом)
   message           String?
+  /// Цвет коробки на экране «Вам подарок» (/success): ключ палитры из
+  /// lib/gift-palettes.ts. Выпадает случайно из ротации при выпуске и
+  /// закрепляется за сертификатом — у получателя коробка не перекрашивается
+  /// от открытия к открытию. Пусто или неизвестный ключ → resolveGiftPalette
+  /// выбирает стабильно по id сертификата.
+  giftPalette       String?           @map("gift_palette")
   status            CertificateStatus @default(active)
   deliveryMethod    DeliveryMethod    @map("delivery_method")
   deliveryContact   String            @map("delivery_contact")

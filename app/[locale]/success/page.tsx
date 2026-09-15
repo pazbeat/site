@@ -1,19 +1,18 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { setRequestLocale, getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { publicOrigin } from "@/lib/site-url";
-import { ShareCertificate } from "@/components/share-certificate";
-import { CertPreview } from "@/components/cert-preview";
 import { GiftReveal } from "@/components/gift-reveal";
 import { prisma } from "@/lib/db";
 import { isWalletConfigured } from "@/lib/wallet";
 import { isGoogleWalletConfigured } from "@/lib/wallet/google";
 import { pickL10n } from "@/lib/l10n";
 import { formatDuration, formatKzt } from "@/lib/format";
-import type { DesignBgStyle } from "@/lib/types";
+import { resolveGiftPalette } from "@/lib/gift-palettes";
+import { giftOpenedCookieName } from "@/lib/gift-opened";
 
 export async function generateMetadata({
   params,
@@ -105,99 +104,55 @@ export default async function SuccessPage({
           : undefined
       : tBuilder("sumTypeNominal");
 
+  const pdfUrl = `/api/certificates/pdf?token=${encodeURIComponent(token)}`;
+  // Подарок в этом браузере уже открывали — сервер сразу отдаёт открытый
+  // экран, без коробки до гидрации (lib/gift-opened.ts)
+  const openedOnServer = (await cookies()).has(giftOpenedCookieName(token));
+
   return (
-    <main className="ui-bg flex-1 py-14 sm:py-18">
-      <div className="mx-auto max-w-xl px-5 text-center">
-        <GiftReveal
-          toName={certificate.toName}
-          fromName={certificate.fromName}
-          revealKey={token}
-        >
-          <div className="ui-check" aria-hidden="true">
-            ✓
-          </div>
-          <h1 className="mb-3 font-display text-3xl font-semibold text-brand-purple sm:text-4xl">
-            {t("title")}
-          </h1>
-          <p className="mb-8 text-sm text-brand-purple-950/65">
-            {t(giftingSelf ? "subtitleSelf" : "subtitle")}
-          </p>
-
-          <div className="mx-auto mb-8 max-w-md text-left">
-            <CertPreview
-              imageUrl={certificate.design.imageUrl}
-              bgStyle={certificate.design.bgStyle as DesignBgStyle}
-              textColor={certificate.design.textColor}
-              giftLabel={tCommon("certificate")}
-              title={title}
-              subtitle={subtitle}
-              forLabel={tBuilder("certFor", { name: certificate.toName })}
-              message={certificate.message ?? undefined}
-              code={certificate.codeDisplay}
-            />
-          </div>
-
-          {/* Блока «показать код» больше нет: номер сертификата — салонный
-              (WM0001) и напечатан прямо на карточке выше. Прятать его не от
-              кого, а сообщение «код уже был показан» только сбивало с толку. */}
-
-          <div className="mx-auto mt-9 flex max-w-sm flex-col gap-3">
-            <a
-              href={`/api/certificates/pdf?token=${encodeURIComponent(token)}`}
-              className="ui-btn px-7 py-3 text-center text-[15px]"
-            >
-              {t("downloadPdf")}
-            </a>
-            {/* Одна кнопка на обе платформы: маршрут сам смотрит на устройство
-                и уводит в Apple Wallet или в Google Кошелёк. Показываем её,
-                только если хотя бы одна платформа настроена — иначе телефон
-                упрётся в отказ. */}
-            {(isWalletConfigured() || isGoogleWalletConfigured()) && (
-              <a
-                href={`/api/certificates/wallet?token=${encodeURIComponent(token)}`}
-                className="ui-btn ui-btn--quiet px-7 py-3 text-center text-[15px]"
-              >
-                {t("addToWallet")}
-              </a>
-            )}
-            <a
-              href={`/api/certificates/receipt?token=${encodeURIComponent(token)}`}
-              className="ui-btn ui-btn--quiet px-7 py-3 text-center text-[15px]"
-            >
-              {t("downloadReceipt")}
-            </a>
-            {/* Файл, а не строка с номером: wa.me умеет только текст, сам
-                сертификат уходит через системное «Поделиться». */}
-            <ShareCertificate
-              pdfUrl={`/api/certificates/pdf?token=${encodeURIComponent(token)}`}
-              pageUrl={`${publicOrigin()}/${locale}/success?token=${encodeURIComponent(token)}`}
-              message={t("waMessage", {
-                code: certificate.codeDisplay,
-                date: validUntilLabel,
-              })}
-              label={t("waShare")}
-              textLabel={t("waShareText")}
-              fileName={t("pdfFileName", { code: certificate.codeDisplay })}
-            />
-            <Link
-              href="/create"
-              className="px-7 py-3 text-center text-[15px] font-medium text-brand-purple hover:underline"
-            >
-              {t("createMore")}
-            </Link>
-          </div>
-
-          {/* Условия — те же, что покупатель видел при согласии. Здесь они
-              нужны второй раз: сертификат часто пересылают, и получатель
-              этой страницы согласия не читал. */}
-          <ul className="mx-auto mt-10 max-w-md space-y-2.5 border-t border-brand-purple-100 pt-7 text-left text-sm text-brand-purple-950/70">
-            <li>{t("termValidUntil", { date: validUntilLabel })}</li>
-            <li>{t("termBranches")}</li>
-            <li>{t("termElectronic")}</li>
-            <li>{t("termBooking")}</li>
-          </ul>
-        </GiftReveal>
-      </div>
+    <main className="flex flex-1 flex-col">
+      <GiftReveal
+        // Цвет коробки закреплён за сертификатом при выпуске; у выпущенных до
+        // этого — стабильный по id (lib/gift-palettes.ts)
+        palette={resolveGiftPalette(certificate.giftPalette, certificate.id)}
+        revealKey={token}
+        openedOnServer={openedOnServer}
+        toName={certificate.toName}
+        fromName={certificate.fromName}
+        card={{
+          imageUrl: certificate.design.imageUrl,
+          label: tCommon("certificate"),
+          title,
+          subtitle,
+          isProgram: certificate.type === "program" && Boolean(option),
+          // Блока «показать код» больше нет: номер сертификата — салонный
+          // (WM0001) и напечатан прямо на карточке. Прятать его не от кого.
+          code: certificate.codeDisplay,
+          message: certificate.message ?? undefined,
+        }}
+        links={{
+          pdf: pdfUrl,
+          receipt: `/api/certificates/receipt?token=${encodeURIComponent(token)}`,
+          // Одна кнопка на обе платформы: маршрут сам смотрит на устройство и
+          // уводит в Apple Wallet или в Google Кошелёк. Показываем её, только
+          // если хотя бы одна платформа настроена — иначе телефон упрётся в
+          // отказ.
+          wallet:
+            isWalletConfigured() || isGoogleWalletConfigured()
+              ? `/api/certificates/wallet?token=${encodeURIComponent(token)}`
+              : null,
+        }}
+        share={{
+          pageUrl: `${publicOrigin()}/${locale}/success?token=${encodeURIComponent(token)}`,
+          message: t("waMessage", {
+            code: certificate.codeDisplay,
+            date: validUntilLabel,
+          }),
+          fileName: t("pdfFileName", { code: certificate.codeDisplay }),
+        }}
+        validUntil={validUntilLabel}
+        deliveryNote={t(giftingSelf ? "subtitleSelf" : "subtitle")}
+      />
     </main>
   );
 }

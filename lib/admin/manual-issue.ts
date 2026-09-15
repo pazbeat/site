@@ -1,4 +1,5 @@
 import "server-only";
+import { randomInt } from "node:crypto";
 import { prisma } from "../db";
 import {
   formatSalonCode,
@@ -15,6 +16,7 @@ import { resolveOrderAmount, type PricingItem } from "../pricing";
 import { generateOrderRef } from "../order-ref";
 import { reportFailure } from "../alerts";
 import { recordPaymentEvent } from "../payment-events";
+import { GIFT_PALETTE_ROTATION } from "../gift-palettes";
 
 /**
  * Полный ручной выпуск сертификата из админки.
@@ -302,6 +304,8 @@ export async function issueCertificateManually(
         toName: input.toName.trim(),
         fromName: input.fromName.trim(),
         message: input.message?.trim() || null,
+        // Цвет коробки на экране «Вам подарок» — как у обычной покупки
+        giftPalette: GIFT_PALETTE_ROTATION[randomInt(GIFT_PALETTE_ROTATION.length)],
         deliveryMethod: "email",
         deliveryContact: recipient,
         validUntil,
